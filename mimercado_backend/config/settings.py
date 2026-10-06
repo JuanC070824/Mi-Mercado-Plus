@@ -11,22 +11,24 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
+from django.core.exceptions import ImproperlyConfigured
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR.parent / '.env')
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-yz75s*p1h^eua0t_0fm-@)%k4+4&x2qys$)1t1=4nu!woex^u*'
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = []
-
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', '')
+if not SECRET_KEY:
+    raise ImproperlyConfigured('Configura DJANGO_SECRET_KEY en el .env de la raíz.')
+DEBUG = os.getenv('DJANGO_DEBUG', 'false').lower() == 'true'
+ALLOWED_HOSTS = [x.strip() for x in os.getenv('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if x.strip()]
 
 # Application definition
 
@@ -37,11 +39,15 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework',
+    'corsheaders',
+    'mvp_back',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -74,11 +80,18 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv('DB_NAME', 'defaultdb'),
+        'USER': os.getenv('DB_USER', 'avnadmin'),
+        'PASSWORD': os.getenv('DB_PASSWORD', ''),
+        'HOST': os.getenv('DB_HOST', 'localhost'),
+        'PORT': os.getenv('DB_PORT', '5432'),
+        'OPTIONS': {'sslmode': os.getenv('DB_SSLMODE', 'require')},
+        'CONN_MAX_AGE': 0,
     }
 }
-
+if os.getenv('DB_SSLROOTCERT'):
+    DATABASES['default']['OPTIONS']['sslrootcert'] = os.environ['DB_SSLROOTCERT']
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -102,9 +115,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'es-pe'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'America/Lima'
 
 USE_I18N = True
 
@@ -120,3 +133,17 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+CORS_ALLOWED_ORIGINS = [x.strip() for x in os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:3000').split(',') if x.strip()]
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': ['mvp_back.authentication.BearerAuthentication'],
+    'DEFAULT_PERMISSION_CLASSES': ['rest_framework.permissions.IsAuthenticated'],
+    'UNAUTHENTICATED_USER': None,
+    'DEFAULT_THROTTLE_RATES': {'login': '10/min', 'registro': '5/min', 'pago': '5/min'},
+    'DEFAULT_RENDERER_CLASSES': ['rest_framework.renderers.JSONRenderer'],
+}
+AUTH_TOKEN_TTL_SECONDS = int(os.getenv('AUTH_TOKEN_TTL_SECONDS', '3600'))
+PAYMENT_MODE = os.getenv('PAYMENT_MODE', 'disabled')  # mock | culqi_sandbox | disabled
+CULQI_PUBLIC_KEY = os.getenv('CULQI_PUBLIC_KEY', '')
+CULQI_SECRET_KEY = os.getenv('CULQI_SECRET_KEY', '')
+MOCK_YAPE_CODE = os.getenv('MOCK_YAPE_CODE', '123456')

@@ -1,0 +1,389 @@
+{
+  "info": {
+    "name": "MiMercadoPlus MVP Backend",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Ejecutar seed_demo; configurar IDs; crear pedido; ejecutar cotizar_demo; consultar; aceptar; pagar. Ver README_MVP_BACK.md."
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000/api"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "celular",
+      "value": "900000003"
+    },
+    {
+      "key": "password",
+      "value": "CompraSegura!42"
+    },
+    {
+      "key": "producto_1",
+      "value": ""
+    },
+    {
+      "key": "producto_2",
+      "value": ""
+    },
+    {
+      "key": "direccion_id",
+      "value": ""
+    },
+    {
+      "key": "pedido_id",
+      "value": ""
+    },
+    {
+      "key": "cotizacion_id",
+      "value": ""
+    },
+    {
+      "key": "codigo_yape",
+      "value": "123456"
+    },
+    {
+      "key": "idempotencia",
+      "value": "demo_pago_0001"
+    }
+  ],
+  "item": [
+    {
+      "name": "Registro",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/auth/registro/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nombres\": \"María\",\n  \"apellido_paterno\": \"Del Pilar\",\n  \"celular\": \"{{celular}}\",\n  \"correo\": \"maria@example.com\",\n  \"password\": \"{{password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 201) pm.collectionVariables.set('token', pm.response.json().token);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/auth/login/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"celular\": \"{{celular}}\",\n  \"password\": \"{{password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 200) pm.collectionVariables.set('token', pm.response.json().token);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Perfil",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/auth/me/"
+      }
+    },
+    {
+      "name": "Mercados",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/mercados/"
+      }
+    },
+    {
+      "name": "Productos",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/productos/"
+      }
+    },
+    {
+      "name": "Crear dirección",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/direcciones/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"etiqueta\": \"Casa\",\n  \"direccion\": \"Av. Santa Rosa 123\",\n  \"referencia\": \"Portón verde\",\n  \"principal\": true\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 201) pm.collectionVariables.set('direccion_id', pm.response.json().id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Agregar producto 1",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/carrito/items/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"producto_id\": \"{{producto_1}}\",\n  \"cantidad\": \"1.000\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Agregar producto 2",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/carrito/items/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"producto_id\": \"{{producto_2}}\",\n  \"cantidad\": \"1.500\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Consultar canasta",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/carrito/"
+      }
+    },
+    {
+      "name": "Crear pedido",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/pedidos/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"direccion_id\": \"{{direccion_id}}\",\n  \"metodo_pago\": \"yape\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 201) pm.collectionVariables.set('pedido_id', pm.response.json().id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Consultar pedido - después de cotizar_demo",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/pedidos/{{pedido_id}}/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 200) { const q = pm.response.json().cotizaciones.find(q => q.estado === 'enviada'); if (q) pm.collectionVariables.set('cotizacion_id', q.id); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Aceptar cotización",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/pedidos/{{pedido_id}}/cotizaciones/{{cotizacion_id}}/aceptar/",
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Pago mock o Sandbox",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/pagos/yape/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"pedido_id\": \"{{pedido_id}}\",\n  \"celular\": \"{{celular}}\",\n  \"codigo\": \"{{codigo_yape}}\",\n  \"idempotencia\": \"{{idempotencia}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Cancelar pedido sin pagar - opcional",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/pedidos/{{pedido_id}}/cancelar/",
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    }
+  ]
+}
