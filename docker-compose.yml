@@ -1,0 +1,22 @@
+services:
+  web:
+    build: ./mimercado_backend
+    container_name: mimercado_web
+    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - ./mimercado_backend:/app
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+
+  frontend:
+    build:
+      context: ./mimercado_frontend
+      args:
+        API_URL: http://localhost:8000
+    container_name: mimercado_frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - web
