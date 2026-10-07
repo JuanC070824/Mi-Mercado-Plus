@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/rol.dart';
 import '../widgets/rol_button.dart';
+import 'package:go_router/go_router.dart';
+
+//PANTALLA DE BIENVENIDA INICIAL
 
 class BienvenidaScreen extends StatelessWidget {
   const BienvenidaScreen({super.key});
@@ -12,12 +15,19 @@ class BienvenidaScreen extends StatelessWidget {
     Rol.comerciante: 'assets/images/avatar_comerciante.png',
   };
 
-  void _elegirRol(BuildContext context, Rol rol) {
-    // TODO: navegar a login/registro pasando el rol elegido
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Elegiste: ${rol.etiqueta}')),
-    );
+void _elegirRol(BuildContext context, Rol rol) {
+  switch (rol) {
+    case Rol.cliente:
+      context.push('/cliente/login');
+    case Rol.repartidor:
+    case Rol.comerciante:
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('El acceso para ${rol.etiqueta} estará disponible pronto.'),
+        ),
+      );
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -107,24 +117,7 @@ class _Portada extends StatelessWidget {
               ),
             ),
           ),
-          Container(
-            width: 130,
-            height: 130,
-            padding: const EdgeInsets.all(10),
-            decoration: const BoxDecoration(
-              color: AppColors.blanco,
-              shape: BoxShape.circle,
-            ),
-            child: Image.asset(
-              'assets/images/logo_mimercado.png',
-              semanticLabel: 'Logo de MiMercado+',
-              errorBuilder: (context, error, stack) => const Icon(
-                Icons.storefront,
-                size: 64,
-                color: AppColors.azul,
-              ),
-            ),
-          ),
+
         ],
       ),
     );

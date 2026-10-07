@@ -1,8 +1,11 @@
 enum Rol {
-  cliente('Cliente'),
-  repartidor('Repartidor'),     // = Estibador en el documento
-  comerciante('Comerciante');   // = Vendedor/Casero en el documento
+  cliente('Cliente', 'comprador'),
+  repartidor('Repartidor', 'repartidor'),
+  comerciante('Comerciante', 'vendedor');
 
-  const Rol(this.etiqueta);
+  const Rol(this.etiqueta, this.codigoBd);
   final String etiqueta;
+
+  /// Coincide con roles.codigo en la base de datos.
+  final String codigoBd;
 }
