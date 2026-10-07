@@ -1,0 +1,1 @@
+//Se usa para simular los pagos en línea

@@ -49,3 +49,14 @@ app.*.map.json
 
 # Variables de entorno
 .env
+
+# Backend Python
+.venv/
+venv/
+__pycache__/
+*.sqlite3
+.env.*
+!.env.example
+*.pem
+
+
