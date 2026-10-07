@@ -76,7 +76,7 @@ class _ClienteLoginScreenState extends State<ClienteLoginScreen> {
                           const SizedBox(height: 20),
                           CampoTextoApp(
                             etiqueta: 'Celular',
-                            hint: '987654321',
+                            hint: '9 dígitos',
                             prefijo: '+51 ',
                             controller: _celular,
                             teclado: TextInputType.phone,
@@ -144,14 +144,7 @@ class _ClienteLoginScreenState extends State<ClienteLoginScreen> {
                             ),
                           ),
                           const SizedBox(height: 8),
-                          const Text(
-                            'Prototipo con datos de prueba: celular 987654321 · contraseña Mercado123',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: AppColors.textoSecundario,
-                            ),
-                          ),
+
                         ],
                       ),
                     ),

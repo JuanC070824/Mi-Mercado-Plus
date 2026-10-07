@@ -30,6 +30,25 @@ abstract class AuthRepository {
     required String password,
     Direccion? direccion,
   });
+
+  /// Dirección principal del comprador (null si aún no tiene).
+  Future<Direccion?> direccionPrincipal(String celular);
+
+  /// Actualiza celular, correo y (si se envía) la dirección principal.
+  /// Valida que el celular y el correo no pertenezcan a otra cuenta.
+  Future<ResultadoAuth> actualizarPerfil({
+    required String celularActual,
+    required String celular,
+    String? correo,
+    Direccion? direccion,
+  });
+
+  /// Guarda las preferencias de la cuenta (usuarios.sonido / usuarios.vibracion).
+  Future<void> guardarPreferencias({
+    required String celular,
+    required bool sonido,
+    required bool vibracion,
+  });
 }
 
 class _Cuenta {
@@ -61,6 +80,12 @@ class AuthRepositoryMock implements AuthRepository {
         rol: Rol.cliente,
       ),
       password: 'Mercado123',
+      // Dirección de demostración para probar el perfil.
+      direccion: const Direccion(
+        etiqueta: 'Casa',
+        direccion: 'Av. Las Flores 245, San Isidro',
+        referencia: 'Cerca a la juguería',
+      ),
     ),
     '955555555': _Cuenta(
       usuario: const Usuario(
@@ -123,5 +148,92 @@ class AuthRepositoryMock implements AuthRepository {
     _porCelular[usuario.celular] =
         _Cuenta(usuario: usuario, password: password, direccion: direccion);
     return ResultadoAuth.ok(usuario);
+  }
+
+  @override
+  Future<Direccion?> direccionPrincipal(String celular) async {
+    await Future.delayed(const Duration(milliseconds: 300));
+    return _porCelular[celular]?.direccion;
+  }
+
+  @override
+  Future<ResultadoAuth> actualizarPerfil({
+    required String celularActual,
+    required String celular,
+    String? correo,
+    Direccion? direccion,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 700));
+    final c = _porCelular[celularActual];
+    if (c == null) {
+      return const ResultadoAuth.error(
+        'No encontramos tu cuenta. Vuelve a iniciar sesión.',
+      );
+    }
+    if (celular != celularActual && _porCelular.containsKey(celular)) {
+      return const ResultadoAuth.error(
+        'Este celular ya está registrado en otra cuenta.',
+      );
+    }
+    final nuevoCorreo = (correo == null || correo.trim().isEmpty)
+        ? null
+        : correo.trim();
+    if (nuevoCorreo != null &&
+        _porCelular.entries.any((e) =>
+            e.key != celularActual &&
+            e.value.usuario.correo?.toLowerCase() == nuevoCorreo.toLowerCase())) {
+      return const ResultadoAuth.error(
+        'Este correo ya está registrado en otra cuenta.',
+      );
+    }
+    final u = c.usuario;
+    final nuevo = Usuario(
+      nombres: u.nombres,
+      apellidoPaterno: u.apellidoPaterno,
+      apellidoMaterno: u.apellidoMaterno,
+      celular: celular,
+      correo: nuevoCorreo,
+      fechaNacimiento: u.fechaNacimiento,
+      letraGrande: u.letraGrande,
+      sonido: u.sonido,
+      vibracion: u.vibracion,
+      rol: u.rol,
+    );
+    _porCelular.remove(celularActual);
+    _porCelular[celular] = _Cuenta(
+      usuario: nuevo,
+      password: c.password,
+      estado: c.estado,
+      direccion: direccion ?? c.direccion,
+    );
+    return ResultadoAuth.ok(nuevo);
+  }
+
+  @override
+  Future<void> guardarPreferencias({
+    required String celular,
+    required bool sonido,
+    required bool vibracion,
+  }) async {
+    final c = _porCelular[celular];
+    if (c == null) return;
+    final u = c.usuario;
+    _porCelular[celular] = _Cuenta(
+      usuario: Usuario(
+        nombres: u.nombres,
+        apellidoPaterno: u.apellidoPaterno,
+        apellidoMaterno: u.apellidoMaterno,
+        celular: u.celular,
+        correo: u.correo,
+        fechaNacimiento: u.fechaNacimiento,
+        letraGrande: u.letraGrande,
+        sonido: sonido,
+        vibracion: vibracion,
+        rol: u.rol,
+      ),
+      password: c.password,
+      estado: c.estado,
+      direccion: c.direccion,
+    );
   }
 }

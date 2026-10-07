@@ -182,7 +182,7 @@ class _InicioScreenState extends State<InicioScreen> {
                   ? _pedirMercadoParaBuscar()
                   : _aviso('La búsqueda por voz estará disponible pronto.'),
               onSoporte: () => _aviso('Soporte estará disponible pronto.'),
-              onPerfil: () => _aviso('Mi perfil estará disponible pronto.'),
+              
             ),
             Center(
               child: ConstrainedBox(
@@ -192,28 +192,6 @@ class _InicioScreenState extends State<InicioScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      IntrinsicHeight(
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Expanded(
-                              child: BotonAccionGrande(
-                                texto: 'Ver estado de mi pedido',
-                                onTap: () => _aviso(
-                                    'El estado de tu pedido estará disponible pronto.'),
-                              ),
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: BotonAccionGrande(
-                                texto: 'Mi carrito de compras',
-                                onTap: () => _aviso(
-                                    'Tu carrito estará disponible pronto.'),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
                       const SizedBox(height: 28),
                       Semantics(
                         header: true,

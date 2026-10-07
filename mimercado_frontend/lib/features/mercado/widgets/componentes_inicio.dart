@@ -34,48 +34,6 @@ class ImagenCategoria extends StatelessWidget {
 }
 
 /// "Ver estado de mi pedido" / "Mi carrito de compras".
-class BotonAccionGrande extends StatelessWidget {
-  const BotonAccionGrande({super.key, required this.texto, required this.onTap});
-
-  final String texto;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: texto,
-      onTap: onTap,
-      excludeSemantics: true,
-      child: Material(
-        color: AppColors.azul,
-        shape: const StadiumBorder(),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 72),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              child: Center(
-                child: Text(
-                  texto,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: AppColors.blanco,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    height: 1.2,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 /// Tarjeta de rubro. Seleccionada = borde azul grueso + check (no solo color).
 class TarjetaCategoria extends StatelessWidget {

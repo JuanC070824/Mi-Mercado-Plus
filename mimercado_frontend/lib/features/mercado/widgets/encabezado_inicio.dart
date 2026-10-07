@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/state/accesibilidad_state.dart';
 import '../../../core/theme/app_colors.dart';
 
 class EncabezadoInicio extends StatelessWidget {
@@ -12,7 +13,6 @@ class EncabezadoInicio extends StatelessWidget {
     required this.onLimpiar,
     required this.onVoz,
     required this.onSoporte,
-    required this.onPerfil,
   });
 
   final String nombre;
@@ -23,7 +23,6 @@ class EncabezadoInicio extends StatelessWidget {
   final VoidCallback onLimpiar;
   final VoidCallback onVoz;
   final VoidCallback onSoporte;
-  final VoidCallback onPerfil;
 
   @override
   Widget build(BuildContext context) {
@@ -39,28 +38,31 @@ class EncabezadoInicio extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
               child: Column(
                 children: [
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: onSoporte,
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppColors.blanco,
-                        minimumSize: const Size(48, 48),
+                  Row(
+                    children: [
+                      const _BotonLetra(),
+                      const Spacer(),
+                      TextButton(
+                        onPressed: onSoporte,
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.blanco,
+                          minimumSize: const Size(48, 48),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Soporte',
+                              style: TextStyle(
+                                  fontSize: 18, fontWeight: FontWeight.w700),
+                            ),
+                            SizedBox(width: 8),
+                            Icon(Icons.headset_mic_outlined, size: 26),
+                          ],
+                        ),
                       ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'Soporte',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-                          ),
-                          SizedBox(width: 8),
-                          Icon(Icons.headset_mic_outlined, size: 26),
-                        ],
-                      ),
-                    ),
+                    ],
                   ),
-                  // Pega aquí el mismo CircleAvatar que ajustaste en encabezado_azul.dart.
                   CircleAvatar(
                     radius: 60,
                     backgroundColor: AppColors.fondo,
@@ -85,56 +87,20 @@ class EncabezadoInicio extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Semantics(
-                          header: true,
-                          child: Text(
-                            'Hola, $nombre!',
-                            style: const TextStyle(
-                              color: AppColors.blanco,
-                              fontSize: 28,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
+                  Align(
+                    alignment: Alignment.center,
+                    child: Semantics(
+                      header: true,
+                      child: Text(
+                        'Hola, $nombre!',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: AppColors.blanco,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Semantics(
-                        button: true,
-                        label: 'Mi perfil',
-                        onTap: onPerfil,
-                        excludeSemantics: true,
-                        child: Material(
-                          color: AppColors.fondo,
-                          shape: const StadiumBorder(),
-                          clipBehavior: Clip.antiAlias,
-                          child: InkWell(
-                            onTap: onPerfil,
-                            child: const Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.account_circle_outlined,
-                                      size: 36, color: AppColors.azul),
-                                  SizedBox(width: 8),
-                                  Text(
-                                    'Mi perfil',
-                                    style: TextStyle(
-                                      color: AppColors.azul,
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                   const SizedBox(height: 16),
                   ValueListenableBuilder<TextEditingValue>(
@@ -201,6 +167,72 @@ class EncabezadoInicio extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// "Aa Letra": alterna el tamaño de letra de toda la app.
+/// Activo = fondo crema + texto azul + check (no depende solo del color).
+class _BotonLetra extends StatelessWidget {
+  const _BotonLetra();
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<bool>(
+      valueListenable: AccesibilidadState.letraGrande,
+      builder: (context, grande, _) {
+        final texto = grande ? AppColors.azul : AppColors.blanco;
+        return Semantics(
+          button: true,
+          toggled: grande,
+          label: 'Letra grande',
+          onTap: AccesibilidadState.alternarLetra,
+          excludeSemantics: true,
+          child: Material(
+            color: grande ? AppColors.fondo : Colors.transparent,
+            shape: const StadiumBorder(
+              side: BorderSide(color: AppColors.fondo, width: 2),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: AccesibilidadState.alternarLetra,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 48, minWidth: 48),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Aa',
+                        style: TextStyle(
+                          color: texto,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Letra',
+                        style: TextStyle(
+                          color: texto,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      if (grande) ...[
+                        const SizedBox(width: 6),
+                        const Icon(Icons.check_circle,
+                            color: AppColors.azul, size: 22),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
