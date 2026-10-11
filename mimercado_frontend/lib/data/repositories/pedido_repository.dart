@@ -380,7 +380,17 @@ class PedidoRepositoryMock implements PedidoRepository {
   @override
   Future<void> entregarARepartidor(int pedidoPuestoId) async {
     await Future.delayed(const Duration(milliseconds: 400));
+    _recoger(pedidoPuestoId);
+  }
+
+  // ---------------------------------------------------------------- Internos
+
+  /// Única forma de pasar una bolsa a "recogido". La usan el casero
+  /// (entregarARepartidor) y el repartidor (marcarRecogido, M8).
+  /// Si la bolsa ya estaba recogida no hace nada, así no importa quién toque primero.
+  void _recoger(int pedidoPuestoId) {
     final (p, pp) = _buscarParte(pedidoPuestoId);
+    if (pp.estado == EstadoPedidoPuesto.recogido) return;
     _exigir(pp, {EstadoPedidoPuesto.listo},
         'Primero marca el pedido como listo.');
     var nuevo = _cambiarParte(p, pp.copyWith(estado: EstadoPedidoPuesto.recogido));
@@ -392,8 +402,6 @@ class PedidoRepositoryMock implements PedidoRepository {
       'El repartidor recogió la bolsa ${pp.codigoBolsa} de ${pp.puesto.nombre}',
     ));
   }
-
-  // ---------------------------------------------------------------- Internos
 
   void _notificar() => _cambios.value++;
 
@@ -738,7 +746,11 @@ class PedidoRepositoryMock implements PedidoRepository {
           )
         else ...[
           pp.copyWith(
-            estado: estadoPuesto,
+            // Los puestos simulados ya empaquetaron; si no, el pedido se traba.
+            estado: (estadoPuesto == EstadoPedidoPuesto.enPreparacion &&
+                    !_puestosConCasero.contains(pp.puesto.id))
+                ? EstadoPedidoPuesto.listo
+                : estadoPuesto,
             detalles: [
               for (final d in pp.detalles)
                 d.copyWith(disponibilidad: Disponibilidad.disponible),
