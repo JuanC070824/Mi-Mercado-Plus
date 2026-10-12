@@ -19,7 +19,6 @@ import '../../features/casero/screens/pesar_screen.dart';
 import '../../features/mercado/screens/inicio_screen.dart';
 import '../../features/mercado/screens/principal_shell.dart';
 import '../../features/mercado/screens/seccion_proxima_screen.dart';
-import '../../features/pedido/screens/historial_screen.dart';
 import '../../features/pedido/screens/mi_pedido_screen.dart';
 import '../../features/perfil/screens/perfil_screen.dart';
 import '../../features/repartidor/screens/entrega_screen.dart';
@@ -141,13 +140,6 @@ final appRouter = GoRouter(
               path: '/pedido',
               redirect: (context, state) => _usuarioActual == null ? '/' : null,
               builder: (context, state) => MiPedidoScreen(usuario: _usuarioActual!),
-              routes: [
-                // C9 · Mis pedidos (historial)
-                GoRoute(
-                  path: 'historial',
-                  builder: (context, state) => HistorialScreen(usuario: _usuarioActual!),
-                ),
-              ],
             ),
           ],
         ),
