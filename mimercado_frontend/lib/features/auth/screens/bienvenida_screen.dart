@@ -20,12 +20,9 @@ void _elegirRol(BuildContext context, Rol rol) {
     case Rol.cliente:
       context.push('/cliente/login');
     case Rol.repartidor:
+      context.push('/repartidor/login');
     case Rol.comerciante:
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('El acceso para ${rol.etiqueta} estará disponible pronto.'),
-        ),
-      );
+      context.push('/casero/login');
   }
 }
 

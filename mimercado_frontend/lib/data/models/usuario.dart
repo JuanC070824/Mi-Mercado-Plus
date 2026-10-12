@@ -12,6 +12,8 @@ class Usuario {
     this.sonido = true,
     this.vibracion = true,
     required this.rol,
+    this.puestoId,
+    this.mercadoId,
   });
 
   final String nombres;
@@ -24,6 +26,12 @@ class Usuario {
   final bool sonido;
   final bool vibracion;
   final Rol rol;
+
+  /// Solo casero: su puesto (puestos.vendedor_id).
+  final int? puestoId;
+
+  /// Casero y repartidor: el mercado donde trabaja (repartidor_mercados).
+  final int? mercadoId;
 
   String get nombreCompleto => [nombres, apellidoPaterno, apellidoMaterno]
       .whereType<String>()
