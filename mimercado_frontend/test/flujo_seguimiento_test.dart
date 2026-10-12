@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mimercado_frontend/core/router/app_router.dart';
 import 'package:mimercado_frontend/data/models/cotizacion.dart';
@@ -53,10 +54,39 @@ void main() {
     expect(find.text('S/ 48.00'), findsOneWidget);
     await tocar(tester, find.text('Aceptar y continuar'));
 
-    final p = (await tester.runAsync(() => _repo.pedidoActivoCliente('987654321')))!;
+    final p = (await tester.runAsync<Pedido?>(() => _repo.pedidoActivoCliente('987654321')))!;
     expect(p.cotizacion!.estado, EstadoCotizacion.aceptada);
     expect(p.parteDePuesto(3)!.estado, EstadoPedidoPuesto.listo); // simulado
     expect(p.parteDePuesto(1)!.estado, EstadoPedidoPuesto.enPreparacion);
     expect(find.text('Tus caseros ya pesaron'), findsNothing);
+  });
+
+  testWidgets('V4 → V5: Rosa empaqueta deslizando y entrega la bolsa 345-A-1',
+      (tester) async {
+    await entrarComo(tester, perfil: 'Comerciante', celular: '912345678');
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
+    await tocar(tester, find.textContaining('#345-A'));
+    expect(find.textContaining('aceptó el precio final'), findsOneWidget);
+
+    // V4: deslizar el círculo hasta el final
+    await verEnLista(tester, find.text('Desliza: ya empaqueté'));
+    await tester.drag(find.byIcon(Icons.chevron_right), const Offset(400, 0));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
+    Pedido p = (await tester.runAsync<Pedido?>(() => _repo.pedidoActivoCliente('987654321')))!;
+    expect(p.parteDePuesto(1)!.estado, EstadoPedidoPuesto.listo);
+    expect(p.estado, EstadoPedido.listoParaRecojo);
+
+    // V5: checklist + entregar
+    await verEnLista(tester, find.text('#345-A-1'));
+    expect(find.text('Bolsa 1 de 2'), findsOneWidget);
+    for (final nombre in ['Tomate · 1.5 kg', 'Papa amarilla · 2 kg', 'Limón · 0.5 kg']) {
+      await tocar(tester, find.text(nombre), espera: 100);
+    }
+    await tocar(tester, find.text('Ya se lo entregué'));
+    p = (await tester.runAsync<Pedido?>(() => _repo.pedidoActivoCliente('987654321')))!;
+    expect(p.parteDePuesto(1)!.estado, EstadoPedidoPuesto.recogido);
+    expect(p.estado, EstadoPedido.enRecojo);
   });
 }
