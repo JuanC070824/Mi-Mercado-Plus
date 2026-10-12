@@ -13,9 +13,13 @@ import '../../features/canasta/screens/entrega_pago_screen.dart';
 import '../../features/canasta/screens/pedido_enviado_screen.dart';
 import '../../features/canasta/screens/puesto_screen.dart';
 import '../../features/canasta/screens/yape_screen.dart';
+import '../../features/casero/screens/casero_inicio_screen.dart';
+import '../../features/casero/screens/casero_pedido_screen.dart';
+import '../../features/casero/screens/pesar_screen.dart';
 import '../../features/mercado/screens/inicio_screen.dart';
 import '../../features/mercado/screens/principal_shell.dart';
 import '../../features/mercado/screens/seccion_proxima_screen.dart';
+import '../../features/pedido/screens/mi_pedido_screen.dart';
 import '../../features/perfil/screens/perfil_screen.dart';
 import '../widgets/barra_navegacion_app.dart';
 
@@ -133,10 +137,8 @@ final appRouter = GoRouter(
           routes: [
             GoRoute(
               path: '/pedido',
-              builder: (context, state) => const SeccionProximaScreen(
-                titulo: 'Mi pedido',
-                icono: Icons.inventory_2_rounded,
-              ),
+              redirect: (context, state) => _usuarioActual == null ? '/' : null,
+              builder: (context, state) => MiPedidoScreen(usuario: _usuarioActual!),
             ),
           ],
         ),
@@ -173,10 +175,27 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/casero/inicio',
               redirect: (context, state) => _exigirRol(state, Rol.comerciante),
-              builder: (context, state) => SeccionProximaScreen(
-                titulo: '¡Hola, ${_primerNombre(_usuarioDe(state))}!',
-                icono: Icons.storefront_rounded,
-              ),
+              builder: (context, state) =>
+                  CaseroInicioScreen(usuario: _usuarioDe(state)),
+              routes: [
+                GoRoute(
+                  path: 'pedido/:id',
+                  builder: (context, state) => CaseroPedidoScreen(
+                    pedidoId: int.parse(state.pathParameters['id']!),
+                    usuario: _usuarioDe(state),
+                  ),
+                  routes: [
+                    // V3 · Pesar y poner precio
+                    GoRoute(
+                      path: 'pesar',
+                      builder: (context, state) => PesarScreen(
+                        pedidoId: int.parse(state.pathParameters['id']!),
+                        usuario: _usuarioDe(state),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ],
         ),
