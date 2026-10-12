@@ -15,6 +15,7 @@ import '../../features/canasta/screens/puesto_screen.dart';
 import '../../features/canasta/screens/yape_screen.dart';
 import '../../features/casero/screens/casero_inicio_screen.dart';
 import '../../features/casero/screens/casero_pedido_screen.dart';
+import '../../features/casero/screens/pesar_screen.dart';
 import '../../features/mercado/screens/inicio_screen.dart';
 import '../../features/mercado/screens/principal_shell.dart';
 import '../../features/mercado/screens/seccion_proxima_screen.dart';
@@ -184,6 +185,16 @@ final appRouter = GoRouter(
                     pedidoId: int.parse(state.pathParameters['id']!),
                     usuario: _usuarioDe(state),
                   ),
+                  routes: [
+                    // V3 · Pesar y poner precio
+                    GoRoute(
+                      path: 'pesar',
+                      builder: (context, state) => PesarScreen(
+                        pedidoId: int.parse(state.pathParameters['id']!),
+                        usuario: _usuarioDe(state),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/formato.dart';
 import '../../../core/widgets/botones_app.dart';
 import '../../../core/widgets/componentes_app.dart';
 import '../../../core/widgets/encabezado_simple.dart';
 import '../../../data/models/pedido.dart';
+import '../../../data/models/producto.dart';
 import '../../../data/models/usuario.dart';
 import '../../../data/repositories/pedido_repository.dart';
 import '../widgets/alerta_pedido.dart';
@@ -181,6 +183,8 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
       case EstadoPedidoPuesto.aceptado:
       case EstadoPedidoPuesto.pesando:
         return _revisar(p, parte); // V2
+      case EstadoPedidoPuesto.pesado:
+        return _esperandoCliente(p, parte);
       default:
         return [
           const TituloSeccion('Productos'),
@@ -267,7 +271,7 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
     ];
   }
 
-  /// Lo que sigue después de revisar (V3 lo completa).
+  /// Lo que sigue después de revisar: ir a la balanza (V3).
   List<Widget> _despuesDeRevisar(Pedido p, PedidoPuesto parte, {required bool todosRevisados}) => [
         const SizedBox(height: 20),
         EtiquetaEstado(
@@ -277,7 +281,61 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
           icono: todosRevisados ? Icons.check_circle : Icons.info_outline,
           tipo: todosRevisados ? TipoEstado.exito : TipoEstado.info,
         ),
+        const SizedBox(height: 12),
+        BotonPrincipal(
+          texto: 'Pesar y poner precio',
+          onPressed: todosRevisados
+              ? () => context.push('/casero/inicio/pedido/${p.id}/pesar')
+              : null,
+        ),
       ];
+
+  /// Ya pesó: espera que el cliente acepte el precio final.
+  List<Widget> _esperandoCliente(Pedido p, PedidoPuesto parte) {
+    final cp = p.cotizacion?.dePuesto(parte.id);
+    return [
+      TarjetaApp(
+        color: AppColors.avisoFondo,
+        colorBorde: AppColors.aviso,
+        child: Row(
+          children: [
+            const Icon(Icons.hourglass_top, color: AppColors.aviso, size: 30),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Enviaste el precio final. Esperamos que ${p.clienteNombre} lo acepte '
+                'para que empaquetes.',
+                style: const TextStyle(fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+      ),
+      if (cp != null) ...[
+        const SizedBox(height: 16),
+        const TituloSeccion('Lo que pesaste'),
+        const SizedBox(height: 8),
+        TarjetaApp(
+          child: Column(
+            children: [
+              for (final d in cp.detalles)
+                FilaMonto(
+                  etiqueta: '${d.nombreFinal} · ${cantidadConUnidad(d.cantidadReal, _unidadDe(parte, d.pedidoDetalleId))}',
+                  monto: d.subtotal,
+                ),
+              const Divider(color: AppColors.divisor),
+              FilaMonto(etiqueta: 'Precio final', monto: cp.bruto, destacado: true),
+              FilaMonto(etiqueta: 'Comisión MiMercado+ (5 %)', monto: cp.comision),
+              FilaMonto(etiqueta: 'Recibes', monto: cp.neto),
+            ],
+          ),
+        ),
+      ],
+    ];
+  }
+
+  static UnidadMedida _unidadDe(PedidoPuesto parte, int detalleId) =>
+      parte.detalles.firstWhere((d) => d.id == detalleId).unidad;
 
   /// Tarjeta del pedido compartido con el estado de los otros puestos.
   Widget _compartido(Pedido p, PedidoPuesto parte) {

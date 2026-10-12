@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mimercado_frontend/data/models/direccion.dart';
 import 'package:mimercado_frontend/data/models/pedido.dart';
@@ -113,5 +114,46 @@ void main() {
     await tocar(tester, tomate);
     await tocar(tester, tomate); // vuelve a "Lo tengo"
     expect((await _parteRosa(tester)).estado, EstadoPedidoPuesto.pesando);
+  });
+
+  testWidgets('V3: Rosa pesa el tomate en 1.5 kg y el cliente ve S/ 48.00',
+      (tester) async {
+    await tester.runAsync(() async {
+      final repo = PedidoRepositoryMock.instancia;
+      var parte = (await repo.pedidosDePuesto(1))
+          .firstWhere((p) => p.id == 345)
+          .parteDePuesto(1)!;
+      if (parte.estado == EstadoPedidoPuesto.pendiente) {
+        await repo.aceptarSubpedido(parte.id);
+      }
+      for (final d in parte.detalles) {
+        await repo.marcarDisponibilidad(d.id, Disponibilidad.disponible);
+      }
+    });
+    await entrarComo(tester, perfil: 'Comerciante', celular: '912345678');
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
+    while (find.text('Verlo después').evaluate().isNotEmpty) {
+      await tocar(tester, find.text('Verlo después'));
+    }
+    await tocar(tester, find.textContaining('#345-A'));
+    await tocar(tester, find.text('Pesar y poner precio'));
+    expect(find.text('Así lo verá María'), findsNothing); // aún no se ve (scroll)
+
+    await tocar(tester, find.bySemanticsLabel('Agregar 0.5 kg de Tomate'));
+    await verEnLista(tester, find.text('Así lo verá María'));
+    expect(find.text('S/ 17.00'), findsOneWidget);
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Nota para el cliente (opcional)'),
+        'el tomate pesó 1.5 kg');
+    await verEnLista(tester, find.text('Enviar precio final'));
+    await tocar(tester, find.text('Enviar precio final'));
+
+    final p = (await tester.runAsync(
+            () => PedidoRepositoryMock.instancia.pedidoActivoCliente('987654321')))!;
+    expect(p.estado, EstadoPedido.esperandoConfirmacion);
+    expect(p.cotizacion!.totalCliente, 48.00);
+    expect(p.cotizacion!.dePuesto(p.parteDePuesto(1)!.id)!.nota, 'el tomate pesó 1.5 kg');
+    expect(find.text('Lo que pesaste'), findsOneWidget); // ya no pide pesar
   });
 }
