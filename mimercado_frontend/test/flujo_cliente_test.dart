@@ -1,6 +1,8 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mimercado_frontend/core/router/app_router.dart';
 import 'package:mimercado_frontend/data/repositories/canasta_repository.dart';
+import 'package:mimercado_frontend/data/repositories/catalogo_repository.dart';
 
 import 'ayuda_pruebas.dart';
 
@@ -27,4 +29,56 @@ void main() {
         scrollable: find.byType(Scrollable).last);
     expect(find.text('Agotado por hoy'), findsOneWidget);
   });
+
+  testWidgets('C3: canasta con 2 puestos, lista de mandado y vaciar con confirmación',
+      (tester) async {
+    await entrarComo(tester, perfil: 'Cliente', celular: '987654321');
+    await tester.runAsync(_llenarCanastaDemo);
+    appRouter.go('/canasta');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Paso 1 de 3 · Canasta'), findsOneWidget);
+    expect(find.text('Un solo repartidor recoge en tus 2 puestos'), findsOneWidget);
+    expect(find.text('Doña Rosa Verdulería'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Total estimado'), 300,
+        scrollable: find.byType(Scrollable).last);
+    expect(find.text('S/ 46.00'), findsOneWidget);
+
+    // C3b · lista de mandado (del puesto que esté en pantalla)
+    await tester.scrollUntilVisible(find.text('Escribir lista de mandado').first, -300,
+        scrollable: find.byType(Scrollable).last);
+    await tocar(tester, find.text('Escribir lista de mandado').first);
+    await tester.enterText(find.byType(TextField).last, '3 ajíes bien frescos');
+    await tocar(tester, find.text('Guardar lista'));
+    expect(find.text('Lista de mandado guardada.'), findsOneWidget);
+    expect(
+        CanastaRepositoryMock.instancia.canasta.value.grupos
+            .map((g) => g.listaMandado),
+        contains('3 ajíes bien frescos'));
+
+    // Vaciar pide confirmación
+    await tester.pump(const Duration(seconds: 5)); // se va el aviso de abajo
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Vaciar canasta'), 300,
+        scrollable: find.byType(Scrollable).last);
+    await tocar(tester, find.text('Vaciar canasta'));
+    expect(find.text('¿Vaciar tu canasta?'), findsOneWidget);
+    await tocar(tester, find.text('Sí, vaciar'));
+    expect(find.text('Tu canasta está vacía'), findsOneWidget);
+  });
+}
+
+/// El pedido de la demo: S/ 41.00 en productos + S/ 5.00 de envío.
+Future<void> _llenarCanastaDemo() async {
+  final cat = CatalogoRepositoryMock();
+  final canasta = CanastaRepositoryMock.instancia;
+  final rosa = (await cat.puesto(1))!;
+  final carne = (await cat.puesto(3))!;
+  final r = {for (final p in await cat.productosDePuesto(1)) p.nombre: p};
+  final c = {for (final p in await cat.productosDePuesto(3)) p.nombre: p};
+  await canasta.cambiarCantidad(rosa, r['Tomate']!, 1);
+  await canasta.cambiarCantidad(rosa, r['Papa amarilla']!, 2);
+  await canasta.cambiarCantidad(rosa, r['Limón']!, 0.5);
+  await canasta.cambiarCantidad(carne, c['Pollo entero']!, 1.5);
+  await canasta.cambiarCantidad(carne, c['Carne molida']!, 0.5);
 }

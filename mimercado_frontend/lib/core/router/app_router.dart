@@ -6,6 +6,7 @@ import '../../data/repositories/canasta_repository.dart';
 import '../../features/auth/screens/bienvenida_screen.dart';
 import '../../features/auth/screens/cliente_login_screen.dart';
 import '../../features/auth/screens/cliente_registro_screen.dart';
+import '../../features/canasta/screens/canasta_screen.dart';
 import '../../features/canasta/screens/puesto_screen.dart';
 import '../../features/mercado/screens/inicio_screen.dart';
 import '../../features/mercado/screens/principal_shell.dart';
@@ -93,10 +94,17 @@ final appRouter = GoRouter(
           routes: [
             GoRoute(
               path: '/canasta',
-              builder: (context, state) => const SeccionProximaScreen(
-                titulo: 'Mi canasta',
-                icono: Icons.shopping_basket_rounded,
-              ),
+              builder: (context, state) => const CanastaScreen(),
+              routes: [
+                // C4 · Entrega y pago (llega en M5)
+                GoRoute(
+                  path: 'entrega',
+                  builder: (context, state) => const SeccionProximaScreen(
+                    titulo: 'Entrega y pago',
+                    icono: Icons.local_shipping_outlined,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
