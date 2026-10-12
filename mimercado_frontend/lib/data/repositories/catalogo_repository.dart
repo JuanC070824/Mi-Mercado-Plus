@@ -34,6 +34,9 @@ abstract class CatalogoRepository {
 
   /// Cambia precio o disponibilidad de un producto (catálogo del casero, V7).
   Future<void> actualizarProducto(Producto producto);
+
+  /// Interruptor "Puesto abierto / cerrado" del casero (V1).
+  Future<Puesto> cambiarAbierto(int puestoId, bool abierto);
 }
 
 /// Datos de prueba. Las coordenadas son aproximadas.
@@ -136,7 +139,7 @@ class CatalogoRepositoryMock implements CatalogoRepository {
   @override
   Future<List<Puesto>> masQueridos({int? mercadoId, int limite = 5}) async {
     await Future.delayed(const Duration(milliseconds: 300));
-    final lista = _puestos
+    final lista = _vigentes
         .where((p) => mercadoId == null || p.mercadoId == mercadoId)
         .toList()
       ..sort(_porCalificacion);
@@ -151,7 +154,7 @@ class CatalogoRepositoryMock implements CatalogoRepository {
   }) async {
     await Future.delayed(const Duration(milliseconds: 300));
     final q = _normalizar(texto);
-    final lista = _puestos.where((p) {
+    final lista = _vigentes.where((p) {
       if (p.mercadoId != mercadoId) return false;
       if (categoria != null && p.categoria != categoria) return false;
       if (q.isEmpty) return true;
@@ -205,7 +208,7 @@ class CatalogoRepositoryMock implements CatalogoRepository {
   @override
   Future<Puesto?> puesto(int id) async {
     await Future.delayed(const Duration(milliseconds: 200));
-    for (final p in _puestos) {
+    for (final p in _vigentes) {
       if (p.id == id) return p;
     }
     return null;
@@ -229,5 +232,40 @@ class CatalogoRepositoryMock implements CatalogoRepository {
       throw const CatalogoException('No encontramos ese producto en tu catálogo.');
     }
     _productos[i] = producto;
+  }
+
+  // ------------------------------------------------------ Abierto / cerrado
+
+  // Lo que el casero cambió hoy con su interruptor. Es `static` para que lo
+  // vean todas las pantallas (cada una crea su propio CatalogoRepositoryMock).
+  static final Map<int, bool> _abiertoHoy = {};
+
+  /// Los puestos con el estado abierto/cerrado de hoy.
+  static Iterable<Puesto> get _vigentes => _puestos.map(_conEstadoDeHoy);
+
+  static Puesto _conEstadoDeHoy(Puesto p) {
+    final abierto = _abiertoHoy[p.id];
+    if (abierto == null || abierto == p.abierto) return p;
+    return Puesto(
+      id: p.id,
+      mercadoId: p.mercadoId,
+      nombre: p.nombre,
+      casero: p.casero,
+      categoria: p.categoria,
+      calificacion: p.calificacion,
+      resenas: p.resenas,
+      abierto: abierto,
+    );
+  }
+
+  @override
+  Future<Puesto> cambiarAbierto(int puestoId, bool abierto) async {
+    await Future.delayed(const Duration(milliseconds: 300));
+    final base = _puestos.where((p) => p.id == puestoId);
+    if (base.isEmpty) {
+      throw const CatalogoException('No encontramos tu puesto.');
+    }
+    _abiertoHoy[puestoId] = abierto;
+    return _conEstadoDeHoy(base.first);
   }
 }
