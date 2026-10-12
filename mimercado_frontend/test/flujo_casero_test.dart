@@ -84,4 +84,34 @@ void main() {
     expect(parte.estado, EstadoPedidoPuesto.rechazado);
     expect(parte.motivoRechazo, MotivoRechazo.cerrando.etiqueta);
   });
+
+  testWidgets('V2: Rosa revisa productos tocando Lo tengo → Sin stock',
+      (tester) async {
+    await tester.runAsync(() async {
+      final parte = (await PedidoRepositoryMock.instancia.pedidosDePuesto(1))
+          .firstWhere((p) => p.id == 345)
+          .parteDePuesto(1)!;
+      if (parte.estado == EstadoPedidoPuesto.pendiente) {
+        await PedidoRepositoryMock.instancia.aceptarSubpedido(parte.id);
+      }
+    });
+    await entrarComo(tester, perfil: 'Comerciante', celular: '912345678');
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
+    while (find.text('Verlo después').evaluate().isNotEmpty) {
+      await tocar(tester, find.text('Verlo después'));
+    }
+    await tocar(tester, find.textContaining('#345-A'));
+    expect(find.text('Pedido compartido'), findsOneWidget);
+    await verEnLista(tester, find.text('Revisa cada producto'));
+
+    final tomate = find.bySemanticsLabel(RegExp(r'^Tomate, 1 kg'));
+    await tocar(tester, tomate);
+    expect(find.bySemanticsLabel(RegExp(r'^Tomate, 1 kg: Lo tengo')), findsOneWidget);
+    await tocar(tester, tomate);
+    expect(find.bySemanticsLabel(RegExp(r'^Tomate, 1 kg: Sin stock')), findsOneWidget);
+    await tocar(tester, tomate);
+    await tocar(tester, tomate); // vuelve a "Lo tengo"
+    expect((await _parteRosa(tester)).estado, EstadoPedidoPuesto.pesando);
+  });
 }

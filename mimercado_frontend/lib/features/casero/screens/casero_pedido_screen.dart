@@ -178,6 +178,9 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
             texto: parte.motivoRechazo == null ? null : 'Motivo: ${parte.motivoRechazo}',
           ),
         ];
+      case EstadoPedidoPuesto.aceptado:
+      case EstadoPedidoPuesto.pesando:
+        return _revisar(p, parte); // V2
       default:
         return [
           const TituloSeccion('Productos'),
@@ -185,5 +188,176 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
           ListaProductosParte(parte: parte),
         ];
     }
+  }
+
+  // ------------------------------------------------------------ V2 Revisar
+
+  /// Lo tengo → Sin stock → Ofrezco otro → Lo tengo…
+  static Disponibilidad _siguiente(Disponibilidad d) => switch (d) {
+        Disponibilidad.pendiente => Disponibilidad.disponible,
+        Disponibilidad.disponible => Disponibilidad.sinStock,
+        Disponibilidad.sinStock => Disponibilidad.reemplazo,
+        Disponibilidad.reemplazo => Disponibilidad.disponible,
+      };
+
+  List<Widget> _revisar(Pedido p, PedidoPuesto parte) {
+    final revisados =
+        parte.detalles.where((d) => d.disponibilidad != Disponibilidad.pendiente).length;
+    return [
+      if (p.puestos.length > 1) ...[
+        _compartido(p, parte),
+        const SizedBox(height: 16),
+      ],
+      const TituloSeccion('Revisa cada producto'),
+      const SizedBox(height: 4),
+      Text(
+        'Toca un producto para cambiar: Lo tengo → Sin stock → Ofrezco otro. '
+        'Revisados: $revisados de ${parte.detalles.length}.',
+        style: const TextStyle(fontSize: 17, color: AppColors.textoSecundario),
+      ),
+      const SizedBox(height: 12),
+      for (final d in parte.detalles) ...[
+        _FilaRevisar(
+          detalle: d,
+          habilitado: !_ocupado,
+          onTap: () => _hacer(() => _repo.marcarDisponibilidad(d.id, _siguiente(d.disponibilidad))),
+        ),
+        const SizedBox(height: 8),
+      ],
+      if (parte.listaMandado != null) ...[
+        const SizedBox(height: 8),
+        TarjetaApp(
+          color: AppColors.avisoFondo,
+          colorBorde: AppColors.aviso,
+          child: MergeSemantics(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Lista de mandado',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                Text(parte.listaMandado!, style: const TextStyle(fontSize: 18)),
+                const Text('Agrégalo al pesar como producto extra.',
+                    style: TextStyle(fontSize: 16, color: AppColors.textoSecundario)),
+              ],
+            ),
+          ),
+        ),
+      ],
+      const SizedBox(height: 16),
+      const TituloSeccion('Mensajes rápidos al cliente'),
+      const SizedBox(height: 8),
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          for (final m in const [
+            'Ya estoy pesando tu pedido',
+            'No tengo un producto, ¿te ofrezco otro?',
+            'Tu pedido sale en 10 minutos',
+          ])
+            ActionChip(
+              avatar: const Icon(Icons.chat_bubble_outline, size: 20),
+              label: Text(m, style: const TextStyle(fontSize: 16)),
+              materialTapTargetSize: MaterialTapTargetSize.padded,
+              onPressed: () => avisar(context, 'Le enviamos a ${p.clienteNombre}: "$m"'),
+            ),
+        ],
+      ),
+      ..._despuesDeRevisar(p, parte, todosRevisados: revisados == parte.detalles.length),
+    ];
+  }
+
+  /// Lo que sigue después de revisar (V3 lo completa).
+  List<Widget> _despuesDeRevisar(Pedido p, PedidoPuesto parte, {required bool todosRevisados}) => [
+        const SizedBox(height: 20),
+        EtiquetaEstado(
+          texto: todosRevisados
+              ? 'Listo para pesar'
+              : 'Revisa todos los productos para poder pesar',
+          icono: todosRevisados ? Icons.check_circle : Icons.info_outline,
+          tipo: todosRevisados ? TipoEstado.exito : TipoEstado.info,
+        ),
+      ];
+
+  /// Tarjeta del pedido compartido con el estado de los otros puestos.
+  Widget _compartido(Pedido p, PedidoPuesto parte) {
+    return TarjetaApp(
+      color: AppColors.azulClaro,
+      colorBorde: AppColors.azul,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Pedido compartido',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 6),
+          for (final otro in p.puestos)
+            if (otro.id != parte.id)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text('${otro.parada}. ${otro.puesto.nombre}',
+                        style: const TextStyle(fontSize: 17)),
+                    etiquetaDePuesto(otro.estado),
+                  ],
+                ),
+              ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FilaRevisar extends StatelessWidget {
+  const _FilaRevisar({required this.detalle, required this.habilitado, required this.onTap});
+
+  final PedidoDetalle detalle;
+  final bool habilitado;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final d = detalle.disponibilidad;
+    final (icono, tipo) = switch (d) {
+      Disponibilidad.pendiente => (Icons.help_outline, TipoEstado.neutro),
+      Disponibilidad.disponible => (Icons.check_circle, TipoEstado.exito),
+      Disponibilidad.sinStock => (Icons.remove_shopping_cart_outlined, TipoEstado.error),
+      Disponibilidad.reemplazo => (Icons.swap_horiz, TipoEstado.aviso),
+    };
+    return Semantics(
+      button: true,
+      label: '${detalle.nombre}, '
+          '${cantidadConUnidad(detalle.cantidadSolicitada, detalle.unidad)}: ${d.etiqueta}. '
+          'Toca para cambiar',
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: habilitado ? onTap : null,
+        borderRadius: BorderRadius.circular(18),
+        child: TarjetaApp(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(detalle.nombre,
+                        style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
+                    Text(cantidadConUnidad(detalle.cantidadSolicitada, detalle.unidad),
+                        style: const TextStyle(fontSize: 17, color: AppColors.textoSecundario)),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Flexible(child: EtiquetaEstado(texto: d.etiqueta, icono: icono, tipo: tipo)),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

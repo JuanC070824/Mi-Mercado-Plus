@@ -69,3 +69,12 @@ Future<void> escribir(WidgetTester tester, String etiqueta, String texto) async 
   await tester.enterText(campo, texto);
   await tester.pumpAndSettle();
 }
+
+/// Hace scroll en la lista principal hasta que aparezca [f].
+Future<void> verEnLista(WidgetTester tester, Finder f) async {
+  if (f.evaluate().isEmpty) {
+    await tester.scrollUntilVisible(f, 250, scrollable: listaPrincipal());
+  }
+  await tester.ensureVisible(f);
+  await tester.pumpAndSettle();
+}
