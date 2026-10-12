@@ -19,8 +19,12 @@ import '../../features/casero/screens/pesar_screen.dart';
 import '../../features/mercado/screens/inicio_screen.dart';
 import '../../features/mercado/screens/principal_shell.dart';
 import '../../features/mercado/screens/seccion_proxima_screen.dart';
+import '../../features/pedido/screens/historial_screen.dart';
 import '../../features/pedido/screens/mi_pedido_screen.dart';
 import '../../features/perfil/screens/perfil_screen.dart';
+import '../../features/repartidor/screens/entrega_screen.dart';
+import '../../features/repartidor/screens/repartidor_inicio_screen.dart';
+import '../../features/repartidor/screens/ruta_screen.dart';
 import '../widgets/barra_navegacion_app.dart';
 
 // ESTO ME SIRVE COMO LISTA DE RUTAS
@@ -42,8 +46,6 @@ String? _exigirRol(GoRouterState state, Rol rol) {
   final u = extra is Usuario ? extra : _usuarioActual;
   return u?.rol == rol ? null : '/';
 }
-
-String _primerNombre(Usuario u) => u.nombres.split(' ').first;
 
 /// Perfil con cerrar sesión. Lo usan el repartidor y, por ahora, "Mi puesto" del casero.
 Widget _perfil(GoRouterState state) => PerfilScreen(
@@ -139,6 +141,13 @@ final appRouter = GoRouter(
               path: '/pedido',
               redirect: (context, state) => _usuarioActual == null ? '/' : null,
               builder: (context, state) => MiPedidoScreen(usuario: _usuarioActual!),
+              routes: [
+                // C9 · Mis pedidos (historial)
+                GoRoute(
+                  path: 'historial',
+                  builder: (context, state) => HistorialScreen(usuario: _usuarioActual!),
+                ),
+              ],
             ),
           ],
         ),
@@ -253,10 +262,8 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/repartidor/inicio',
               redirect: (context, state) => _exigirRol(state, Rol.repartidor),
-              builder: (context, state) => SeccionProximaScreen(
-                titulo: '¡Hola, ${_primerNombre(_usuarioDe(state))}!',
-                icono: Icons.delivery_dining_rounded,
-              ),
+              builder: (context, state) =>
+                  RepartidorInicioScreen(usuario: _usuarioDe(state)),
             ),
           ],
         ),
@@ -265,10 +272,15 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/repartidor/ruta',
               redirect: (context, state) => _exigirRol(state, Rol.repartidor),
-              builder: (context, state) => const SeccionProximaScreen(
-                titulo: 'Mi ruta',
-                icono: Icons.route_rounded,
-              ),
+              builder: (context, state) => RutaScreen(usuario: _usuarioDe(state)),
+              routes: [
+                // R3 · Entrega y cobro
+                GoRoute(
+                  path: 'entrega',
+                  builder: (context, state) =>
+                      EntregaScreen(usuario: _usuarioDe(state)),
+                ),
+              ],
             ),
           ],
         ),
