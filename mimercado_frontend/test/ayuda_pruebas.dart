@@ -46,6 +46,11 @@ Future<void> tocar(WidgetTester tester, Finder f, {int espera = 1000}) async {
     // Las listas largas no construyen lo que está fuera de pantalla.
     await tester.scrollUntilVisible(f, 250, scrollable: listaPrincipal());
   }
+  if (find.byType(SnackBar).evaluate().isNotEmpty) {
+    // El aviso de abajo puede tapar el botón: se espera a que se vaya.
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pumpAndSettle();
+  }
   await tester.ensureVisible(f);
   await tester.pumpAndSettle();
   await tester.tap(f);
@@ -67,5 +72,14 @@ Future<void> escribir(WidgetTester tester, String etiqueta, String texto) async 
   }
   await tester.ensureVisible(campo);
   await tester.enterText(campo, texto);
+  await tester.pumpAndSettle();
+}
+
+/// Hace scroll en la lista principal hasta que aparezca [f].
+Future<void> verEnLista(WidgetTester tester, Finder f) async {
+  if (f.evaluate().isEmpty) {
+    await tester.scrollUntilVisible(f, 250, scrollable: listaPrincipal());
+  }
+  await tester.ensureVisible(f);
   await tester.pumpAndSettle();
 }
