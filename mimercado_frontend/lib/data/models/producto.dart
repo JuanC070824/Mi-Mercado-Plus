@@ -31,4 +31,15 @@ class Producto {
   final double precioUnitario;
   final bool disponible;
   final String? imagen;
+
+  /// Para editar precio o disponibilidad desde el catálogo del casero (V7).
+  Producto copyWith({double? precioUnitario, bool? disponible}) => Producto(
+        id: id,
+        puestoId: puestoId,
+        nombre: nombre,
+        unidad: unidad,
+        precioUnitario: precioUnitario ?? this.precioUnitario,
+        disponible: disponible ?? this.disponible,
+        imagen: imagen,
+      );
 }
