@@ -14,6 +14,8 @@ import '../../features/canasta/screens/pedido_enviado_screen.dart';
 import '../../features/canasta/screens/puesto_screen.dart';
 import '../../features/canasta/screens/yape_screen.dart';
 import '../../features/casero/screens/casero_inicio_screen.dart';
+import '../../features/casero/screens/catalogo_casero_screen.dart';
+import '../../features/casero/screens/mis_pedidos_casero_screen.dart';
 import '../../features/casero/screens/casero_pedido_screen.dart';
 import '../../features/casero/screens/pesar_screen.dart';
 import '../../features/mercado/screens/inicio_screen.dart';
@@ -213,10 +215,8 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/casero/pedidos',
               redirect: (context, state) => _exigirRol(state, Rol.comerciante),
-              builder: (context, state) => const SeccionProximaScreen(
-                titulo: 'Mis pedidos',
-                icono: Icons.receipt_long_rounded,
-              ),
+              builder: (context, state) =>
+                  MisPedidosCaseroScreen(usuario: _usuarioDe(state)),
             ),
           ],
         ),
@@ -225,10 +225,8 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/casero/catalogo',
               redirect: (context, state) => _exigirRol(state, Rol.comerciante),
-              builder: (context, state) => const SeccionProximaScreen(
-                titulo: 'Mi catálogo',
-                icono: Icons.inventory_2_rounded,
-              ),
+              builder: (context, state) =>
+                  CatalogoCaseroScreen(usuario: _usuarioDe(state)),
             ),
           ],
         ),
