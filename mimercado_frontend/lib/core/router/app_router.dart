@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../data/models/direccion.dart';
+import '../../data/models/pedido.dart';
 import '../../data/models/rol.dart';
 import '../../data/models/usuario.dart';
 import '../../data/repositories/canasta_repository.dart';
@@ -7,7 +9,10 @@ import '../../features/auth/screens/bienvenida_screen.dart';
 import '../../features/auth/screens/cliente_login_screen.dart';
 import '../../features/auth/screens/cliente_registro_screen.dart';
 import '../../features/canasta/screens/canasta_screen.dart';
+import '../../features/canasta/screens/entrega_pago_screen.dart';
+import '../../features/canasta/screens/pedido_enviado_screen.dart';
 import '../../features/canasta/screens/puesto_screen.dart';
+import '../../features/canasta/screens/yape_screen.dart';
 import '../../features/mercado/screens/inicio_screen.dart';
 import '../../features/mercado/screens/principal_shell.dart';
 import '../../features/mercado/screens/seccion_proxima_screen.dart';
@@ -96,12 +101,28 @@ final appRouter = GoRouter(
               path: '/canasta',
               builder: (context, state) => const CanastaScreen(),
               routes: [
-                // C4 · Entrega y pago (llega en M5)
+                // C4 · Entrega y pago → C4b Yape → C4c ¡Pedido enviado!
                 GoRoute(
                   path: 'entrega',
-                  builder: (context, state) => const SeccionProximaScreen(
-                    titulo: 'Entrega y pago',
-                    icono: Icons.local_shipping_outlined,
+                  redirect: (context, state) => _usuarioActual == null ? '/' : null,
+                  builder: (context, state) =>
+                      EntregaPagoScreen(usuario: _usuarioActual!),
+                ),
+                GoRoute(
+                  path: 'yape',
+                  redirect: (context, state) =>
+                      (_usuarioActual == null || state.extra is! Direccion)
+                          ? '/canasta'
+                          : null,
+                  builder: (context, state) => YapeScreen(
+                    usuario: _usuarioActual!,
+                    direccion: state.extra! as Direccion,
+                  ),
+                ),
+                GoRoute(
+                  path: 'enviado',
+                  builder: (context, state) => PedidoEnviadoScreen(
+                    pedido: state.extra is Pedido ? state.extra! as Pedido : null,
                   ),
                 ),
               ],

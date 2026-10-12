@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mimercado_frontend/core/router/app_router.dart';
 import 'package:mimercado_frontend/data/repositories/canasta_repository.dart';
 import 'package:mimercado_frontend/data/repositories/catalogo_repository.dart';
+import 'package:mimercado_frontend/data/repositories/pago_repository.dart';
+import 'package:mimercado_frontend/data/repositories/pedido_repository.dart';
 
 import 'ayuda_pruebas.dart';
 
@@ -65,6 +67,50 @@ void main() {
     expect(find.text('¿Vaciar tu canasta?'), findsOneWidget);
     await tocar(tester, find.text('Sí, vaciar'));
     expect(find.text('Tu canasta está vacía'), findsOneWidget);
+  });
+
+  test('Yape simulado: 000000 se rechaza y un código de 6 números se aprueba',
+      () async {
+    final pagos = PagoRepositoryMock.instancia;
+    final malo = await pagos.pagarConYape(
+        celular: '987654321', codigo: '000000', monto: 46);
+    expect(malo.aprobado, isFalse);
+    expect(malo.mensaje, contains('Genera uno nuevo en Yape'));
+    expect(pagos.validarCodigoYape('123'), 'El código debe tener 6 números.');
+    final bueno = await pagos.pagarConYape(
+        celular: '987654321', codigo: '482913', monto: 46);
+    expect(bueno.aprobado, isTrue);
+  });
+
+  testWidgets('C4 → C4b → C4c: paga con Yape (primero falla) y el pedido sale',
+      (tester) async {
+    await entrarComo(tester, perfil: 'Cliente', celular: '987654321');
+    await tester.runAsync(_llenarCanastaDemo);
+    appRouter.go('/canasta/entrega');
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 1)); // carga la dirección
+    await tester.pumpAndSettle();
+
+    expect(find.text('Av. Las Flores 245, San Isidro'), findsOneWidget);
+    await tocar(tester, find.text('Yape'));
+    await tocar(tester, find.text('Continuar con Yape'));
+    expect(find.text('Así se hace, en 3 pasos'), findsOneWidget);
+
+    await escribir(tester, 'Código de aprobación (6 números)', '000000');
+    await tocar(tester, find.text('Confirmar y pagar'), espera: 2000);
+    expect(find.textContaining('Genera uno nuevo en Yape'), findsOneWidget);
+    expect(CanastaRepositoryMock.instancia.canasta.value.vacia, isFalse);
+
+    await escribir(tester, 'Código de aprobación (6 números)', '482913');
+    await tocar(tester, find.text('Confirmar y pagar'), espera: 3000);
+    expect(find.text('¡Pedido enviado!'), findsOneWidget);
+    expect(find.textContaining('#345-A'), findsOneWidget);
+    expect(CanastaRepositoryMock.instancia.canasta.value.vacia, isTrue);
+
+    final p = await tester.runAsync(
+        () => PedidoRepositoryMock.instancia.pedidoActivoCliente('987654321'));
+    expect(p!.totalEstimado, 46.00);
+    expect(p.puestos.first.listaMandado, isNull);
   });
 }
 

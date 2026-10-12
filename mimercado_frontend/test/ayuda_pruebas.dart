@@ -42,9 +42,30 @@ Future<void> entrarComo(
 
 /// Hace scroll hasta el elemento, lo toca y espera a que el mock responda.
 Future<void> tocar(WidgetTester tester, Finder f, {int espera = 1000}) async {
+  if (f.evaluate().isEmpty) {
+    // Las listas largas no construyen lo que está fuera de pantalla.
+    await tester.scrollUntilVisible(f, 250, scrollable: listaPrincipal());
+  }
   await tester.ensureVisible(f);
   await tester.pumpAndSettle();
   await tester.tap(f);
   await tester.pump(Duration(milliseconds: espera));
+  await tester.pumpAndSettle();
+}
+
+/// La lista vertical de la pantalla (no la de un campo de texto).
+Finder listaPrincipal() => find
+    .byWidgetPredicate((w) =>
+        w is Scrollable && w.axisDirection == AxisDirection.down)
+    .first;
+
+/// Escribe en el campo cuya etiqueta es [etiqueta] (hace scroll si hace falta).
+Future<void> escribir(WidgetTester tester, String etiqueta, String texto) async {
+  final campo = find.widgetWithText(TextFormField, etiqueta);
+  if (campo.evaluate().isEmpty) {
+    await tester.scrollUntilVisible(campo, 250, scrollable: listaPrincipal());
+  }
+  await tester.ensureVisible(campo);
+  await tester.enterText(campo, texto);
   await tester.pumpAndSettle();
 }
