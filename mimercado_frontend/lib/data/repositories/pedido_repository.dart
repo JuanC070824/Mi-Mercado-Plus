@@ -128,6 +128,11 @@ abstract class PedidoRepository {
 
   /// Repartidor asignado al pedido (null si aún no hay).
   Future<Repartidor?> repartidorDe(int pedidoId);
+
+  // ---- Cliente: calificar (M7) ----
+
+  /// Último pedido entregado que el cliente aún no calificó (C8).
+  Future<Pedido?> pedidoParaCalificar(String celular);
 }
 
 /// Simula al backend. Los datos viven en memoria y se pierden al reiniciar.
@@ -940,4 +945,20 @@ class PedidoRepositoryMock implements PedidoRepository {
 
   /// Datos del repartidor por su celular (para R1).
   static Repartidor? repartidorPorCelular(String celular) => _repartidores[celular];
+
+  // ----------------------------------------------------- Cliente: calificar
+
+  @override
+  Future<Pedido?> pedidoParaCalificar(String celular) async {
+    await Future.delayed(const Duration(milliseconds: 200));
+    for (final p in _ordenados()) {
+      if (p.clienteCelular == celular &&
+          p.estado == EstadoPedido.entregado &&
+          _entregadoEn.containsKey(p.id) && // entregado en esta sesión de la app
+          !_calificaciones.containsKey(p.id)) {
+        return p;
+      }
+    }
+    return null;
+  }
 }
