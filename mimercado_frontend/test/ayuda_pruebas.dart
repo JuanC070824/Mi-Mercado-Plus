@@ -46,6 +46,11 @@ Future<void> tocar(WidgetTester tester, Finder f, {int espera = 1000}) async {
     // Las listas largas no construyen lo que está fuera de pantalla.
     await tester.scrollUntilVisible(f, 250, scrollable: listaPrincipal());
   }
+  if (find.byType(SnackBar).evaluate().isNotEmpty) {
+    // El aviso de abajo puede tapar el botón: se espera a que se vaya.
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pumpAndSettle();
+  }
   await tester.ensureVisible(f);
   await tester.pumpAndSettle();
   await tester.tap(f);

@@ -4,7 +4,9 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/formato.dart';
 import '../../../core/widgets/botones_app.dart';
 import '../../../core/widgets/componentes_app.dart';
+import '../../../core/widgets/deslizar_confirmar.dart';
 import '../../../core/widgets/encabezado_simple.dart';
+import '../../../data/models/cotizacion.dart';
 import '../../../data/models/pedido.dart';
 import '../../../data/models/producto.dart';
 import '../../../data/models/usuario.dart';
@@ -185,11 +187,17 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
         return _revisar(p, parte); // V2
       case EstadoPedidoPuesto.pesado:
         return _esperandoCliente(p, parte);
-      default:
+      case EstadoPedidoPuesto.enPreparacion:
+        return _empaquetar(p, parte); // V4
+      case EstadoPedidoPuesto.listo:
+        return _entregar(p, parte); // V5
+      case EstadoPedidoPuesto.recogido:
         return [
-          const TituloSeccion('Productos'),
-          const SizedBox(height: 8),
-          ListaProductosParte(parte: parte),
+          const AvisoPantalla(
+            icono: Icons.done_all,
+            titulo: '¡Bolsa entregada al repartidor!',
+            texto: 'Tu parte de este pedido ya terminó. Gracias, casero.',
+          ),
         ];
     }
   }
@@ -289,6 +297,129 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
               : null,
         ),
       ];
+
+  // ------------------------------------------------------ V4 Empaquetar
+
+  List<Widget> _empaquetar(Pedido p, PedidoPuesto parte) => [
+        TarjetaApp(
+          color: AppColors.exitoFondo,
+          colorBorde: AppColors.exitoTexto,
+          child: Row(
+            children: [
+              const Icon(Icons.check_circle, color: AppColors.exitoTexto, size: 32),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '${p.clienteNombre.split(' ').first} aceptó el precio final. '
+                  '¡Ya puedes empaquetar!',
+                  style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (p.puestos.length > 1) ...[
+          const SizedBox(height: 16),
+          _compartido(p, parte),
+        ],
+        const SizedBox(height: 16),
+        const TituloSeccion('Paso a paso'),
+        const SizedBox(height: 8),
+        LineaTiempo(eventos: p.historial),
+        const SizedBox(height: 12),
+        Text('Pon en la bolsa ${parte.codigoBolsa} todo lo que pesaste.',
+            style: const TextStyle(fontSize: 18)),
+        const SizedBox(height: 12),
+        DeslizarConfirmar(
+          texto: 'Desliza: ya empaqueté',
+          textoToque: 'O toca aquí: ya empaqueté',
+          habilitado: !_ocupado,
+          onConfirmar: () => _hacer(() => _repo.marcarListo(parte.id),
+              exito: 'Bolsa lista. Espera al repartidor.'),
+        ),
+      ];
+
+  // --------------------------------------------- V5 Entregar al repartidor
+
+  /// Lo que el casero ya marcó como "va en la bolsa" (checklist).
+  final Set<int> _enBolsa = {};
+
+  List<Widget> _entregar(Pedido p, PedidoPuesto parte) {
+    final cp = p.cotizacion?.dePuesto(parte.id);
+    final items = [
+      for (final d in cp?.detalles ?? const <CotizacionDetalle>[])
+        (d.pedidoDetalleId, '${d.nombreFinal} · ${cantidadConUnidad(d.cantidadReal, _unidadDe(parte, d.pedidoDetalleId))}'),
+    ];
+    final completo = items.every((i) => _enBolsa.contains(i.$1));
+    final n = p.puestosActivos.length;
+    return [
+      const TarjetaApp(
+        color: AppColors.azulClaro,
+        colorBorde: AppColors.azul,
+        child: Row(
+          children: [
+            Icon(Icons.delivery_dining, color: AppColors.azul, size: 32),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Cuando llegue el repartidor, dile el código y entrégale la bolsa.',
+                style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 16),
+      Center(
+        child: Semantics(
+          label: 'Código de bolsa ${parte.codigoBolsa}, bolsa ${parte.parada} de $n',
+          excludeSemantics: true,
+          child: Column(
+            children: [
+              const Text('Código de bolsa', style: TextStyle(fontSize: 18)),
+              Text(
+                '#${parte.codigoBolsa}',
+                style: const TextStyle(
+                  fontSize: 40,
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.azul,
+                  letterSpacing: 2,
+                ),
+              ),
+              Text('Bolsa ${parte.parada} de $n',
+                  style: const TextStyle(fontSize: 18, color: AppColors.textoSecundario)),
+            ],
+          ),
+        ),
+      ),
+      const SizedBox(height: 16),
+      const TituloSeccion('Revisa la bolsa'),
+      for (final (id, texto) in items)
+        CheckboxListTile(
+          value: _enBolsa.contains(id),
+          onChanged: (v) => setState(() => v == true ? _enBolsa.add(id) : _enBolsa.remove(id)),
+          title: Text(texto, style: const TextStyle(fontSize: 18)),
+          controlAffinity: ListTileControlAffinity.leading,
+          contentPadding: EdgeInsets.zero,
+        ),
+      const SizedBox(height: 12),
+      BotonPrincipal(
+        texto: 'Ya se lo entregué',
+        cargando: _ocupado,
+        onPressed: completo
+            ? () => _hacer(() => _repo.entregarARepartidor(parte.id),
+                exito: '¡Listo! Entregaste la bolsa ${parte.codigoBolsa}.')
+            : null,
+      ),
+      if (!completo)
+        const Padding(
+          padding: EdgeInsets.only(top: 8),
+          child: Text('Marca cada producto de la bolsa para poder entregarla.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 16, color: AppColors.textoSecundario)),
+        ),
+    ];
+  }
 
   /// Ya pesó: espera que el cliente acepte el precio final.
   List<Widget> _esperandoCliente(Pedido p, PedidoPuesto parte) {
