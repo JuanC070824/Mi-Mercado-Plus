@@ -1,0 +1,87 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mimercado_frontend/data/models/direccion.dart';
+import 'package:mimercado_frontend/data/models/pedido.dart';
+import 'package:mimercado_frontend/data/models/producto.dart';
+import 'package:mimercado_frontend/data/repositories/catalogo_repository.dart';
+import 'package:mimercado_frontend/data/repositories/pedido_repository.dart';
+
+import 'ayuda_pruebas.dart';
+
+/// Parte de Doña Rosa (puesto 1) en el pedido de la demo #345-A.
+Future<PedidoPuesto> _parteRosa(WidgetTester tester) async {
+  final lista = await tester.runAsync(
+      () => PedidoRepositoryMock.instancia.pedidosDePuesto(1));
+  return lista!.firstWhere((p) => p.id == 345).parteDePuesto(1)!;
+}
+
+void main() {
+  testWidgets('V1 → V1b: Rosa ve la alerta del pedido #345-A y lo acepta',
+      (tester) async {
+    await entrarComo(tester, perfil: 'Comerciante', celular: '912345678');
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
+
+    expect(find.text('¡NUEVO PEDIDO!'), findsOneWidget);
+    expect(find.textContaining('Pedido compartido con Carnicería Huancayo'),
+        findsOneWidget);
+    await tocar(tester, find.text('Aceptar pedido'));
+
+    expect(find.text('Pedido #345-A'), findsOneWidget);
+    expect((await _parteRosa(tester)).estado, EstadoPedidoPuesto.aceptado);
+  });
+
+  testWidgets('V1: el interruptor cierra el puesto para los clientes',
+      (tester) async {
+    await entrarComo(tester, perfil: 'Comerciante', celular: '912345678');
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
+    if (find.text('Verlo después').evaluate().isNotEmpty) {
+      await tocar(tester, find.text('Verlo después'));
+    }
+    await tocar(tester, find.text('Puesto abierto'));
+    expect(find.text('Puesto cerrado'), findsOneWidget);
+    final p = await tester.runAsync(() => CatalogoRepositoryMock().puesto(1));
+    expect(p!.abierto, isFalse);
+    await tocar(tester, find.text('Puesto cerrado')); // lo deja abierto
+  });
+
+  testWidgets('V1b → V1c: Rosa rechaza un pedido nuevo eligiendo el motivo',
+      (tester) async {
+    // Otro cliente le pide a Rosa mientras ella no está en la app.
+    final nuevo = await tester.runAsync(() async {
+      final rosa = (await CatalogoRepositoryMock().puesto(1))!;
+      return PedidoRepositoryMock.instancia.crearPedido(
+        clienteNombre: 'Jorge',
+        clienteCelular: '976543210',
+        direccion: const Direccion(direccion: 'Jr. Los Pinos 120'),
+        metodo: MetodoPago.efectivo,
+        puestos: [
+          SolicitudPuesto(puesto: rosa, items: const [
+            SolicitudItem(
+                nombre: 'Tomate', unidad: UnidadMedida.kg, cantidad: 1, precioUnitario: 4),
+          ]),
+        ],
+      );
+    });
+    await entrarComo(tester, perfil: 'Comerciante', celular: '912345678');
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
+
+    // Puede salir primero la alerta del #345-A: se deja para después.
+    while (find.textContaining('#${nuevo!.codigoCorto}').evaluate().isEmpty &&
+        find.text('Verlo después').evaluate().isNotEmpty) {
+      await tocar(tester, find.text('Verlo después'));
+    }
+    expect(find.text('¡NUEVO PEDIDO!'), findsOneWidget);
+    await tocar(tester, find.text('Rechazar'));
+    expect(find.text('¿Por qué no puedes atenderlo?'), findsOneWidget);
+    await tocar(tester, find.text(MotivoRechazo.cerrando.etiqueta));
+    await tocar(tester, find.text('Sí, rechazar pedido'));
+
+    final lista = await tester.runAsync(
+        () => PedidoRepositoryMock.instancia.pedidosDePuesto(1));
+    final parte = lista!.firstWhere((p) => p.id == nuevo.id).parteDePuesto(1)!;
+    expect(parte.estado, EstadoPedidoPuesto.rechazado);
+    expect(parte.motivoRechazo, MotivoRechazo.cerrando.etiqueta);
+  });
+}
