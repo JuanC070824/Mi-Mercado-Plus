@@ -1,10 +1,16 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/formato.dart';
 import '../../../core/widgets/botones_app.dart';
+import '../../../core/widgets/componentes_app.dart';
 import '../../../core/widgets/mensaje_error.dart';
+import '../../../core/widgets/soporte_dialog.dart';
+import '../../../data/models/canasta.dart';
 import '../../../data/models/puesto.dart';
 import '../../../data/models/usuario.dart';
+import '../../../data/repositories/canasta_repository.dart';
 import '../../../data/repositories/catalogo_repository.dart';
 import '../widgets/componentes_inicio.dart';
 import '../widgets/encabezado_inicio.dart';
@@ -113,8 +119,21 @@ class _InicioScreenState extends State<InicioScreen> {
       mensaje: mensaje,
     );
     if (r == null || !mounted) return false;
-    // TODO: si el carrito tiene productos de otro mercado, pedir confirmación
-    // ("Si cambias de mercado, se vaciará tu carrito") antes de cambiar.
+    // Un repartidor solo recoge en un mercado: cambiar de mercado vacía la canasta.
+    final canasta = CanastaRepositoryMock.instancia;
+    final mercadoCanasta = canasta.canasta.value.mercadoId;
+    if (mercadoCanasta != null && mercadoCanasta != r.mercado.id) {
+      final seguir = await confirmar(
+        context,
+        titulo: '¿Cambiar de mercado?',
+        texto: 'Tu canasta tiene productos de otro mercado. '
+            'Si cambias de mercado, se vaciará tu canasta.',
+        textoSi: 'Sí, vaciar y cambiar',
+      );
+      if (!seguir || !mounted) return false;
+      await canasta.vaciar();
+      if (!mounted) return false;
+    }
     setState(() => _seleccion = r);
     return true;
   }
@@ -181,7 +200,7 @@ class _InicioScreenState extends State<InicioScreen> {
               onVoz: () => sel == null
                   ? _pedirMercadoParaBuscar()
                   : _aviso('La búsqueda por voz estará disponible pronto.'),
-              onSoporte: () => _aviso('Soporte estará disponible pronto.'),
+              onSoporte: () => mostrarSoporte(context),
               
             ),
             Center(
@@ -192,6 +211,7 @@ class _InicioScreenState extends State<InicioScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      const _TarjetaMiCanasta(),
                       const SizedBox(height: 28),
                       Semantics(
                         header: true,
@@ -314,8 +334,7 @@ class _InicioScreenState extends State<InicioScreen> {
               puesto: _puestos[i],
               nombreMercado:
                   sel == null ? _nombresMercado[_puestos[i].mercadoId] : null,
-              onTap: () => _aviso(
-                  'El catálogo de ${_puestos[i].nombre} estará disponible pronto.'),
+              onTap: () => context.push('/inicio/puesto/${_puestos[i].id}'),
             ),
           ],
         ],
@@ -361,6 +380,66 @@ class _InicioScreenState extends State<InicioScreen> {
         const SizedBox(height: 12),
         contenido,
       ],
+    );
+  }
+}
+/// C1 · Tarjeta "Mi canasta · total". Solo aparece si la canasta tiene algo.
+class _TarjetaMiCanasta extends StatelessWidget {
+  const _TarjetaMiCanasta();
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<Canasta>(
+      valueListenable: CanastaRepositoryMock.instancia.canasta,
+      builder: (context, c, _) {
+        if (c.vacia) return const SizedBox.shrink();
+        final n = c.cantidadProductos;
+        return Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Semantics(
+            button: true,
+            label: 'Mi canasta: $n ${n == 1 ? 'producto' : 'productos'}, '
+                '${soles(c.totalProductos)}. Ver canasta',
+            excludeSemantics: true,
+            child: InkWell(
+              onTap: () => context.go('/canasta'),
+              borderRadius: BorderRadius.circular(18),
+              child: TarjetaApp(
+                color: AppColors.azulClaro,
+                colorBorde: AppColors.azul,
+                child: Row(
+                  children: [
+                    const Icon(Icons.shopping_basket_rounded,
+                        size: 36, color: AppColors.azul),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Mi canasta · $n ${n == 1 ? 'producto' : 'productos'}',
+                            style: const TextStyle(fontSize: 18, color: AppColors.texto),
+                          ),
+                          Text(
+                            soles(c.totalProductos),
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.texto,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right, size: 32, color: AppColors.azul),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

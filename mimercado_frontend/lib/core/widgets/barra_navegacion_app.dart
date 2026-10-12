@@ -15,7 +15,8 @@ class ItemNavegacion {
   final String imagen; // ilustración opcional en assets/images/
 }
 
-const _itemsPorDefecto = [
+/// Menú del cliente: Inicio · Canasta · Mi pedido · Perfil.
+const itemsCliente = [
   ItemNavegacion(
     etiqueta: 'Inicio',
     icono: Icons.storefront_outlined,
@@ -42,6 +43,62 @@ const _itemsPorDefecto = [
   ),
 ];
 
+/// Menú del casero: Inicio · Pedidos · Catálogo · Mi puesto.
+const itemsCasero = [
+  ItemNavegacion(
+    etiqueta: 'Inicio',
+    icono: Icons.home_outlined,
+    iconoActivo: Icons.home_rounded,
+    imagen: 'assets/images/nav_inicio.png',
+  ),
+  ItemNavegacion(
+    etiqueta: 'Pedidos',
+    icono: Icons.receipt_long_outlined,
+    iconoActivo: Icons.receipt_long_rounded,
+    imagen: 'assets/images/nav_pedidos.png',
+  ),
+  ItemNavegacion(
+    etiqueta: 'Catálogo',
+    icono: Icons.inventory_2_outlined,
+    iconoActivo: Icons.inventory_2_rounded,
+    imagen: 'assets/images/nav_catalogo.png',
+  ),
+  ItemNavegacion(
+    etiqueta: 'Mi puesto',
+    icono: Icons.storefront_outlined,
+    iconoActivo: Icons.storefront_rounded,
+    imagen: 'assets/images/nav_puesto.png',
+  ),
+];
+
+/// Menú del repartidor: Inicio · Ruta · Ganancias · Perfil.
+const itemsRepartidor = [
+  ItemNavegacion(
+    etiqueta: 'Inicio',
+    icono: Icons.home_outlined,
+    iconoActivo: Icons.home_rounded,
+    imagen: 'assets/images/nav_inicio.png',
+  ),
+  ItemNavegacion(
+    etiqueta: 'Ruta',
+    icono: Icons.route_outlined,
+    iconoActivo: Icons.route_rounded,
+    imagen: 'assets/images/nav_ruta.png',
+  ),
+  ItemNavegacion(
+    etiqueta: 'Ganancias',
+    icono: Icons.payments_outlined,
+    iconoActivo: Icons.payments_rounded,
+    imagen: 'assets/images/nav_ganancias.png',
+  ),
+  ItemNavegacion(
+    etiqueta: 'Perfil',
+    icono: Icons.account_circle_outlined,
+    iconoActivo: Icons.account_circle_rounded,
+    imagen: 'assets/images/nav_perfil.png',
+  ),
+];
+
 /// Menú horizontal inferior. Seleccionado = fondo azul claro + borde azul + texto
 /// en negrita (no depende solo del color), igual que las tarjetas de rubro.
 class BarraNavegacionApp extends StatelessWidget {
@@ -49,7 +106,7 @@ class BarraNavegacionApp extends StatelessWidget {
     super.key,
     required this.indiceActual,
     required this.onSeleccion,
-    this.items = _itemsPorDefecto,
+    this.items = itemsCliente,
   });
 
   final int indiceActual;

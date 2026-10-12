@@ -5,6 +5,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/ubicacion_service.dart';
 import '../../../core/utils/validators.dart';
 import '../../../core/widgets/botones_app.dart';
+import '../../../core/widgets/soporte_dialog.dart';
 import '../../../core/widgets/campo_texto_app.dart';
 import '../../../core/widgets/mensaje_error.dart';
 import '../../../data/models/direccion.dart';
@@ -339,7 +340,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
       body: Column(
         children: [
           _EncabezadoPerfil(
-              onSoporte: () => _aviso('Soporte estará disponible pronto.')),
+              onSoporte: () => mostrarSoporte(context)),
           Expanded(
             child: SingleChildScrollView(
               child: Center(

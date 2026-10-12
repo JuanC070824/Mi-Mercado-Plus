@@ -9,10 +9,19 @@ import '../../../core/widgets/mensaje_error.dart';
 import '../../../data/models/rol.dart';
 import '../../../data/repositories/auth_repository.dart';
 
-//PANTALLA DE LOGIN
+//PANTALLA DE LOGIN (la usan los 3 perfiles: cliente, casero y repartidor)
 
 class ClienteLoginScreen extends StatefulWidget {
-  const ClienteLoginScreen({super.key});
+  const ClienteLoginScreen({super.key, this.rol = Rol.cliente});
+
+  final Rol rol;
+
+  /// Pantalla a la que entra cada perfil después de iniciar sesión.
+  static const inicioPorRol = {
+    Rol.cliente: '/inicio',
+    Rol.comerciante: '/casero/inicio',
+    Rol.repartidor: '/repartidor/inicio',
+  };
 
   @override
   State<ClienteLoginScreen> createState() => _ClienteLoginScreenState();
@@ -42,13 +51,13 @@ class _ClienteLoginScreenState extends State<ClienteLoginScreen> {
     final r = await _repo.iniciarSesion(
       celular: _celular.text.trim(),
       password: _password.text,
-      rol: Rol.cliente,
+      rol: widget.rol,
     );
     if (!mounted) return;
     setState(() => _cargando = false);
 
     if (r.exito) {
-      context.go('/inicio', extra: r.usuario);
+      context.go(ClienteLoginScreen.inicioPorRol[widget.rol]!, extra: r.usuario);
     } else {
       setState(() => _error = r.mensaje);
     }
@@ -72,7 +81,7 @@ class _ClienteLoginScreenState extends State<ClienteLoginScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          const _InsigniaPerfil(),
+                          _InsigniaPerfil(rol: widget.rol),
                           const SizedBox(height: 20),
                           CampoTextoApp(
                             etiqueta: 'Celular',
@@ -131,16 +140,33 @@ class _ClienteLoginScreenState extends State<ClienteLoginScreen> {
                           const SizedBox(height: 24),
                           const _SeparadorTexto('¿Primera vez en MiMercado+?'),
                           const SizedBox(height: 16),
-                          BotonSecundario(
-                            texto: 'Crear mi cuenta',
-                            onPressed: () => context.push('/cliente/registro'),
-                          ),
+                          if (widget.rol == Rol.cliente)
+                            BotonSecundario(
+                              texto: 'Crear mi cuenta',
+                              onPressed: () => context.push('/cliente/registro'),
+                            )
+                          else
+                            // Caseros y repartidores los da de alta el mercado.
+                            const Text(
+                              'Pide tu cuenta en la administración de tu mercado '
+                              'o escríbenos desde Soporte.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: AppColors.textoSecundario,
+                              ),
+                            ),
                           const SizedBox(height: 12),
                           TextButton(
                             onPressed: () => context.go('/'),
-                            child: const Text(
-                              '¿No eres cliente? Cambiar de perfil',
-                              style: TextStyle(fontSize: 16, color: AppColors.azul),
+                            style: TextButton.styleFrom(
+                                minimumSize: const Size(48, 48)),
+                            child: Text(
+                              '¿No eres ${widget.rol.etiqueta.toLowerCase()}? '
+                              'Cambiar de perfil',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                  fontSize: 16, color: AppColors.azul),
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -160,7 +186,15 @@ class _ClienteLoginScreenState extends State<ClienteLoginScreen> {
 }
 
 class _InsigniaPerfil extends StatelessWidget {
-  const _InsigniaPerfil();
+  const _InsigniaPerfil({required this.rol});
+
+  final Rol rol;
+
+  static const _iconos = {
+    Rol.cliente: Icons.shopping_basket_outlined,
+    Rol.comerciante: Icons.storefront_outlined,
+    Rol.repartidor: Icons.delivery_dining_outlined,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -173,17 +207,19 @@ class _InsigniaPerfil extends StatelessWidget {
           borderRadius: BorderRadius.circular(24),
           border: Border.all(color: AppColors.azul, width: 1.5),
         ),
-        child: const Row(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.shopping_basket_outlined, color: AppColors.azul, size: 22),
-            SizedBox(width: 8),
-            Text(
-              'Perfil: Cliente',
-              style: TextStyle(
-                color: AppColors.azul,
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
+            Icon(_iconos[rol], color: AppColors.azul, size: 22),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                'Perfil: ${rol.etiqueta}',
+                style: const TextStyle(
+                  color: AppColors.azul,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ],
@@ -202,11 +238,16 @@ class _SeparadorTexto extends StatelessWidget {
     return Row(
       children: [
         const Expanded(child: Divider(color: AppColors.textoSecundario)),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Text(
-            texto,
-            style: const TextStyle(fontSize: 15, color: AppColors.textoSecundario),
+        // Flexible: con letra grande el texto baja de línea en vez de desbordar.
+        Flexible(
+          flex: 3,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Text(
+              texto,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 15, color: AppColors.textoSecundario),
+            ),
           ),
         ),
         const Expanded(child: Divider(color: AppColors.textoSecundario)),

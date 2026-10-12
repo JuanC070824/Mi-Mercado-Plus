@@ -97,6 +97,29 @@ class AuthRepositoryMock implements AuthRepository {
       password: 'Mercado123',
       estado: 'suspendido',
     ),
+    // Casera de Doña Rosa Verdulería (puesto 1, mercado 1).
+    '912345678': _Cuenta(
+      usuario: const Usuario(
+        nombres: 'Rosa',
+        apellidoPaterno: 'Quispe',
+        celular: '912345678',
+        rol: Rol.comerciante,
+        puestoId: 1,
+        mercadoId: 1,
+      ),
+      password: 'Mercado123',
+    ),
+    // Repartidor autorizado del mercado 1 (mototaxi MT-4521).
+    '923456789': _Cuenta(
+      usuario: const Usuario(
+        nombres: 'Ernesto',
+        apellidoPaterno: 'Guevara',
+        celular: '923456789',
+        rol: Rol.repartidor,
+        mercadoId: 1,
+      ),
+      password: 'Mercado123',
+    ),
   };
 
   @override
@@ -198,6 +221,8 @@ class AuthRepositoryMock implements AuthRepository {
       sonido: u.sonido,
       vibracion: u.vibracion,
       rol: u.rol,
+      puestoId: u.puestoId,
+      mercadoId: u.mercadoId,
     );
     _porCelular.remove(celularActual);
     _porCelular[celular] = _Cuenta(
@@ -230,6 +255,8 @@ class AuthRepositoryMock implements AuthRepository {
         sonido: sonido,
         vibracion: vibracion,
         rol: u.rol,
+        puestoId: u.puestoId,
+        mercadoId: u.mercadoId,
       ),
       password: c.password,
       estado: c.estado,

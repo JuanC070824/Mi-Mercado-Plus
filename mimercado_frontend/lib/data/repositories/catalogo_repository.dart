@@ -1,6 +1,16 @@
 import 'dart:math';
 import '../models/mercado.dart';
+import '../models/producto.dart';
 import '../models/puesto.dart';
+
+/// Error de catálogo con un mensaje listo para mostrar al usuario.
+class CatalogoException implements Exception {
+  const CatalogoException(this.mensaje);
+  final String mensaje;
+
+  @override
+  String toString() => mensaje;
+}
 
 abstract class CatalogoRepository {
   /// Mercados activos. Con ubicación, ordenados del más cercano al más lejano.
@@ -15,6 +25,18 @@ abstract class CatalogoRepository {
     CategoriaPuesto? categoria,
     String texto = '',
   });
+
+  /// Un puesto por su id (null si no existe).
+  Future<Puesto?> puesto(int id);
+
+  /// Productos de un puesto: primero los disponibles, luego los agotados.
+  Future<List<Producto>> productosDePuesto(int puestoId);
+
+  /// Cambia precio o disponibilidad de un producto (catálogo del casero, V7).
+  Future<void> actualizarProducto(Producto producto);
+
+  /// Interruptor "Puesto abierto / cerrado" del casero (V1).
+  Future<Puesto> cambiarAbierto(int puestoId, bool abierto);
 }
 
 /// Datos de prueba. Las coordenadas son aproximadas.
@@ -117,7 +139,7 @@ class CatalogoRepositoryMock implements CatalogoRepository {
   @override
   Future<List<Puesto>> masQueridos({int? mercadoId, int limite = 5}) async {
     await Future.delayed(const Duration(milliseconds: 300));
-    final lista = _puestos
+    final lista = _vigentes
         .where((p) => mercadoId == null || p.mercadoId == mercadoId)
         .toList()
       ..sort(_porCalificacion);
@@ -132,7 +154,7 @@ class CatalogoRepositoryMock implements CatalogoRepository {
   }) async {
     await Future.delayed(const Duration(milliseconds: 300));
     final q = _normalizar(texto);
-    final lista = _puestos.where((p) {
+    final lista = _vigentes.where((p) {
       if (p.mercadoId != mercadoId) return false;
       if (categoria != null && p.categoria != categoria) return false;
       if (q.isEmpty) return true;
@@ -143,5 +165,107 @@ class CatalogoRepositoryMock implements CatalogoRepository {
         return _porCalificacion(a, b);
       });
     return lista;
+  }
+
+  // ---------------------------------------------------------------- Productos
+
+  // IDs: número de puesto × 100 + correlativo (puesto 1 → 101, 102…).
+  // Nombres y precios iguales a los de PedidoRepositoryMock: si cambias uno
+  // aquí, cámbialo también allá para que el estimado de la canasta cuadre.
+  // Es `static` y no `const` para que los cambios del casero (V7) los vean
+  // todas las pantallas, aunque cada una cree su propio CatalogoRepositoryMock.
+  static final List<Producto> _productos = [
+    // 1 · Doña Rosa Verdulería
+    const Producto(id: 101, puestoId: 1, nombre: 'Tomate', unidad: UnidadMedida.kg, precioUnitario: 4.00),
+    const Producto(id: 102, puestoId: 1, nombre: 'Papa amarilla', unidad: UnidadMedida.kg, precioUnitario: 3.50),
+    const Producto(id: 103, puestoId: 1, nombre: 'Limón', unidad: UnidadMedida.kg, precioUnitario: 8.00),
+    const Producto(id: 104, puestoId: 1, nombre: 'Cebolla roja', unidad: UnidadMedida.kg, precioUnitario: 3.00),
+    const Producto(id: 105, puestoId: 1, nombre: 'Culantro', unidad: UnidadMedida.atado, precioUnitario: 1.00),
+    const Producto(id: 106, puestoId: 1, nombre: 'Zanahoria', unidad: UnidadMedida.kg, precioUnitario: 2.50, disponible: false),
+    // 2 · Mariscos Enrique
+    const Producto(id: 201, puestoId: 2, nombre: 'Bonito', unidad: UnidadMedida.kg, precioUnitario: 14.00),
+    const Producto(id: 202, puestoId: 2, nombre: 'Jurel', unidad: UnidadMedida.kg, precioUnitario: 9.00),
+    // 3 · Carnicería Huancayo
+    const Producto(id: 301, puestoId: 3, nombre: 'Pollo entero', unidad: UnidadMedida.kg, precioUnitario: 10.00),
+    const Producto(id: 302, puestoId: 3, nombre: 'Carne molida', unidad: UnidadMedida.kg, precioUnitario: 22.00),
+    const Producto(id: 303, puestoId: 3, nombre: 'Bistec', unidad: UnidadMedida.kg, precioUnitario: 28.00),
+    // 4 · Hermanos Sánchez
+    const Producto(id: 401, puestoId: 4, nombre: 'Plátano de seda', unidad: UnidadMedida.kg, precioUnitario: 3.80),
+    const Producto(id: 402, puestoId: 4, nombre: 'Palta fuerte', unidad: UnidadMedida.kg, precioUnitario: 8.50),
+    // 5 · Abarrotes Doña Carmen
+    const Producto(id: 501, puestoId: 5, nombre: 'Arroz extra', unidad: UnidadMedida.kg, precioUnitario: 4.20),
+    const Producto(id: 502, puestoId: 5, nombre: 'Aceite vegetal', unidad: UnidadMedida.litro, precioUnitario: 9.50),
+    const Producto(id: 503, puestoId: 5, nombre: 'Huevos', unidad: UnidadMedida.kg, precioUnitario: 7.50),
+    // 6 · Granja Don Lucho (cerrado)
+    const Producto(id: 601, puestoId: 6, nombre: 'Gallina', unidad: UnidadMedida.kg, precioUnitario: 12.00),
+    // 7 · Frutas Mary (mercado 2)
+    const Producto(id: 701, puestoId: 7, nombre: 'Mandarina', unidad: UnidadMedida.kg, precioUnitario: 4.50),
+    const Producto(id: 702, puestoId: 7, nombre: 'Piña', unidad: UnidadMedida.unidad, precioUnitario: 6.00),
+    // 8 · Carnes El Cuzqueño (mercado 2)
+    const Producto(id: 801, puestoId: 8, nombre: 'Pollo entero', unidad: UnidadMedida.kg, precioUnitario: 10.50),
+  ];
+
+  @override
+  Future<Puesto?> puesto(int id) async {
+    await Future.delayed(const Duration(milliseconds: 200));
+    for (final p in _vigentes) {
+      if (p.id == id) return p;
+    }
+    return null;
+  }
+
+  @override
+  Future<List<Producto>> productosDePuesto(int puestoId) async {
+    await Future.delayed(const Duration(milliseconds: 400));
+    return _productos.where((p) => p.puestoId == puestoId).toList()
+      ..sort((a, b) {
+        if (a.disponible != b.disponible) return a.disponible ? -1 : 1;
+        return a.id.compareTo(b.id);
+      });
+  }
+
+  @override
+  Future<void> actualizarProducto(Producto producto) async {
+    await Future.delayed(const Duration(milliseconds: 300));
+    final i = _productos.indexWhere((p) => p.id == producto.id);
+    if (i == -1) {
+      throw const CatalogoException('No encontramos ese producto en tu catálogo.');
+    }
+    _productos[i] = producto;
+  }
+
+  // ------------------------------------------------------ Abierto / cerrado
+
+  // Lo que el casero cambió hoy con su interruptor. Es `static` para que lo
+  // vean todas las pantallas (cada una crea su propio CatalogoRepositoryMock).
+  static final Map<int, bool> _abiertoHoy = {};
+
+  /// Los puestos con el estado abierto/cerrado de hoy.
+  static Iterable<Puesto> get _vigentes => _puestos.map(_conEstadoDeHoy);
+
+  static Puesto _conEstadoDeHoy(Puesto p) {
+    final abierto = _abiertoHoy[p.id];
+    if (abierto == null || abierto == p.abierto) return p;
+    return Puesto(
+      id: p.id,
+      mercadoId: p.mercadoId,
+      nombre: p.nombre,
+      casero: p.casero,
+      categoria: p.categoria,
+      calificacion: p.calificacion,
+      resenas: p.resenas,
+      abierto: abierto,
+    );
+  }
+
+  @override
+  Future<Puesto> cambiarAbierto(int puestoId, bool abierto) async {
+    await Future.delayed(const Duration(milliseconds: 300));
+    final base = _puestos.where((p) => p.id == puestoId);
+    if (base.isEmpty) {
+      throw const CatalogoException('No encontramos tu puesto.');
+    }
+    _abiertoHoy[puestoId] = abierto;
+    return _conEstadoDeHoy(base.first);
   }
 }

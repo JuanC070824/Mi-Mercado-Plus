@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../theme/app_colors.dart';
+import 'soporte_dialog.dart';
 
 //Esta es la franja azul de arriba con el logo.
 
@@ -41,12 +42,8 @@ class EncabezadoAzul extends StatelessWidget {
                     const SizedBox(width: 48, height: 48),
                   const Spacer(),
                   TextButton.icon(
-                    onPressed: () {
-                      // TODO: abrir soporte
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Soporte: próximamente')),
-                      );
-                    },
+                    onPressed: () => mostrarSoporte(context),
+                    style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
                     icon: const Icon(Icons.headset_mic_outlined,
                         color: AppColors.blanco),
                     label: const Text(
