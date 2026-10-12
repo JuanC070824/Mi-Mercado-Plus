@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../data/models/rol.dart';
 import '../../data/models/usuario.dart';
+import '../../data/repositories/canasta_repository.dart';
 import '../../features/auth/screens/bienvenida_screen.dart';
 import '../../features/auth/screens/cliente_login_screen.dart';
 import '../../features/auth/screens/cliente_registro_screen.dart';
+import '../../features/canasta/screens/puesto_screen.dart';
 import '../../features/mercado/screens/inicio_screen.dart';
 import '../../features/mercado/screens/principal_shell.dart';
 import '../../features/mercado/screens/seccion_proxima_screen.dart';
@@ -40,7 +42,10 @@ Widget _perfil(GoRouterState state) => PerfilScreen(
       onSesionCerrada: _cerrarSesion,
     );
 
-void _cerrarSesion() => _usuarioActual = null;
+void _cerrarSesion() {
+  _usuarioActual = null;
+  CanastaRepositoryMock.instancia.vaciar(); // la canasta no pasa al siguiente usuario
+}
 
 final appRouter = GoRouter(
   initialLocation: '/',
@@ -72,6 +77,15 @@ final appRouter = GoRouter(
                 if (extra is Usuario) _usuarioActual = extra;
                 return InicioScreen(usuario: _usuarioActual!);
               },
+              routes: [
+                // C2 · Puesto (dentro de Inicio para que siga el menú inferior)
+                GoRoute(
+                  path: 'puesto/:id',
+                  builder: (context, state) => PuestoScreen(
+                    puestoId: int.parse(state.pathParameters['id']!),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
