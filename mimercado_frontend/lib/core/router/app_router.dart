@@ -19,6 +19,7 @@ import '../../features/casero/screens/pesar_screen.dart';
 import '../../features/mercado/screens/inicio_screen.dart';
 import '../../features/mercado/screens/principal_shell.dart';
 import '../../features/mercado/screens/seccion_proxima_screen.dart';
+import '../../features/pedido/screens/mi_pedido_screen.dart';
 import '../../features/perfil/screens/perfil_screen.dart';
 import '../widgets/barra_navegacion_app.dart';
 
@@ -136,10 +137,8 @@ final appRouter = GoRouter(
           routes: [
             GoRoute(
               path: '/pedido',
-              builder: (context, state) => const SeccionProximaScreen(
-                titulo: 'Mi pedido',
-                icono: Icons.inventory_2_rounded,
-              ),
+              redirect: (context, state) => _usuarioActual == null ? '/' : null,
+              builder: (context, state) => MiPedidoScreen(usuario: _usuarioActual!),
             ),
           ],
         ),
