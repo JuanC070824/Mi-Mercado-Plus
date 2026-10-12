@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/botones_app.dart';
 import '../../../core/widgets/mensaje_error.dart';
+import '../../../core/widgets/soporte_dialog.dart';
 import '../../../data/models/puesto.dart';
 import '../../../data/models/usuario.dart';
 import '../../../data/repositories/catalogo_repository.dart';
@@ -181,7 +182,7 @@ class _InicioScreenState extends State<InicioScreen> {
               onVoz: () => sel == null
                   ? _pedirMercadoParaBuscar()
                   : _aviso('La búsqueda por voz estará disponible pronto.'),
-              onSoporte: () => _aviso('Soporte estará disponible pronto.'),
+              onSoporte: () => mostrarSoporte(context),
               
             ),
             Center(
