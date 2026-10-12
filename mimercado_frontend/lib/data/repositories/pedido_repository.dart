@@ -7,6 +7,7 @@ import '../models/direccion.dart';
 import '../models/pedido.dart';
 import '../models/producto.dart';
 import '../models/puesto.dart';
+import '../models/repartidor.dart';
 
 /// Error de negocio con un mensaje listo para mostrar al usuario.
 class PedidoException implements Exception {
@@ -100,6 +101,33 @@ abstract class PedidoRepository {
   Future<void> entregarARepartidor(int pedidoPuestoId);
 
   // ---- Repartidor (los agrega Michael al final, en M8) ----
+
+  /// Pedidos de su mercado con precio aceptado y sin repartidor todavía.
+  Future<List<Pedido>> pedidosParaRepartidor(int mercadoId);
+
+  /// La entrega que el repartidor tiene en curso (null si está libre).
+  Future<Pedido?> entregaEnCurso(String celularRepartidor);
+
+  /// Entregas que terminó hoy (para el resumen de R1).
+  Future<List<Pedido>> entregasDeHoy(String celularRepartidor);
+
+  /// El repartidor toma el pedido. Solo una entrega a la vez.
+  Future<void> aceptarEntrega(int pedidoId, String celularRepartidor);
+
+  /// Recoge la bolsa de un puesto (misma lógica que entregarARepartidor).
+  Future<void> marcarRecogido(int pedidoPuestoId);
+
+  /// Sale a entregar. false si falta recoger en algún puesto no rechazado.
+  Future<bool> salirAEntregar(int pedidoId);
+
+  /// "Avisar: llegué" (el cliente lo ve en su pedido).
+  Future<void> avisarLlegada(int pedidoId);
+
+  /// Valida el código de 4 dígitos y marca el pedido como entregado.
+  Future<bool> validarCodigoEntrega(int pedidoId, String codigo);
+
+  /// Repartidor asignado al pedido (null si aún no hay).
+  Future<Repartidor?> repartidorDe(int pedidoId);
 }
 
 /// Simula al backend. Los datos viven en memoria y se pierden al reiniciar.
@@ -781,4 +809,135 @@ class PedidoRepositoryMock implements PedidoRepository {
     };
     _pedidos[id] = p;
   }
+
+  // -------------------------------------------------------------- Repartidor
+
+  static const _repartidores = {
+    '923456789': Repartidor(
+      nombre: 'Ernesto Guevara',
+      celular: '923456789',
+      mercadoId: 1,
+      movilidad: Movilidad.mototaxi,
+      placa: 'MT-4521',
+      calificacion: 4.8,
+    ),
+  };
+
+  /// Pedido → celular del repartidor que lo lleva.
+  final Map<int, String> _repartidorDe = {};
+
+  /// Pedido → hora en que se entregó (para "entregas de hoy").
+  final Map<int, DateTime> _entregadoEn = {};
+
+  bool _listoParaRepartidor(Pedido p) =>
+      p.estado.activo &&
+      p.cotizacion?.estado == EstadoCotizacion.aceptada &&
+      !_repartidorDe.containsKey(p.id);
+
+  @override
+  Future<List<Pedido>> pedidosParaRepartidor(int mercadoId) async {
+    await Future.delayed(const Duration(milliseconds: 400));
+    return _ordenados()
+        .where((p) => p.mercadoId == mercadoId && _listoParaRepartidor(p))
+        .toList();
+  }
+
+  @override
+  Future<Pedido?> entregaEnCurso(String celularRepartidor) async {
+    await Future.delayed(const Duration(milliseconds: 300));
+    for (final p in _ordenados()) {
+      if (_repartidorDe[p.id] == celularRepartidor && p.estado.activo) return p;
+    }
+    return null;
+  }
+
+  @override
+  Future<List<Pedido>> entregasDeHoy(String celularRepartidor) async {
+    await Future.delayed(const Duration(milliseconds: 300));
+    final hoy = DateTime.now();
+    return [
+      for (final e in _entregadoEn.entries)
+        if (_repartidorDe[e.key] == celularRepartidor &&
+            e.value.year == hoy.year &&
+            e.value.month == hoy.month &&
+            e.value.day == hoy.day)
+          _pedidos[e.key]!,
+    ];
+  }
+
+  @override
+  Future<void> aceptarEntrega(int pedidoId, String celularRepartidor) async {
+    await Future.delayed(const Duration(milliseconds: 400));
+    final r = _repartidores[celularRepartidor];
+    if (r == null) throw const PedidoException('No estás autorizado en este mercado.');
+    final p = _pedido(pedidoId);
+    if (p.mercadoId != r.mercadoId) {
+      throw const PedidoException('Este pedido es de otro mercado.');
+    }
+    if (_pedidos.entries.any((e) =>
+        _repartidorDe[e.key] == celularRepartidor && e.value.estado.activo)) {
+      throw const PedidoException('Primero termina la entrega que tienes en curso.');
+    }
+    if (!_listoParaRepartidor(p)) {
+      throw const PedidoException('Otro repartidor ya tomó este pedido.');
+    }
+    _repartidorDe[pedidoId] = celularRepartidor;
+    _guardar(_conEvento(p,
+        '${r.nombre.split(' ').first} (${r.movilidadTexto}) va a recoger tu pedido'));
+  }
+
+  @override
+  Future<void> marcarRecogido(int pedidoPuestoId) async {
+    await Future.delayed(const Duration(milliseconds: 400));
+    final (_, pp) = _buscarParte(pedidoPuestoId);
+    if (pp.estado != EstadoPedidoPuesto.listo &&
+        pp.estado != EstadoPedidoPuesto.recogido) {
+      throw PedidoException(
+          '${pp.puesto.nombre} aún está preparando la bolsa. Espera un momento.');
+    }
+    _recoger(pedidoPuestoId);
+  }
+
+  @override
+  Future<bool> salirAEntregar(int pedidoId) async {
+    await Future.delayed(const Duration(milliseconds: 400));
+    final p = _pedido(pedidoId);
+    if (p.estado == EstadoPedido.enCamino) return true;
+    final faltan = p.puestosActivos.any((pp) => pp.estado != EstadoPedidoPuesto.recogido);
+    if (faltan || p.cotizacion?.estado != EstadoCotizacion.aceptada) return false;
+    _guardar(_conEvento(p.copyWith(estado: EstadoPedido.enCamino), 'Tu pedido va en camino'));
+    return true;
+  }
+
+  @override
+  Future<void> avisarLlegada(int pedidoId) async {
+    await Future.delayed(const Duration(milliseconds: 300));
+    _guardar(_conEvento(_pedido(pedidoId), 'El repartidor llegó a tu puerta'));
+  }
+
+  @override
+  Future<bool> validarCodigoEntrega(int pedidoId, String codigo) async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    final p = _pedido(pedidoId);
+    if (p.estado != EstadoPedido.enCamino) {
+      throw const PedidoException('Primero sal a entregar el pedido.');
+    }
+    if (codigo.trim() != p.codigoEntrega) return false;
+    _entregadoEn[pedidoId] = DateTime.now();
+    _guardar(_conEvento(
+      p.copyWith(estado: EstadoPedido.entregado),
+      'Pedido entregado (código ${p.codigoEntrega} validado)',
+    ));
+    return true;
+  }
+
+  @override
+  Future<Repartidor?> repartidorDe(int pedidoId) async {
+    await Future.delayed(const Duration(milliseconds: 200));
+    final cel = _repartidorDe[pedidoId];
+    return cel == null ? null : _repartidores[cel];
+  }
+
+  /// Datos del repartidor por su celular (para R1).
+  static Repartidor? repartidorPorCelular(String celular) => _repartidores[celular];
 }

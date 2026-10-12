@@ -28,7 +28,7 @@ class _DeslizarConfirmarState extends State<DeslizarConfirmar> {
   void _soltar(double ancho) {
     final max = ancho - _tamano - 8;
     if (_x >= max * 0.8 && widget.habilitado) {
-      setState(() => _x = max);
+      setState(() => _x = 0); // vuelve al inicio por si hay que reintentar
       widget.onConfirmar();
     } else {
       setState(() => _x = 0);

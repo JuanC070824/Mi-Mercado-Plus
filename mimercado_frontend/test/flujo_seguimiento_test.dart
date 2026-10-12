@@ -89,4 +89,46 @@ void main() {
     expect(p.parteDePuesto(1)!.estado, EstadoPedidoPuesto.recogido);
     expect(p.estado, EstadoPedido.enRecojo);
   });
+
+  testWidgets('R1 → R2 → R3: Ernesto toma #345-A, recoge y entrega con 4821',
+      (tester) async {
+    await entrarComo(tester, perfil: 'Repartidor', celular: '923456789');
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
+    expect(find.text('Mototaxi · MT-4521'), findsOneWidget);
+    await verEnLista(tester, find.text('#345-A · recojo en 2 puestos'));
+
+    // R1b: aceptar el pedido de la demo (la primera tarjeta es la más nueva)
+    await tocar(tester, find.text('Aceptar pedido').first);
+    expect(find.text('Recogidos 1 de 2'), findsOneWidget); // Doña Rosa ya entregó
+
+    // R2: no puede salir hasta recoger en la Carnicería
+    await verEnLista(tester, find.text('Recoge en todos los puestos para poder ir a entregar'));
+    await tocar(tester, find.text('Recogí la bolsa'));
+    expect(find.text('Recoge en todos los puestos para poder ir a entregar'), findsNothing);
+    await tocar(tester, find.text('Ir a entregar'));
+
+    // R3: código equivocado y luego el correcto
+    expect(find.text('Ya pagó con Yape'), findsOneWidget);
+    expect(find.text('S/ 48.00'), findsOneWidget);
+    await verEnLista(tester, find.widgetWithText(TextField, 'Código del cliente'));
+    await tester.enterText(find.widgetWithText(TextField, 'Código del cliente'), '1111');
+    await tocar(tester, find.text('O toca aquí: entregado'));
+    expect(find.text('El código no coincide. Pídeselo de nuevo al cliente.'), findsOneWidget);
+    await tester.enterText(find.widgetWithText(TextField, 'Código del cliente'), '4821');
+    await tocar(tester, find.text('O toca aquí: entregado'));
+    expect(find.text('¡Pedido entregado!'), findsOneWidget);
+    await tocar(tester, find.text('Volver al inicio'));
+    expect(find.text('entregas hoy'), findsOneWidget);
+    expect(find.text('S/ 5.00'), findsOneWidget); // ganado hoy
+
+    final p = (await tester.runAsync<List<Pedido>>(
+        () => _repo.pedidosCliente('987654321')))!.firstWhere((x) => x.id == 345);
+    expect(p.estado, EstadoPedido.entregado);
+  });
+
+  test('salirAEntregar devuelve false si falta recoger un puesto', () async {
+    final p344 = (await _repo.pedidosParaRepartidor(1)).firstWhere((p) => p.id == 344);
+    expect(await _repo.salirAEntregar(p344.id), isFalse);
+  });
 }
