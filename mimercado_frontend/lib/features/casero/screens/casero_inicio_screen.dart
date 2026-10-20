@@ -1,305 +1,361 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/formato.dart';
 import '../../../core/widgets/componentes_app.dart';
 import '../../../core/widgets/encabezado_simple.dart';
-import '../../../data/models/cotizacion.dart';
 import '../../../data/models/pedido.dart';
-import '../../../data/models/puesto.dart';
 import '../../../data/models/usuario.dart';
-import '../../../data/repositories/catalogo_repository.dart';
-import '../../../data/repositories/pedido_repository.dart';
-import '../widgets/alerta_pedido.dart';
+import '../../../data/repositories/vendedor_inicio_repository.dart';
 
-/// V1 · Inicio del casero: abierto/cerrado, resumen de hoy y pedidos activos.
 class CaseroInicioScreen extends StatefulWidget {
-  const CaseroInicioScreen({super.key, required this.usuario});
+  const CaseroInicioScreen({super.key, required this.usuario, this.repository});
+
   final Usuario usuario;
+  final VendedorInicioApiRepository? repository;
 
   @override
   State<CaseroInicioScreen> createState() => _CaseroInicioScreenState();
 }
 
 class _CaseroInicioScreenState extends State<CaseroInicioScreen> {
-  final PedidoRepository _pedidos = PedidoRepositoryMock.instancia;
-  final CatalogoRepository _catalogo = CatalogoRepositoryMock();
-
-  /// Pedidos que ya se anunciaron con la ventana grande (no repetir la alerta).
-  /// Incluye la hora de creación: el pedido real de la demo reemplaza al #345-A
-  /// de prueba con los mismos IDs y también debe anunciarse.
-  static final Set<String> _yaAvisados = {};
-
-  Puesto? _puesto;
-  List<Pedido> _lista = [];
+  late final VendedorInicioApiRepository _repository;
+  VendedorInicio? _inicio;
   bool _cargando = true;
+  bool _cambiandoEstado = false;
   String? _error;
-  bool _alertaAbierta = false;
-
-  int get _puestoId => widget.usuario.puestoId ?? 1;
 
   @override
   void initState() {
     super.initState();
-    _pedidos.cambios.addListener(_cargar);
-    _cargar();
-  }
-
-  @override
-  void dispose() {
-    _pedidos.cambios.removeListener(_cargar);
-    super.dispose();
+    _repository = widget.repository ?? VendedorInicioApiRepository.instancia;
+    if (widget.usuario.puestoId == null) {
+      _inicio = const VendedorInicio.sinPuesto();
+      _cargando = false;
+    } else {
+      _cargar();
+    }
   }
 
   Future<void> _cargar() async {
+    setState(() {
+      _cargando = true;
+      _error = null;
+    });
     try {
-      final puesto = await _catalogo.puesto(_puestoId);
-      final lista = await _pedidos.pedidosDePuesto(_puestoId);
+      final inicio = await _repository.cargar();
       if (!mounted) return;
       setState(() {
-        _puesto = puesto;
-        _lista = lista;
+        _inicio = inicio;
         _cargando = false;
-        _error = null;
       });
-      _avisarNuevo();
-    } catch (_) {
+    } on VendedorInicioException catch (error) {
       if (!mounted) return;
       setState(() {
+        _error = error.mensaje;
         _cargando = false;
-        _error = 'No pudimos cargar tus pedidos. Inténtalo de nuevo.';
+      });
+    } on FormatException {
+      if (!mounted) return;
+      setState(() {
+        _error = 'No pudimos leer la información de tu puesto.';
+        _cargando = false;
       });
     }
   }
 
-  /// V1b: si llegó un pedido nuevo, lo anuncia con la ventana grande.
-  Future<void> _avisarNuevo() async {
-    if (_alertaAbierta || !(ModalRoute.of(context)?.isCurrent ?? false)) return;
-    for (final p in _lista) {
-      final parte = p.parteDePuesto(_puestoId);
-      if (parte == null || parte.estado != EstadoPedidoPuesto.pendiente) {
-        continue;
-      }
-      final clave = '${parte.id}@${p.creadoEn.microsecondsSinceEpoch}';
-      if (!_yaAvisados.add(clave)) continue;
-      if (!mounted) return;
-      _alertaAbierta = true;
-      final r = await mostrarNuevoPedido(
-        context,
-        pedido: p,
-        parte: parte,
-        casero: widget.usuario,
-      );
-      _alertaAbierta = false;
-      if (!mounted) return;
-      if (r == true) {
-        await _aceptar(p, parte);
-      } else if (r == false) {
-        await rechazarConMotivo(context, parte);
-      }
-      return; // uno a la vez
-    }
-  }
-
-  Future<void> _aceptar(Pedido p, PedidoPuesto parte) async {
+  Future<void> _cambiarAbierto(bool valor) async {
+    if (_cambiandoEstado) return;
+    setState(() => _cambiandoEstado = true);
     try {
-      await _pedidos.aceptarSubpedido(parte.id);
+      final abierto = await _repository.cambiarAbierto(valor);
       if (!mounted) return;
-      avisar(context, 'Aceptaste el pedido #${p.codigoCorto}.');
-      context.push('/casero/inicio/pedido/${p.id}');
-    } on PedidoException catch (e) {
-      if (mounted) avisar(context, e.mensaje);
-    }
-  }
-
-  Future<void> _cambiarAbierto(bool abierto) async {
-    try {
-      final p = await _catalogo.cambiarAbierto(_puestoId, abierto);
-      if (!mounted) return;
-      setState(() => _puesto = p);
+      final actual = _inicio!;
+      setState(() {
+        _inicio = VendedorInicio(
+          puesto: actual.puesto!.conEstado(abierto),
+          atencion: actual.atencion,
+          pedidos: actual.pedidos,
+          resumen: actual.resumen,
+        );
+      });
       avisar(
         context,
         abierto
-            ? 'Tu puesto está abierto: ya te pueden pedir.'
-            : 'Cerraste tu puesto por hoy.',
+            ? 'Tu puesto está abierto. Ya pueden hacerte pedidos.'
+            : 'Tu puesto está cerrado por ahora.',
       );
-    } on CatalogoException catch (e) {
-      if (mounted) avisar(context, e.mensaje);
+    } on VendedorInicioException catch (error) {
+      if (mounted) avisar(context, error.mensaje);
+    } finally {
+      if (mounted) setState(() => _cambiandoEstado = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final nombre = widget.usuario.nombres.split(' ').first;
+    final nombre = widget.usuario.nombres.trim().split(RegExp(r'\s+')).first;
     return Scaffold(
       body: Column(
         children: [
-          EncabezadoSimple(
-            titulo: '¡Hola, $nombre!',
-            subtitulo: _puesto?.nombre,
-            mostrarAtras: false,
-          ),
-          Expanded(child: _cuerpo()),
+          EncabezadoSimple(titulo: '¡Hola, $nombre!', mostrarAtras: false),
+          Expanded(child: _contenido()),
         ],
       ),
     );
   }
 
-  Widget _cuerpo() {
-    if (_cargando) return const CargandoApp(texto: 'Cargando tus pedidos…');
+  Widget _contenido() {
+    if (_cargando) return const CargandoApp(texto: 'Cargando tu puesto…');
     if (_error != null) {
       return AvisoPantalla(
-        icono: Icons.wifi_off,
-        titulo: 'Algo salió mal',
+        icono: Icons.wifi_off_rounded,
+        titulo: 'No pudimos cargar tu inicio',
         texto: _error,
         esError: true,
         textoBoton: 'Reintentar',
         alTocar: _cargar,
       );
     }
-    final hoy = DateTime.now();
-    bool esDeHoy(Pedido p) =>
-        p.creadoEn.year == hoy.year &&
-        p.creadoEn.month == hoy.month &&
-        p.creadoEn.day == hoy.day;
+    if (!(_inicio?.tienePuesto ?? false)) return _sinPuesto();
+    return _conPuesto(_inicio!);
+  }
 
-    var entregados = 0;
-    var vendido = 0.0;
-    var neto = 0.0;
-    final activos = <Pedido>[];
-    for (final p in _lista) {
-      final parte = p.parteDePuesto(_puestoId)!;
-      if (parte.estado == EstadoPedidoPuesto.recogido && esDeHoy(p)) {
-        entregados++;
-        final cp = p.cotizacion?.dePuesto(parte.id);
-        vendido += cp?.bruto ?? 0;
-        neto += cp?.neto ?? 0;
-      }
-      final terminado =
-          parte.estado == EstadoPedidoPuesto.recogido ||
-          parte.estado.descartado ||
-          !p.estado.activo;
-      if (!terminado) activos.add(p);
-    }
-    final abierto = _puesto?.abierto ?? true;
+  Widget _sinPuesto() {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(14, 0, 14, 24),
+      children: [
+        const _BannerPuesto(),
+        const SizedBox(height: 14),
+        Semantics(
+          container: true,
+          label: 'Aún no tienes un puesto creado',
+          child: Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: AppColors.azulClaro,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.azul, width: 1.5),
+            ),
+            child: const Column(
+              children: [
+                Icon(
+                  Icons.storefront_outlined,
+                  size: 48,
+                  color: AppColors.azul,
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Aún no tienes un puesto',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800),
+                ),
+                SizedBox(height: 6),
+                Text(
+                  'Cuando crees tu puesto y elijas un mercado, aquí verás tus pedidos y el resumen de tus ventas.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 16, height: 1.35),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 18),
+        const TituloSeccion('¿Qué aparecerá aquí?'),
+        const SizedBox(height: 8),
+        const _PasoVacio(
+          icono: Icons.notifications_none_rounded,
+          titulo: 'Pedidos que requieren atención',
+          texto: 'Nuevos, en preparación y listos para recoger.',
+        ),
+        const SizedBox(height: 10),
+        const _PasoVacio(
+          icono: Icons.payments_outlined,
+          titulo: 'Resumen de tus ventas',
+          texto: 'Ventas, comisión de la aplicación y lo que recibirás.',
+        ),
+      ],
+    );
+  }
 
+  Widget _conPuesto(VendedorInicio inicio) {
+    final puesto = inicio.puesto!;
+    final atencion = inicio.atencion!;
+    final resumen = inicio.resumen!;
     return RefreshIndicator(
       onRefresh: _cargar,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+        padding: const EdgeInsets.fromLTRB(14, 0, 14, 24),
         children: [
-          TarjetaApp(
-            color: abierto ? AppColors.exitoFondo : AppColors.errorFondo,
-            colorBorde: abierto ? AppColors.exitoTexto : AppColors.error,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            child: Material(
-              type: MaterialType.transparency,
-              child: SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                value: abierto,
-                onChanged: _cambiarAbierto,
-                secondary: Icon(
-                  abierto ? Icons.storefront : Icons.lock_clock,
-                  size: 32,
-                  color: abierto ? AppColors.exitoTexto : AppColors.error,
-                ),
-                title: Text(
-                  abierto ? 'Puesto abierto' : 'Puesto cerrado',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                subtitle: Text(
-                  abierto
-                      ? 'Los clientes pueden pedirte'
-                      : 'Nadie puede pedirte ahora',
-                  style: const TextStyle(fontSize: 16),
-                ),
-              ),
-            ),
+          _BannerPuesto(puesto: puesto),
+          const SizedBox(height: 10),
+          _EstadoPuesto(
+            abierto: puesto.abierto,
+            habilitado: !_cambiandoEstado,
+            onChanged: _cambiarAbierto,
           ),
-          const SizedBox(height: 20),
-          const TituloSeccion('Resumen de hoy'),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
+          const TituloSeccion('Requieren atención'),
+          const SizedBox(height: 7),
           Row(
             children: [
               Expanded(
-                child: _Dato(
-                  icono: Icons.done_all,
-                  valor: '$entregados',
-                  texto: entregados == 1
-                      ? 'pedido entregado'
-                      : 'pedidos entregados',
+                child: _Conteo(
+                  icono: Icons.inbox_rounded,
+                  valor: atencion.nuevos,
+                  etiqueta: 'Nuevos',
+                  color: AppColors.azul,
+                  fondo: const Color(0xFFEAF5FD),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
               Expanded(
-                child: _Dato(
-                  icono: Icons.payments_outlined,
-                  valor: soles(redondear2(vendido)),
-                  texto: 'vendido (recibes ${soles(redondear2(neto))})',
+                child: _Conteo(
+                  icono: Icons.schedule_rounded,
+                  valor: atencion.preparando,
+                  etiqueta: 'Preparando',
+                  color: AppColors.azul,
+                  fondo: AppColors.blanco,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _Conteo(
+                  icono: Icons.check_circle_rounded,
+                  valor: atencion.listos,
+                  etiqueta: 'Listos',
+                  color: AppColors.exito,
+                  fondo: AppColors.exitoFondo,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 24),
-          TituloSeccion('Pedidos activos (${activos.length})'),
-          const SizedBox(height: 8),
-          if (activos.isEmpty)
-            const TarjetaApp(
-              child: Row(
-                children: [
-                  Icon(Icons.inbox_outlined, size: 32, color: AppColors.azul),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'No tienes pedidos activos. Te avisamos con sonido cuando llegue uno.',
-                      style: TextStyle(fontSize: 18),
-                    ),
-                  ),
-                ],
-              ),
-            )
+          const SizedBox(height: 14),
+          const TituloSeccion('Pedidos activos'),
+          const SizedBox(height: 7),
+          if (inicio.pedidos.isEmpty)
+            const _SinPedidos()
           else
-            for (final p in activos) ...[
-              TarjetaPedidoCasero(
-                pedido: p,
-                parte: p.parteDePuesto(_puestoId)!,
-                onTap: () => context.push('/casero/inicio/pedido/${p.id}'),
+            for (final pedido in inicio.pedidos) ...[
+              _TarjetaPedido(
+                pedido: pedido,
+                onTap: () => context.push('/casero/inicio/pedido/${pedido.id}'),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
             ],
+          const SizedBox(height: 6),
+          const TituloSeccion('Resumen de hoy'),
+          const SizedBox(height: 7),
+          _Resumen(resumen: resumen),
         ],
       ),
     );
   }
 }
 
-class _Dato extends StatelessWidget {
-  const _Dato({required this.icono, required this.valor, required this.texto});
-  final IconData icono;
-  final String valor;
-  final String texto;
+class _BannerPuesto extends StatelessWidget {
+  const _BannerPuesto({this.puesto});
+  final PuestoVendedor? puesto;
 
   @override
   Widget build(BuildContext context) {
-    return MergeSemantics(
-      child: TarjetaApp(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    final foto = puesto?.fotoUrl;
+    return Semantics(
+      image: foto != null,
+      label: puesto == null
+          ? 'Espacio para la futura foto del puesto'
+          : 'Presentación de ${puesto!.nombre}',
+      child: Container(
+        height: 114,
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: const Color(0xFFDCE8EF),
+          borderRadius: const BorderRadius.vertical(
+            bottom: Radius.circular(14),
+          ),
+          border: Border.all(color: AppColors.divisor),
+        ),
+        child: Stack(
+          fit: StackFit.expand,
           children: [
-            Icon(icono, color: AppColors.azul, size: 28),
-            Text(
-              valor,
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+            if (foto != null)
+              Image.network(
+                foto,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => const _ImagenPendiente(),
+              )
+            else
+              const _ImagenPendiente(),
+            if (puesto != null)
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(12, 22, 12, 8),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Colors.transparent, Color(0xD9000000)],
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        puesto!.nombre,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      Text(
+                        '${puesto!.mercado}${puesto!.numero == null ? '' : ' · Puesto ${puesto!.numero}'} · ${puesto!.categoria}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ImagenPendiente extends StatelessWidget {
+  const _ImagenPendiente();
+
+  @override
+  Widget build(BuildContext context) {
+    return const ColoredBox(
+      color: Color(0xFFDCE8EF),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.add_photo_alternate_outlined,
+              size: 34,
+              color: AppColors.azul,
             ),
+            SizedBox(height: 4),
             Text(
-              texto,
-              style: const TextStyle(
-                fontSize: 16,
+              'Espacio para la foto de tu puesto',
+              style: TextStyle(
                 color: AppColors.textoSecundario,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
@@ -309,7 +365,390 @@ class _Dato extends StatelessWidget {
   }
 }
 
-/// Tarjeta de un pedido en las listas del casero (V1 y V6).
+class _EstadoPuesto extends StatelessWidget {
+  const _EstadoPuesto({
+    required this.abierto,
+    required this.habilitado,
+    required this.onChanged,
+  });
+  final bool abierto;
+  final bool habilitado;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: abierto ? AppColors.exitoFondo : AppColors.errorFondo,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: abierto ? AppColors.exitoTexto : AppColors.error,
+        ),
+      ),
+      child: SwitchListTile(
+        value: abierto,
+        onChanged: habilitado ? onChanged : null,
+        secondary: Icon(
+          abierto ? Icons.storefront_rounded : Icons.storefront_outlined,
+          color: abierto ? AppColors.exitoTexto : AppColors.error,
+          size: 30,
+        ),
+        title: Text(
+          abierto ? 'Puesto abierto' : 'Puesto cerrado',
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+        ),
+        subtitle: Text(
+          abierto
+              ? 'Los clientes pueden pedirte'
+              : 'No recibirás nuevos pedidos',
+        ),
+      ),
+    );
+  }
+}
+
+class _Conteo extends StatelessWidget {
+  const _Conteo({
+    required this.icono,
+    required this.valor,
+    required this.etiqueta,
+    required this.color,
+    required this.fondo,
+  });
+  final IconData icono;
+  final int valor;
+  final String etiqueta;
+  final Color color;
+  final Color fondo;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: '$valor $etiqueta',
+      excludeSemantics: true,
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 94),
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: fondo,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.divisor),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icono, color: color, size: 27),
+            Text(
+              '$valor',
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+            ),
+            Text(
+              etiqueta,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 14),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SinPedidos extends StatelessWidget {
+  const _SinPedidos();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.blanco,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.divisor),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.inbox_outlined, size: 32, color: AppColors.azul),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'No tienes pedidos activos por ahora.',
+              style: TextStyle(fontSize: 16),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TarjetaPedido extends StatelessWidget {
+  const _TarjetaPedido({required this.pedido, required this.onTap});
+  final PedidoActivoVendedor pedido;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final nuevo = pedido.estado == 'pendiente';
+    return Semantics(
+      button: true,
+      label:
+          'Pedido de ${pedido.cliente}, ${pedido.productos} productos, ${_estadoLegible(pedido.estado)}',
+      child: Material(
+        color: AppColors.blanco,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: AppColors.divisor),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Pedido de ${pedido.cliente}',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      color: AppColors.azul,
+                    ),
+                  ],
+                ),
+                Text(
+                  '${pedido.productos} ${pedido.productos == 1 ? 'producto' : 'productos'} · ${_detalleTiempo(pedido)}',
+                  style: const TextStyle(color: AppColors.textoSecundario),
+                ),
+                const SizedBox(height: 9),
+                Row(
+                  children: [
+                    _EtiquetaEstado(estado: pedido.estado),
+                    const Spacer(),
+                    Text(
+                      nuevo ? 'Revisar pedido' : 'Continuar',
+                      style: const TextStyle(
+                        color: AppColors.azul,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  static String _detalleTiempo(PedidoActivoVendedor pedido) {
+    if (pedido.responderAntes != null && pedido.estado == 'pendiente') {
+      final hora = TimeOfDay.fromDateTime(pedido.responderAntes!.toLocal());
+      final minutos = hora.minute.toString().padLeft(2, '0');
+      return 'Responder antes de ${hora.hour}:$minutos';
+    }
+    return _estadoLegible(pedido.estado);
+  }
+}
+
+class _EtiquetaEstado extends StatelessWidget {
+  const _EtiquetaEstado({required this.estado});
+  final String estado;
+
+  @override
+  Widget build(BuildContext context) {
+    final listo = estado == 'listo';
+    final color = listo ? AppColors.exitoTexto : AppColors.azul;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: listo ? AppColors.exitoFondo : const Color(0xFFEAF5FD),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            listo ? Icons.check_circle_outline : Icons.inventory_2_outlined,
+            size: 17,
+            color: color,
+          ),
+          const SizedBox(width: 5),
+          Text(
+            _estadoLegible(estado),
+            style: TextStyle(fontWeight: FontWeight.w700, color: color),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Resumen extends StatelessWidget {
+  const _Resumen({required this.resumen});
+  final ResumenVendedor resumen;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.blanco,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.divisor),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _Importe(etiqueta: 'Ventas', centavos: resumen.ventas),
+          ),
+          const SizedBox(height: 46, child: VerticalDivider()),
+          Expanded(
+            child: _Importe(etiqueta: 'Comisión', centavos: resumen.comision),
+          ),
+          const SizedBox(height: 46, child: VerticalDivider()),
+          Expanded(
+            child: ColoredBox(
+              color: AppColors.azulClaro,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 5),
+                child: _Importe(
+                  etiqueta: 'Recibes',
+                  centavos: resumen.recibes,
+                  destacado: true,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Importe extends StatelessWidget {
+  const _Importe({
+    required this.etiqueta,
+    required this.centavos,
+    this.destacado = false,
+  });
+  final String etiqueta;
+  final int centavos;
+  final bool destacado;
+
+  @override
+  Widget build(BuildContext context) {
+    return MergeSemantics(
+      child: Column(
+        children: [
+          Text(
+            etiqueta,
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppColors.textoSecundario,
+            ),
+          ),
+          const SizedBox(height: 2),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              'S/ ${(centavos / 100).toStringAsFixed(2)}',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: destacado ? AppColors.azul : AppColors.texto,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PasoVacio extends StatelessWidget {
+  const _PasoVacio({
+    required this.icono,
+    required this.titulo,
+    required this.texto,
+  });
+  final IconData icono;
+  final String titulo;
+  final String texto;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.blanco,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.divisor),
+      ),
+      child: Row(
+        children: [
+          Icon(icono, color: AppColors.azul, size: 30),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  titulo,
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  texto,
+                  style: const TextStyle(
+                    color: AppColors.textoSecundario,
+                    height: 1.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _estadoLegible(String estado) {
+  switch (estado) {
+    case 'pendiente':
+      return 'Nuevo';
+    case 'aceptado':
+      return 'Aceptado';
+    case 'pesando':
+      return 'Pesando';
+    case 'pesado':
+      return 'Pesado';
+    case 'en_preparacion':
+      return 'Empaquetando';
+    case 'listo':
+      return 'Listo';
+    default:
+      return 'En proceso';
+  }
+}
+
+/// Tarjeta compartida por la lista histórica de pedidos del vendedor.
+/// El identificador interno del pedido no se muestra al usuario.
 class TarjetaPedidoCasero extends StatelessWidget {
   const TarjetaPedidoCasero({
     super.key,
@@ -324,48 +763,53 @@ class TarjetaPedidoCasero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final n = parte.detalles.length;
+    final cantidad = parte.detalles.length;
     return Semantics(
       button: true,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: TarjetaApp(
-          colorBorde: parte.estado == EstadoPedidoPuesto.pendiente
-              ? AppColors.azul
-              : AppColors.borde,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      '#${pedido.codigoCorto} · ${pedido.clienteNombre}',
-                      style: const TextStyle(
-                        fontSize: 19,
-                        fontWeight: FontWeight.w800,
+      label:
+          'Pedido de ${pedido.clienteNombre}, $cantidad ${cantidad == 1 ? 'producto' : 'productos'}',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(18),
+          child: TarjetaApp(
+            colorBorde: parte.estado == EstadoPedidoPuesto.pendiente
+                ? AppColors.azul
+                : AppColors.borde,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Pedido de ${pedido.clienteNombre}',
+                        style: const TextStyle(
+                          fontSize: 19,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
-                  ),
-                  const Icon(
-                    Icons.chevron_right,
-                    color: AppColors.azul,
-                    size: 30,
-                  ),
-                ],
-              ),
-              Text(
-                '$n ${n == 1 ? 'producto' : 'productos'} · ${fechaCorta(pedido.creadoEn)}'
-                '${parte.listaMandado != null ? ' · con lista de mandado' : ''}',
-                style: const TextStyle(
-                  fontSize: 16,
-                  color: AppColors.textoSecundario,
+                    const Icon(
+                      Icons.chevron_right,
+                      color: AppColors.azul,
+                      size: 30,
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 8),
-              etiquetaDePuesto(parte.estado),
-            ],
+                Text(
+                  '$cantidad ${cantidad == 1 ? 'producto' : 'productos'} · ${fechaCorta(pedido.creadoEn)}'
+                  '${parte.listaMandado != null ? ' · con lista de mandado' : ''}',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: AppColors.textoSecundario,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                etiquetaDePuesto(parte.estado),
+              ],
+            ),
           ),
         ),
       ),

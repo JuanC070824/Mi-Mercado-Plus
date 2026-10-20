@@ -50,11 +50,11 @@ class ApiTests(TestCase):
         cat=Categoria.objects.create(nombre='Verduras y frutas')
         cls.market=Mercado.objects.create(nombre='Mercado1',direccion='D1')
         other=Mercado.objects.create(nombre='Mercado2',direccion='D2')
-        seller=Usuario.objects.create(nombres='Rosa',celular='900000011',password_hash=make_password('password'))
-        UsuarioRol.objects.create(usuario_id=seller.pk,rol_codigo='vendedor')
-        cls.stall=Puesto.objects.create(mercado_id=cls.market.pk,vendedor_id=seller.pk,categoria_id=cat.pk,nombre='Rosa',abierto=True)
-        cls.stall2=Puesto.objects.create(mercado_id=cls.market.pk,vendedor_id=seller.pk,categoria_id=cat.pk,nombre='Julio',abierto=True)
-        p3=Puesto.objects.create(mercado_id=other.pk,vendedor_id=seller.pk,categoria_id=cat.pk,nombre='Otro',abierto=True)
+        cls.seller=Usuario.objects.create(nombres='Rosa',celular='900000011',password_hash=make_password('password'))
+        UsuarioRol.objects.create(usuario_id=cls.seller.pk,rol_codigo='vendedor')
+        cls.stall=Puesto.objects.create(mercado_id=cls.market.pk,vendedor_id=cls.seller.pk,categoria_id=cat.pk,nombre='Rosa',abierto=True)
+        cls.stall2=Puesto.objects.create(mercado_id=cls.market.pk,vendedor_id=cls.seller.pk,categoria_id=cat.pk,nombre='Julio',abierto=True)
+        p3=Puesto.objects.create(mercado_id=other.pk,vendedor_id=cls.seller.pk,categoria_id=cat.pk,nombre='Otro',abierto=True)
         cls.p1=Producto.objects.create(puesto_id=cls.stall.pk,nombre='Tomate',unidad_codigo='kg',precio_unitario=Decimal('4.00'),stock=Decimal('10'))
         cls.p2=Producto.objects.create(puesto_id=cls.stall2.pk,nombre='Pollo',unidad_codigo='kg',precio_unitario=Decimal('10.00'))
         cls.p3=Producto.objects.create(puesto_id=p3.pk,nombre='Otro',unidad_codigo='kg',precio_unitario=Decimal('1.00'))
@@ -126,6 +126,32 @@ class ApiTests(TestCase):
         self.assertEqual(row['distrito'],'Surquillo')
         self.assertEqual(Decimal(str(row['latitud'])),Decimal('-12.113000'))
         self.assertEqual(Decimal(str(row['longitud'])),Decimal('-77.020000'))
+
+    def test_seller_home_uses_authenticated_seller_and_real_stall(self):
+        self.client.credentials(HTTP_AUTHORIZATION='Bearer '+issue_token(self.seller))
+
+        response=self.client.get('/api/vendedor/inicio/')
+
+        self.assertEqual(response.status_code,200,response.data)
+        self.assertTrue(response.data['tiene_puesto'])
+        self.assertEqual(response.data['puesto']['id'],self.stall.pk)
+        self.assertEqual(response.data['puesto']['mercado']['nombre'],'Mercado1')
+        self.assertEqual(response.data['pedidos_activos'],[])
+
+        response=self.client.patch('/api/vendedor/inicio/',{'abierto':False},format='json')
+        self.assertEqual(response.status_code,200,response.data)
+        self.stall.refresh_from_db()
+        self.assertFalse(self.stall.abierto)
+
+    def test_seller_home_reports_when_seller_has_no_stall(self):
+        seller=Usuario.objects.create(nombres='Elena',celular='900000099',password_hash='x')
+        UsuarioRol.objects.create(usuario_id=seller.pk,rol_codigo='vendedor')
+        self.client.credentials(HTTP_AUTHORIZATION='Bearer '+issue_token(seller))
+
+        response=self.client.get('/api/vendedor/inicio/')
+
+        self.assertEqual(response.status_code,200,response.data)
+        self.assertEqual(response.data,{'tiene_puesto':False})
 
     @patch('mvp_back.views.consultar_dni')
     def test_dni_lookup_returns_names_and_signed_registration_token(self,consulta):

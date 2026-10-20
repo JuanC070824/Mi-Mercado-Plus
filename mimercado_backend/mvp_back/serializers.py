@@ -68,3 +68,6 @@ class DireccionSerializer(serializers.Serializer):
     direccion = serializers.CharField()
     referencia = serializers.CharField(required=False, allow_blank=True)
     principal = serializers.BooleanField(default=False)
+
+class EstadoPuestoSerializer(serializers.Serializer):
+    abierto = serializers.BooleanField()

@@ -1,15 +1,17 @@
 from django.contrib.auth.hashers import make_password, check_password
 from django.db import transaction, IntegrityError
-from django.db.models import Q
+from django.db.models import Q, Count, Sum
+from django.utils import timezone
 from django.conf import settings
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework.exceptions import ValidationError, NotFound
+from rest_framework.exceptions import ValidationError, NotFound, PermissionDenied
 from rest_framework.throttling import ScopedRateThrottle
 from . import serializers as s
 from .models import (Usuario, UsuarioRol, Producto, Mercado, Puesto, Direccion,
-                     Pedido, Cotizacion, RepartidorMercado)
+                     Pedido, PedidoPuesto, PedidoDetalle, Cotizacion,
+                     CotizacionPuesto, CotizacionDetalle, RepartidorMercado)
 from .authentication import issue_token
 from .services import put_item, cart_payload, change_item, checkout, require_buyer, accept_quote, quote_total, lock_user
 from .payments import pay_order
@@ -156,6 +158,107 @@ class PuestosView(APIView):
             if not market.isdecimal():raise ValidationError('mercado_id debe ser entero.')
             rows=rows.filter(mercado_id=int(market))
         return Response(list(rows.values('id','nombre','mercado_id','abierto')))
+
+class VendedorInicioView(APIView):
+    def _puesto(self, request):
+        if not UsuarioRol.objects.filter(
+            usuario_id=request.user.pk,
+            rol_codigo='vendedor',
+        ).exists():
+            raise PermissionDenied('Esta cuenta no tiene el perfil de vendedor.')
+        return Puesto.objects.select_related('mercado', 'categoria').filter(
+            vendedor_id=request.user.pk,
+            estado='activo',
+        ).order_by('id').first()
+
+    def get(self, request):
+        puesto = self._puesto(request)
+        if puesto is None:
+            return Response({'tiene_puesto': False})
+
+        activos = list(PedidoPuesto.objects.filter(
+            puesto_id=puesto.pk,
+        ).exclude(
+            estado__in=['recogido', 'rechazado', 'cancelado'],
+        ).select_related('pedido__comprador').order_by('pedido__creado_en', 'id'))
+
+        cantidades = {
+            fila['pedido_puesto_id']: fila['total']
+            for fila in PedidoDetalle.objects.filter(
+                pedido_puesto_id__in=[parte.pk for parte in activos],
+            ).values('pedido_puesto_id').annotate(total=Count('id'))
+        }
+
+        estados = [parte.estado for parte in activos]
+        pedidos = [{
+            'id': parte.pedido_id,
+            'cliente_nombre': (
+                parte.pedido.comprador.nombres.split()[0]
+                if parte.pedido.comprador.nombres.split() else 'Cliente'
+            ),
+            'cantidad_productos': cantidades.get(parte.pk, 0),
+            'estado': parte.estado,
+            'creado_en': parte.pedido.creado_en,
+            'responder_antes': parte.responder_antes,
+        } for parte in activos[:20]]
+
+        hoy = timezone.localdate()
+        cotizaciones = list(CotizacionPuesto.objects.filter(
+            pedido_puesto__puesto_id=puesto.pk,
+            cotizacion__estado='aceptada',
+            pedido__creado_en__date=hoy,
+        ).values('id', 'tasa_comision'))
+        totales = {
+            fila['cotizacion_puesto_id']: fila['total'] or 0
+            for fila in CotizacionDetalle.objects.filter(
+                cotizacion_puesto_id__in=[fila['id'] for fila in cotizaciones],
+            ).values('cotizacion_puesto_id').annotate(total=Sum('subtotal'))
+        }
+        venta = sum(totales.values())
+        comision = sum(
+            totales.get(fila['id'], 0) * fila['tasa_comision']
+            for fila in cotizaciones
+        )
+
+        return Response({
+            'tiene_puesto': True,
+            'puesto': {
+                'id': puesto.pk,
+                'nombre': puesto.nombre,
+                'numero': puesto.numero,
+                'descripcion': puesto.descripcion,
+                'foto_url': puesto.foto_url,
+                'abierto': puesto.abierto,
+                'mercado': {
+                    'id': puesto.mercado_id,
+                    'nombre': puesto.mercado.nombre,
+                },
+                'categoria': puesto.categoria.nombre,
+            },
+            'atencion': {
+                'nuevos': estados.count('pendiente'),
+                'preparando': sum(
+                    estado in ['aceptado', 'pesando', 'pesado', 'en_preparacion']
+                    for estado in estados
+                ),
+                'listos': estados.count('listo'),
+            },
+            'pedidos_activos': pedidos,
+            'resumen': {
+                'ventas_centavos': round(venta * 100),
+                'comision_centavos': round(comision * 100),
+                'recibes_centavos': round((venta - comision) * 100),
+            },
+        })
+
+    def patch(self, request):
+        puesto = self._puesto(request)
+        if puesto is None:
+            raise NotFound('Aún no tienes un puesto activo.')
+        data = validated(s.EstadoPuestoSerializer, request.data)
+        puesto.abierto = data['abierto']
+        puesto.save(update_fields=['abierto'])
+        return Response({'abierto': puesto.abierto})
 
 class ProductosView(APIView):
     permission_classes=[AllowAny]

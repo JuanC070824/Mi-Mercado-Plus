@@ -8,6 +8,7 @@ urlpatterns=[
     path('auth/me/',v.PerfilView.as_view()),
     path('mercados/',v.MercadosView.as_view()),
     path('puestos/',v.PuestosView.as_view()),
+    path('vendedor/inicio/',v.VendedorInicioView.as_view()),
     path('productos/',v.ProductosView.as_view()),
     path('direcciones/',v.DireccionesView.as_view()),
     path('carrito/',v.CarritoView.as_view()),
