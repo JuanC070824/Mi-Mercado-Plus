@@ -4,14 +4,9 @@ import '../models/usuario.dart';
 
 // PARA EL MVP, simula al backend, esto al 06/10 por ahora
 
-
 class ResultadoAuth {
-  const ResultadoAuth.ok(this.usuario)
-      : exito = true,
-        mensaje = '';
-  const ResultadoAuth.error(this.mensaje)
-      : exito = false,
-        usuario = null;
+  const ResultadoAuth.ok(this.usuario) : exito = true, mensaje = '';
+  const ResultadoAuth.error(this.mensaje) : exito = false, usuario = null;
 
   final bool exito;
   final String mensaje;
@@ -26,14 +21,17 @@ abstract class LoginRepository {
   });
 }
 
-abstract class AuthRepository implements LoginRepository {
-
-  Future<ResultadoAuth> registrarCliente({
+abstract class RegistroRepository {
+  Future<ResultadoAuth> registrarUsuario({
+    required String dni,
+    required String dniToken,
     required Usuario usuario,
     required String password,
     Direccion? direccion,
   });
+}
 
+abstract class AuthRepository implements LoginRepository, RegistroRepository {
   /// Dirección principal del comprador (null si aún no tiene).
   Future<Direccion?> direccionPrincipal(String celular);
 
@@ -153,7 +151,9 @@ class AuthRepositoryMock implements AuthRepository {
   }
 
   @override
-  Future<ResultadoAuth> registrarCliente({
+  Future<ResultadoAuth> registrarUsuario({
+    required String dni,
+    required String dniToken,
     required Usuario usuario,
     required String password,
     Direccion? direccion,
@@ -166,13 +166,18 @@ class AuthRepositoryMock implements AuthRepository {
     }
     final correo = usuario.correo?.toLowerCase();
     if (correo != null &&
-        _porCelular.values.any((c) => c.usuario.correo?.toLowerCase() == correo)) {
+        _porCelular.values.any(
+          (c) => c.usuario.correo?.toLowerCase() == correo,
+        )) {
       return const ResultadoAuth.error(
         'Este correo ya está registrado. Usa otro o inicia sesión.',
       );
     }
-    _porCelular[usuario.celular] =
-        _Cuenta(usuario: usuario, password: password, direccion: direccion);
+    _porCelular[usuario.celular] = _Cuenta(
+      usuario: usuario,
+      password: password,
+      direccion: direccion,
+    );
     return ResultadoAuth.ok(usuario);
   }
 
@@ -205,9 +210,12 @@ class AuthRepositoryMock implements AuthRepository {
         ? null
         : correo.trim();
     if (nuevoCorreo != null &&
-        _porCelular.entries.any((e) =>
-            e.key != celularActual &&
-            e.value.usuario.correo?.toLowerCase() == nuevoCorreo.toLowerCase())) {
+        _porCelular.entries.any(
+          (e) =>
+              e.key != celularActual &&
+              e.value.usuario.correo?.toLowerCase() ==
+                  nuevoCorreo.toLowerCase(),
+        )) {
       return const ResultadoAuth.error(
         'Este correo ya está registrado en otra cuenta.',
       );

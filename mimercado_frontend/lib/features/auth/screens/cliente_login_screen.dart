@@ -25,6 +25,12 @@ class ClienteLoginScreen extends StatefulWidget {
     Rol.repartidor: '/repartidor/inicio',
   };
 
+  static const registroPorRol = {
+    Rol.cliente: '/cliente/registro',
+    Rol.comerciante: '/casero/registro',
+    Rol.repartidor: '/repartidor/registro',
+  };
+
   @override
   State<ClienteLoginScreen> createState() => _ClienteLoginScreenState();
 }
@@ -67,7 +73,10 @@ class _ClienteLoginScreenState extends State<ClienteLoginScreen> {
     setState(() => _cargando = false);
 
     if (r.exito) {
-      context.go(ClienteLoginScreen.inicioPorRol[widget.rol]!, extra: r.usuario);
+      context.go(
+        ClienteLoginScreen.inicioPorRol[widget.rol]!,
+        extra: r.usuario,
+      );
     } else {
       setState(() => _error = r.mensaje);
     }
@@ -103,7 +112,9 @@ class _ClienteLoginScreenState extends State<ClienteLoginScreen> {
                             maxLongitud: 9,
                             mostrarContador: true,
                             icono: Icons.phone_android,
-                            autofillHints: const [AutofillHints.telephoneNumberNational],
+                            autofillHints: const [
+                              AutofillHints.telephoneNumberNational,
+                            ],
                             validator: Validadores.celular,
                           ),
                           const SizedBox(height: 12),
@@ -115,8 +126,10 @@ class _ClienteLoginScreenState extends State<ClienteLoginScreen> {
                             accion: TextInputAction.done,
                             autofillHints: const [AutofillHints.password],
                             onSubmitted: (_) => _ingresar(),
-                            validator: (v) =>
-                                Validadores.requerido(v, campo: 'La contraseña'),
+                            validator: (v) => Validadores.requerido(
+                              v,
+                              campo: 'La contraseña',
+                            ),
                           ),
                           Align(
                             alignment: Alignment.centerRight,
@@ -133,7 +146,10 @@ class _ClienteLoginScreenState extends State<ClienteLoginScreen> {
                               },
                               child: const Text(
                                 '¿Olvidaste tu contraseña?',
-                                style: TextStyle(fontSize: 16, color: AppColors.azul),
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: AppColors.azul,
+                                ),
                               ),
                             ),
                           ),
@@ -150,37 +166,29 @@ class _ClienteLoginScreenState extends State<ClienteLoginScreen> {
                           const SizedBox(height: 24),
                           const _SeparadorTexto('¿Primera vez en MiMercado+?'),
                           const SizedBox(height: 16),
-                          if (widget.rol == Rol.cliente)
-                            BotonSecundario(
-                              texto: 'Crear mi cuenta',
-                              onPressed: () => context.push('/cliente/registro'),
-                            )
-                          else
-                            // Caseros y repartidores los da de alta el mercado.
-                            const Text(
-                              'Pide tu cuenta en la administración de tu mercado '
-                              'o escríbenos desde Soporte.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: AppColors.textoSecundario,
-                              ),
+                          BotonSecundario(
+                            texto: 'Crear mi cuenta',
+                            onPressed: () => context.push(
+                              ClienteLoginScreen.registroPorRol[widget.rol]!,
                             ),
+                          ),
                           const SizedBox(height: 12),
                           TextButton(
                             onPressed: () => context.go('/'),
                             style: TextButton.styleFrom(
-                                minimumSize: const Size(48, 48)),
+                              minimumSize: const Size(48, 48),
+                            ),
                             child: Text(
                               '¿No eres ${widget.rol.etiqueta.toLowerCase()}? '
                               'Cambiar de perfil',
                               textAlign: TextAlign.center,
                               style: const TextStyle(
-                                  fontSize: 16, color: AppColors.azul),
+                                fontSize: 16,
+                                color: AppColors.azul,
+                              ),
                             ),
                           ),
                           const SizedBox(height: 8),
-
                         ],
                       ),
                     ),
@@ -256,7 +264,10 @@ class _SeparadorTexto extends StatelessWidget {
             child: Text(
               texto,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 15, color: AppColors.textoSecundario),
+              style: const TextStyle(
+                fontSize: 15,
+                color: AppColors.textoSecundario,
+              ),
             ),
           ),
         ),

@@ -14,6 +14,8 @@ from .authentication import issue_token
 from .services import put_item, cart_payload, change_item, checkout, require_buyer, accept_quote, quote_total, lock_user
 from .payments import pay_order
 from .money import cents
+from .dni import (consultar_dni, firmar_consulta, leer_consulta,
+                  DniNoEncontrado, DniServicioNoDisponible)
 
 
 def validated(cls, data):
@@ -25,8 +27,10 @@ def validated(cls, data):
 def user_payload(user, roles=None, rol_activo=None):
     if roles is None:
         roles=list(UsuarioRol.objects.filter(usuario_id=user.pk).values_list('rol_codigo',flat=True))
-    payload={'id':user.pk,'nombres':user.nombres,'celular':user.celular,
-             'correo':user.correo,'roles':roles}
+    payload={'id':user.pk,'nombres':user.nombres,
+             'apellido_paterno':user.apellido_paterno,
+             'apellido_materno':user.apellido_materno,
+             'celular':user.celular,'correo':user.correo,'roles':roles}
     if rol_activo=='vendedor':
         puesto=Puesto.objects.filter(vendedor_id=user.pk,estado='activo').order_by('id').first()
         if puesto:
@@ -54,16 +58,58 @@ class RegistroView(APIView):
     def post(self,request):
         data=validated(s.RegistroSerializer,request.data)
         password=data.pop('password')
+        dni=data.pop('dni')
+        dni_token=data.pop('dni_token')
+        rol=data.pop('rol')
+        direccion=data.pop('direccion',None)
+        try:
+            identidad=leer_consulta(dni_token,dni)
+        except ValueError as exc:
+            raise ValidationError({'dni':str(exc)})
+        data.update({
+            'nombres':identidad['nombres'],
+            'apellido_paterno':identidad['apellido_paterno'],
+            'apellido_materno':identidad.get('apellido_materno') or None,
+        })
         data['correo']=data.get('correo','').lower() or None
         if Usuario.objects.filter(celular=data['celular']).exists() or (data['correo'] and Usuario.objects.filter(correo__iexact=data['correo']).exists()):
             raise ValidationError('El celular o correo ya está registrado.')
         try:
             with transaction.atomic():
                 user=Usuario.objects.create(**data,password_hash=make_password(password))
-                UsuarioRol.objects.create(usuario_id=user.pk,rol_codigo='comprador')
+                UsuarioRol.objects.create(usuario_id=user.pk,rol_codigo=rol)
+                if rol=='comprador' and direccion and str(direccion.get('direccion','')).strip():
+                    Direccion.objects.create(
+                        comprador_id=user.pk,
+                        direccion=str(direccion['direccion']).strip(),
+                        referencia=str(direccion.get('referencia') or '').strip() or None,
+                        latitud=direccion.get('latitud'),
+                        longitud=direccion.get('longitud'),
+                        principal=True,
+                    )
         except IntegrityError:
             raise ValidationError('No se pudo registrar: datos duplicados o catálogo de roles no instalado.')
-        return Response(auth_payload(user,'comprador'),status=201)
+        return Response(auth_payload(user,rol),status=201)
+
+class DniView(APIView):
+    permission_classes=[AllowAny]
+    authentication_classes=[]
+    throttle_classes=[ScopedRateThrottle]
+    throttle_scope='dni'
+    def post(self,request):
+        data=validated(s.DniSerializer,request.data)
+        try:
+            identidad=consultar_dni(data['dni'])
+        except DniNoEncontrado as exc:
+            return Response({'detail':str(exc)},status=404)
+        except DniServicioNoDisponible as exc:
+            return Response({'detail':str(exc)},status=503)
+        return Response({
+            'nombres':identidad['nombres'],
+            'apellido_paterno':identidad['apellido_paterno'],
+            'apellido_materno':identidad['apellido_materno'],
+            'registro_token':firmar_consulta(identidad),
+        })
 
 class LoginView(APIView):
     permission_classes=[AllowAny]
