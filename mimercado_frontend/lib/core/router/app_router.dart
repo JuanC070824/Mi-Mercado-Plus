@@ -51,14 +51,15 @@ String? _exigirRol(GoRouterState state, Rol rol) {
 
 /// Perfil con cerrar sesión. Lo usan el repartidor y, por ahora, "Mi puesto" del casero.
 Widget _perfil(GoRouterState state) => PerfilScreen(
-      usuario: _usuarioDe(state),
-      onUsuarioActualizado: (u) => _usuarioActual = u,
-      onSesionCerrada: _cerrarSesion,
-    );
+  usuario: _usuarioDe(state),
+  onUsuarioActualizado: (u) => _usuarioActual = u,
+  onSesionCerrada: _cerrarSesion,
+);
 
 void _cerrarSesion() {
   _usuarioActual = null;
-  CanastaRepositoryMock.instancia.vaciar(); // la canasta no pasa al siguiente usuario
+  CanastaRepositoryMock.instancia
+      .vaciar(); // la canasta no pasa al siguiente usuario
 }
 
 final appRouter = GoRouter(
@@ -85,7 +86,9 @@ final appRouter = GoRouter(
               path: '/inicio',
               // si recargan la página y no hay usuario, vuelven a la bienvenida
               redirect: (context, state) =>
-                  (state.extra is Usuario || _usuarioActual != null) ? null : '/',
+                  (state.extra is Usuario || _usuarioActual != null)
+                  ? null
+                  : '/',
               builder: (context, state) {
                 final extra = state.extra;
                 if (extra is Usuario) _usuarioActual = extra;
@@ -112,7 +115,8 @@ final appRouter = GoRouter(
                 // C4 · Entrega y pago → C4b Yape → C4c ¡Pedido enviado!
                 GoRoute(
                   path: 'entrega',
-                  redirect: (context, state) => _usuarioActual == null ? '/' : null,
+                  redirect: (context, state) =>
+                      _usuarioActual == null ? '/' : null,
                   builder: (context, state) =>
                       EntregaPagoScreen(usuario: _usuarioActual!),
                 ),
@@ -120,8 +124,8 @@ final appRouter = GoRouter(
                   path: 'yape',
                   redirect: (context, state) =>
                       (_usuarioActual == null || state.extra is! Direccion)
-                          ? '/canasta'
-                          : null,
+                      ? '/canasta'
+                      : null,
                   builder: (context, state) => YapeScreen(
                     usuario: _usuarioActual!,
                     direccion: state.extra! as Direccion,
@@ -130,7 +134,9 @@ final appRouter = GoRouter(
                 GoRoute(
                   path: 'enviado',
                   builder: (context, state) => PedidoEnviadoScreen(
-                    pedido: state.extra is Pedido ? state.extra! as Pedido : null,
+                    pedido: state.extra is Pedido
+                        ? state.extra! as Pedido
+                        : null,
                   ),
                 ),
               ],
@@ -142,12 +148,14 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/pedido',
               redirect: (context, state) => _usuarioActual == null ? '/' : null,
-              builder: (context, state) => MiPedidoScreen(usuario: _usuarioActual!),
+              builder: (context, state) =>
+                  MiPedidoScreen(usuario: _usuarioActual!),
               routes: [
                 // C9 · Mis pedidos (historial)
                 GoRoute(
                   path: 'historial',
-                  builder: (context, state) => HistorialScreen(usuario: _usuarioActual!),
+                  builder: (context, state) =>
+                      HistorialScreen(usuario: _usuarioActual!),
                 ),
               ],
             ),
@@ -175,11 +183,14 @@ final appRouter = GoRouter(
       builder: (context, state) =>
           const ClienteLoginScreen(rol: Rol.comerciante),
     ),
+    GoRoute(
+      path: '/casero/registro',
+      builder: (context, state) =>
+          const ClienteRegistroScreen(rol: Rol.comerciante),
+    ),
     StatefulShellRoute.indexedStack(
-      builder: (context, state, navigationShell) => PrincipalShell(
-        navigationShell: navigationShell,
-        items: itemsCasero,
-      ),
+      builder: (context, state, navigationShell) =>
+          PrincipalShell(navigationShell: navigationShell, items: itemsCasero),
       branches: [
         StatefulShellBranch(
           routes: [
@@ -249,6 +260,11 @@ final appRouter = GoRouter(
       builder: (context, state) =>
           const ClienteLoginScreen(rol: Rol.repartidor),
     ),
+    GoRoute(
+      path: '/repartidor/registro',
+      builder: (context, state) =>
+          const ClienteRegistroScreen(rol: Rol.repartidor),
+    ),
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) => PrincipalShell(
         navigationShell: navigationShell,
@@ -270,7 +286,8 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/repartidor/ruta',
               redirect: (context, state) => _exigirRol(state, Rol.repartidor),
-              builder: (context, state) => RutaScreen(usuario: _usuarioDe(state)),
+              builder: (context, state) =>
+                  RutaScreen(usuario: _usuarioDe(state)),
               routes: [
                 // R3 · Entrega y cobro
                 GoRoute(

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/config/api_config.dart';
 import '../../../core/utils/formato.dart';
 import '../../../core/widgets/botones_app.dart';
 import '../../../core/widgets/componentes_app.dart';
@@ -12,6 +13,7 @@ import '../../../data/models/puesto.dart';
 import '../../../data/models/usuario.dart';
 import '../../../data/repositories/canasta_repository.dart';
 import '../../../data/repositories/catalogo_repository.dart';
+import '../../../data/repositories/catalogo_api_repository.dart';
 import '../widgets/componentes_inicio.dart';
 import '../widgets/encabezado_inicio.dart';
 import '../widgets/selector_mercado_sheet.dart';
@@ -25,7 +27,7 @@ class InicioScreen extends StatefulWidget {
 }
 
 class _InicioScreenState extends State<InicioScreen> {
-  final CatalogoRepository _repo = CatalogoRepositoryMock();
+  late final CatalogoRepository _repo;
   final _busqueda = TextEditingController();
   Timer? _espera;
 
@@ -43,6 +45,9 @@ class _InicioScreenState extends State<InicioScreen> {
   @override
   void initState() {
     super.initState();
+    _repo = ApiConfig.configurada
+        ? CatalogoApiRepository.instancia
+        : CatalogoRepositoryMock();
     _cargarNombres();
     _cargarPuestos();
   }

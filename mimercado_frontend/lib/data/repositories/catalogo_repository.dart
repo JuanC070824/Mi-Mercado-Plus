@@ -188,11 +188,19 @@ class CatalogoRepositoryMock implements CatalogoRepository {
       for (final m in _mercados)
         MercadoCercano(
           m,
-          conUbicacion ? _km(latitud, longitud, m.latitud, m.longitud) : null,
+          conUbicacion && m.latitud != null && m.longitud != null
+              ? _km(latitud, longitud, m.latitud!, m.longitud!)
+              : null,
         ),
     ];
     if (conUbicacion) {
-      lista.sort((a, b) => a.distanciaKm!.compareTo(b.distanciaKm!));
+      lista.sort((a, b) {
+        final distanciaA = a.distanciaKm;
+        final distanciaB = b.distanciaKm;
+        if (distanciaA == null) return distanciaB == null ? 0 : 1;
+        if (distanciaB == null) return -1;
+        return distanciaA.compareTo(distanciaB);
+      });
     }
     return lista;
   }

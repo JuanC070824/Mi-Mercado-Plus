@@ -15,12 +15,17 @@ class PhoneField(serializers.CharField):
         return value
 
 class RegistroSerializer(serializers.Serializer):
-    nombres = serializers.CharField(max_length=100)
-    apellido_paterno = serializers.CharField(max_length=80, required=False, allow_blank=True)
-    apellido_materno = serializers.CharField(max_length=80, required=False, allow_blank=True)
+    dni = serializers.RegexField(r'^[0-9]{8}$', write_only=True)
+    dni_token = serializers.CharField(write_only=True, max_length=1000)
     celular = PhoneField()
     correo = serializers.EmailField(max_length=254, required=False, allow_blank=True)
     password = serializers.CharField(write_only=True, trim_whitespace=False, max_length=128)
+    rol = serializers.ChoiceField(choices=['comprador', 'vendedor', 'repartidor'])
+    fecha_nacimiento = serializers.DateField(required=False, allow_null=True)
+    letra_grande = serializers.BooleanField(default=False)
+    sonido = serializers.BooleanField(default=True)
+    vibracion = serializers.BooleanField(default=True)
+    direccion = serializers.DictField(required=False, allow_null=True, write_only=True)
 
     def validate_password(self, value):
         try:
@@ -29,9 +34,16 @@ class RegistroSerializer(serializers.Serializer):
             raise serializers.ValidationError(exc.messages)
         return value
 
+class DniSerializer(serializers.Serializer):
+    dni = serializers.RegexField(r'^[0-9]{8}$')
+
 class LoginSerializer(serializers.Serializer):
     celular = PhoneField()
     password = serializers.CharField(write_only=True, trim_whitespace=False, max_length=128)
+    rol = serializers.ChoiceField(
+        choices=['comprador', 'vendedor', 'repartidor'],
+        required=False,
+    )
 
 class ItemSerializer(serializers.Serializer):
     producto_id = serializers.IntegerField(min_value=1)

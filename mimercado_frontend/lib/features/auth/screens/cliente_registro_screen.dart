@@ -10,6 +10,7 @@ import '../../../core/widgets/mensaje_error.dart';
 import '../../../data/models/direccion.dart';
 import '../../../data/models/rol.dart';
 import '../../../data/models/usuario.dart';
+import '../../../data/repositories/auth_api_repository.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../data/repositories/dni_repository.dart';
 import '../widgets/requisitos_password.dart';
@@ -19,7 +20,15 @@ enum _EstadoDni { inicial, buscando, encontrado, noEncontrado, falloServicio }
 enum _EstadoUbicacion { inicial, buscando, listo, error }
 
 class ClienteRegistroScreen extends StatefulWidget {
-  const ClienteRegistroScreen({super.key});
+  const ClienteRegistroScreen({super.key, this.rol = Rol.cliente});
+
+  final Rol rol;
+
+  static const inicioPorRol = {
+    Rol.cliente: '/inicio',
+    Rol.comerciante: '/casero/inicio',
+    Rol.repartidor: '/repartidor/inicio',
+  };
 
   @override
   State<ClienteRegistroScreen> createState() => _ClienteRegistroScreenState();
@@ -39,12 +48,13 @@ class _ClienteRegistroScreenState extends State<ClienteRegistroScreen> {
   final _direccion = TextEditingController();
   final _referencia = TextEditingController();
 
-  final AuthRepository _repo = AuthRepositoryMock.instancia;
-  final DniRepository _dniRepo = DniRepositoryMock();
+  late final RegistroRepository _repo;
+  late final DniRepository _dniRepo;
 
   // Consulta de DNI
   _EstadoDni _estadoDni = _EstadoDni.inicial;
   String? _dniConsultado;
+  String? _dniToken;
   int _consultaId = 0;
 
   // Ubicación
@@ -61,12 +71,14 @@ class _ClienteRegistroScreenState extends State<ClienteRegistroScreen> {
   bool _cargando = false;
   String? _error;
 
-  /// Nombres y apellidos solo se escriben a mano si falló el servicio de DNI.
-  bool get _bloqueado => _estadoDni != _EstadoDni.falloServicio;
+  /// La identidad siempre proviene de JSON.pe; no se edita manualmente.
+  bool get _bloqueado => true;
 
   @override
   void initState() {
     super.initState();
+    _repo = AuthApiRepository.instancia;
+    _dniRepo = DniApiRepository.instancia;
     _dni.addListener(_alCambiarDni);
   }
 
@@ -74,8 +86,17 @@ class _ClienteRegistroScreenState extends State<ClienteRegistroScreen> {
   void dispose() {
     _dni.removeListener(_alCambiarDni);
     for (final c in [
-      _dni, _nombres, _paterno, _materno, _nacimiento, _celular,
-      _correo, _password, _confirmar, _direccion, _referencia,
+      _dni,
+      _nombres,
+      _paterno,
+      _materno,
+      _nacimiento,
+      _celular,
+      _correo,
+      _password,
+      _confirmar,
+      _direccion,
+      _referencia,
     ]) {
       c.dispose();
     }
@@ -100,6 +121,7 @@ class _ClienteRegistroScreenState extends State<ClienteRegistroScreen> {
       _paterno.clear();
       _materno.clear();
       _dniConsultado = null;
+      _dniToken = null;
       _estadoDni = _EstadoDni.inicial;
     });
   }
@@ -124,10 +146,13 @@ class _ClienteRegistroScreenState extends State<ClienteRegistroScreen> {
           _nombres.text = d.nombres;
           _paterno.text = d.apellidoPaterno;
           _materno.text = d.apellidoMaterno;
+          _dniToken = d.registroToken;
           _estadoDni = _EstadoDni.encontrado;
         case EstadoConsulta.noEncontrado:
+          _dniToken = null;
           _estadoDni = _EstadoDni.noEncontrado;
         case EstadoConsulta.falloServicio:
+          _dniToken = null;
           _estadoDni = _EstadoDni.falloServicio;
       }
     });
@@ -138,6 +163,9 @@ class _ClienteRegistroScreenState extends State<ClienteRegistroScreen> {
     if (base != null) return base;
     if (_estadoDni == _EstadoDni.noEncontrado) {
       return 'No encontramos este DNI. Revisa los 8 números.';
+    }
+    if (_estadoDni != _EstadoDni.encontrado || _dniToken == null) {
+      return 'Es necesario validar el DNI antes de crear la cuenta.';
     }
     return null;
   }
@@ -177,6 +205,7 @@ class _ClienteRegistroScreenState extends State<ClienteRegistroScreen> {
       });
     }
   }
+
   Future<void> _elegirFecha() async {
     final hoy = DateTime.now();
     final actual = Validadores.parseFecha(_nacimiento.text);
@@ -230,19 +259,25 @@ class _ClienteRegistroScreenState extends State<ClienteRegistroScreen> {
     setState(() => _error = null);
 
     if (_estadoDni == _EstadoDni.buscando) {
-      setState(() => _error =
-          'Espera un momento: estamos buscando tus datos con tu DNI.');
+      setState(
+        () => _error =
+            'Espera un momento: estamos buscando tus datos con tu DNI.',
+      );
       return;
     }
     if (!_formKey.currentState!.validate()) {
-      setState(() => _error = 'Revisa los campos marcados en rojo para continuar.');
+      setState(
+        () => _error = 'Revisa los campos marcados en rojo para continuar.',
+      );
       _irAlPrimerError();
       return;
     }
 
     setState(() => _cargando = true);
     final dir = _direccion.text.trim();
-    final r = await _repo.registrarCliente(
+    final r = await _repo.registrarUsuario(
+      dni: _dni.text,
+      dniToken: _dniToken!,
       usuario: Usuario(
         nombres: _nombres.text.trim(),
         apellidoPaterno: _paterno.text.trim(),
@@ -253,10 +288,10 @@ class _ClienteRegistroScreenState extends State<ClienteRegistroScreen> {
         letraGrande: _letraGrande,
         sonido: _sonido,
         vibracion: _vibracion,
-        rol: Rol.cliente,
+        rol: widget.rol,
       ),
       password: _password.text,
-      direccion: dir.isEmpty
+      direccion: widget.rol != Rol.cliente || dir.isEmpty
           ? null
           : Direccion(
               direccion: dir,
@@ -269,7 +304,10 @@ class _ClienteRegistroScreenState extends State<ClienteRegistroScreen> {
     setState(() => _cargando = false);
 
     if (r.exito) {
-      context.go('/inicio', extra: r.usuario);
+      context.go(
+        ClienteRegistroScreen.inicioPorRol[widget.rol]!,
+        extra: r.usuario,
+      );
     } else {
       setState(() => _error = r.mensaje);
     }
@@ -301,8 +339,7 @@ class _ClienteRegistroScreenState extends State<ClienteRegistroScreen> {
         );
       case _EstadoDni.falloServicio:
         return _MensajeEstado(
-          texto: 'No pudimos consultar tu DNI ahora. '
-              'Escribe tus datos tal como figuran en él.',
+          texto: 'No pudimos consultar tu DNI ahora. Reintenta para continuar.',
           color: AppColors.texto,
           icono: Icons.info_outline,
           accion: TextButton(
@@ -366,7 +403,7 @@ class _ClienteRegistroScreenState extends State<ClienteRegistroScreen> {
     return Scaffold(
       body: Column(
         children: [
-          const EncabezadoAzul(titulo: 'Crear mi cuenta'),
+          EncabezadoAzul(titulo: 'Registro de ${widget.rol.etiqueta}'),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
@@ -388,7 +425,10 @@ class _ClienteRegistroScreenState extends State<ClienteRegistroScreen> {
                           ),
                           const SizedBox(height: 20),
 
-                          const _TituloSeccion('Mis datos', Icons.badge_outlined),
+                          const _TituloSeccion(
+                            'Mis datos',
+                            Icons.badge_outlined,
+                          ),
                           const SizedBox(height: 16),
                           CampoTextoApp(
                             etiqueta: 'DNI',
@@ -460,7 +500,9 @@ class _ClienteRegistroScreenState extends State<ClienteRegistroScreen> {
                             maxLongitud: 9,
                             mostrarContador: true,
                             icono: Icons.phone_android,
-                            autofillHints: const [AutofillHints.telephoneNumberNational],
+                            autofillHints: const [
+                              AutofillHints.telephoneNumberNational,
+                            ],
                             validator: Validadores.celular,
                           ),
                           const SizedBox(height: 12),
@@ -495,45 +537,52 @@ class _ClienteRegistroScreenState extends State<ClienteRegistroScreen> {
                                 Validadores.confirmacion(v, _password.text),
                           ),
 
-                          const SizedBox(height: 28),
-                          const _TituloSeccion(
-                            'Dónde te entregamos (opcional)',
-                            Icons.home_outlined,
-                          ),
-                          const SizedBox(height: 4),
-                          const Text(
-                            'Puedes completarlo ahora o más tarde, desde Mi perfil.',
-                            style: TextStyle(
-                              fontSize: 17,
-                              color: AppColors.textoSecundario,
+                          if (widget.rol == Rol.cliente) ...[
+                            const SizedBox(height: 28),
+                            const _TituloSeccion(
+                              'Dónde te entregamos (opcional)',
+                              Icons.home_outlined,
                             ),
-                          ),
-                          const SizedBox(height: 16),
-                          _botonUbicacion(),
-                          Padding(
-                            padding: const EdgeInsets.only(top: 8),
-                            child: _estadoUbicacionWidget(),
-                          ),
-                          const SizedBox(height: 16),
-                          CampoTextoApp(
-                            etiqueta: 'Dirección principal',
-                            hint: 'Av. Principal 123, Surquillo',
-                            controller: _direccion,
-                            icono: Icons.home_outlined,
-                            autofillHints: const [AutofillHints.fullStreetAddress],
-                            validator: Validadores.direccionOpcional,
-                          ),
-                          const SizedBox(height: 12),
-                          CampoTextoApp(
-                            etiqueta: 'Referencia (opcional)',
-                            hint: 'Cerca a la juguería',
-                            controller: _referencia,
-                            icono: Icons.edit_location_alt_outlined,
-                            accion: TextInputAction.done,
-                          ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'Puedes completarlo ahora o más tarde, desde Mi perfil.',
+                              style: TextStyle(
+                                fontSize: 17,
+                                color: AppColors.textoSecundario,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            _botonUbicacion(),
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: _estadoUbicacionWidget(),
+                            ),
+                            const SizedBox(height: 16),
+                            CampoTextoApp(
+                              etiqueta: 'Dirección principal',
+                              hint: 'Av. Principal 123, Surquillo',
+                              controller: _direccion,
+                              icono: Icons.home_outlined,
+                              autofillHints: const [
+                                AutofillHints.fullStreetAddress,
+                              ],
+                              validator: Validadores.direccionOpcional,
+                            ),
+                            const SizedBox(height: 12),
+                            CampoTextoApp(
+                              etiqueta: 'Referencia (opcional)',
+                              hint: 'Cerca a la juguería',
+                              controller: _referencia,
+                              icono: Icons.edit_location_alt_outlined,
+                              accion: TextInputAction.done,
+                            ),
+                          ],
 
                           const SizedBox(height: 28),
-                          const _TituloSeccion('Cómo quiero usar la app', Icons.tune),
+                          const _TituloSeccion(
+                            'Cómo quiero usar la app',
+                            Icons.tune,
+                          ),
                           const SizedBox(height: 12),
                           _tarjetaPreferencias(),
 
@@ -554,10 +603,19 @@ class _ClienteRegistroScreenState extends State<ClienteRegistroScreen> {
                           TextButton(
                             onPressed: () => context.canPop()
                                 ? context.pop()
-                                : context.go('/cliente/login'),
+                                : context.go(
+                                    widget.rol == Rol.cliente
+                                        ? '/cliente/login'
+                                        : widget.rol == Rol.comerciante
+                                        ? '/casero/login'
+                                        : '/repartidor/login',
+                                  ),
                             child: const Text(
                               '¿Ya tienes cuenta? Iniciar sesión',
-                              style: TextStyle(fontSize: 18, color: AppColors.azul),
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: AppColors.azul,
+                              ),
                             ),
                           ),
                         ],
@@ -640,7 +698,11 @@ class _ClienteRegistroScreenState extends State<ClienteRegistroScreen> {
                 padding: const EdgeInsets.only(left: 4, top: 2),
                 child: Row(
                   children: [
-                    const Icon(Icons.error_outline, size: 20, color: AppColors.error),
+                    const Icon(
+                      Icons.error_outline,
+                      size: 20,
+                      color: AppColors.error,
+                    ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
@@ -743,7 +805,7 @@ class _MensajeEstado extends StatelessWidget {
               ),
             ],
           ),
-          if (accion != null) accion!,
+          ?accion,
         ],
       ),
     );

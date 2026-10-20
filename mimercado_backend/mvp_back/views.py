@@ -8,11 +8,14 @@ from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError, NotFound
 from rest_framework.throttling import ScopedRateThrottle
 from . import serializers as s
-from .models import Usuario, UsuarioRol, Producto, Mercado, Puesto, Direccion, Pedido, Cotizacion
+from .models import (Usuario, UsuarioRol, Producto, Mercado, Puesto, Direccion,
+                     Pedido, Cotizacion, RepartidorMercado)
 from .authentication import issue_token
 from .services import put_item, cart_payload, change_item, checkout, require_buyer, accept_quote, quote_total, lock_user
 from .payments import pay_order
 from .money import cents
+from .dni import (consultar_dni, firmar_consulta, leer_consulta,
+                  DniNoEncontrado, DniServicioNoDisponible)
 
 
 def validated(cls, data):
@@ -21,14 +24,31 @@ def validated(cls, data):
     return serializer.validated_data
 
 
-def user_payload(user):
-    return {'id':user.pk,'nombres':user.nombres,'celular':user.celular,
-            'roles':list(UsuarioRol.objects.filter(usuario_id=user.pk).values_list('rol_codigo',flat=True))}
+def user_payload(user, roles=None, rol_activo=None):
+    if roles is None:
+        roles=list(UsuarioRol.objects.filter(usuario_id=user.pk).values_list('rol_codigo',flat=True))
+    payload={'id':user.pk,'nombres':user.nombres,
+             'apellido_paterno':user.apellido_paterno,
+             'apellido_materno':user.apellido_materno,
+             'celular':user.celular,'correo':user.correo,'roles':roles}
+    if rol_activo=='vendedor':
+        puesto=Puesto.objects.filter(vendedor_id=user.pk,estado='activo').order_by('id').first()
+        if puesto:
+            payload.update({'puesto_id':puesto.pk,'mercado_id':puesto.mercado_id})
+    elif rol_activo=='repartidor':
+        asignacion=RepartidorMercado.objects.filter(
+            repartidor_id=user.pk,fin_en__isnull=True).order_by('-inicio_en').first()
+        if asignacion:
+            payload['mercado_id']=asignacion.mercado_id
+    return payload
 
 
-def auth_payload(user):
+def auth_payload(user, rol_activo=None):
+    roles=list(UsuarioRol.objects.filter(usuario_id=user.pk).values_list('rol_codigo',flat=True))
+    if rol_activo is None and len(roles)==1:
+        rol_activo=roles[0]
     return {'token':issue_token(user),'token_type':'Bearer','expires_in':settings.AUTH_TOKEN_TTL_SECONDS,
-            'usuario':user_payload(user)}
+            'rol_activo':rol_activo,'usuario':user_payload(user,roles,rol_activo)}
 
 class RegistroView(APIView):
     permission_classes=[AllowAny]
@@ -38,16 +58,58 @@ class RegistroView(APIView):
     def post(self,request):
         data=validated(s.RegistroSerializer,request.data)
         password=data.pop('password')
+        dni=data.pop('dni')
+        dni_token=data.pop('dni_token')
+        rol=data.pop('rol')
+        direccion=data.pop('direccion',None)
+        try:
+            identidad=leer_consulta(dni_token,dni)
+        except ValueError as exc:
+            raise ValidationError({'dni':str(exc)})
+        data.update({
+            'nombres':identidad['nombres'],
+            'apellido_paterno':identidad['apellido_paterno'],
+            'apellido_materno':identidad.get('apellido_materno') or None,
+        })
         data['correo']=data.get('correo','').lower() or None
         if Usuario.objects.filter(celular=data['celular']).exists() or (data['correo'] and Usuario.objects.filter(correo__iexact=data['correo']).exists()):
             raise ValidationError('El celular o correo ya está registrado.')
         try:
             with transaction.atomic():
                 user=Usuario.objects.create(**data,password_hash=make_password(password))
-                UsuarioRol.objects.create(usuario_id=user.pk,rol_codigo='comprador')
+                UsuarioRol.objects.create(usuario_id=user.pk,rol_codigo=rol)
+                if rol=='comprador' and direccion and str(direccion.get('direccion','')).strip():
+                    Direccion.objects.create(
+                        comprador_id=user.pk,
+                        direccion=str(direccion['direccion']).strip(),
+                        referencia=str(direccion.get('referencia') or '').strip() or None,
+                        latitud=direccion.get('latitud'),
+                        longitud=direccion.get('longitud'),
+                        principal=True,
+                    )
         except IntegrityError:
             raise ValidationError('No se pudo registrar: datos duplicados o catálogo de roles no instalado.')
-        return Response(auth_payload(user),status=201)
+        return Response(auth_payload(user,rol),status=201)
+
+class DniView(APIView):
+    permission_classes=[AllowAny]
+    authentication_classes=[]
+    throttle_classes=[ScopedRateThrottle]
+    throttle_scope='dni'
+    def post(self,request):
+        data=validated(s.DniSerializer,request.data)
+        try:
+            identidad=consultar_dni(data['dni'])
+        except DniNoEncontrado as exc:
+            return Response({'detail':str(exc)},status=404)
+        except DniServicioNoDisponible as exc:
+            return Response({'detail':str(exc)},status=503)
+        return Response({
+            'nombres':identidad['nombres'],
+            'apellido_paterno':identidad['apellido_paterno'],
+            'apellido_materno':identidad['apellido_materno'],
+            'registro_token':firmar_consulta(identidad),
+        })
 
 class LoginView(APIView):
     permission_classes=[AllowAny]
@@ -59,9 +121,19 @@ class LoginView(APIView):
         user=Usuario.objects.filter(celular=data['celular']).first()
         if user is None:
             make_password(data['password'])  # costo similar para un celular inexistente
-        if user is None or not check_password(data['password'],user.password_hash) or user.estado!='activo':
+        password_ok=False
+        if user is not None:
+            def actualizar_hash(password):
+                user.password_hash=make_password(password)
+                user.save(update_fields=['password_hash'])
+            password_ok=check_password(data['password'],user.password_hash,setter=actualizar_hash)
+        if user is None or not password_ok or user.estado!='activo':
             return Response({'detail':'Celular o contraseña incorrectos.'},status=401)
-        return Response(auth_payload(user))
+        roles=list(UsuarioRol.objects.filter(usuario_id=user.pk).values_list('rol_codigo',flat=True))
+        rol_solicitado=data.get('rol')
+        if rol_solicitado and rol_solicitado not in roles:
+            return Response({'detail':'Esta cuenta no tiene el perfil seleccionado.','roles':roles},status=403)
+        return Response(auth_payload(user,rol_solicitado))
 
 class PerfilView(APIView):
     def get(self,request):
@@ -70,7 +142,10 @@ class PerfilView(APIView):
 class MercadosView(APIView):
     permission_classes=[AllowAny]
     def get(self,request):
-        return Response(list(Mercado.objects.filter(estado='activo').values('id','nombre','direccion')))
+        mercados=Mercado.objects.filter(estado='activo').order_by('nombre','id').values(
+            'id','nombre','direccion','distrito','provincia','departamento','latitud','longitud'
+        )
+        return Response(list(mercados))
 
 class PuestosView(APIView):
     permission_classes=[AllowAny]
