@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/config/api_config.dart';
+import '../../../data/repositories/auth_api_repository.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/validators.dart';
 import '../../../core/widgets/botones_app.dart';
@@ -31,10 +33,18 @@ class _ClienteLoginScreenState extends State<ClienteLoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _celular = TextEditingController();
   final _password = TextEditingController();
-  final AuthRepository _repo = AuthRepositoryMock.instancia;
+  late final LoginRepository _repo;
 
   bool _cargando = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _repo = ApiConfig.configurada
+        ? AuthApiRepository.instancia
+        : AuthRepositoryMock.instancia;
+  }
 
   @override
   void dispose() {

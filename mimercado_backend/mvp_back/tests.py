@@ -76,7 +76,26 @@ class ApiTests(TestCase):
         r=self.post('/api/auth/login/',{'celular':'900000001','password':'CompraSegura!42'})
         self.assertEqual(r.status_code,200)
         self.assertIn('token',r.data)
+        self.assertEqual(r.data['rol_activo'],'comprador')
         self.assertEqual(self.post('/api/auth/login/',{'celular':'900000001','password':'incorrecta'}).status_code,401)
+
+    def test_login_validates_selected_role(self):
+        r=self.post('/api/auth/login/',{
+            'celular':'900000011','password':'password','rol':'vendedor'})
+        self.assertEqual(r.status_code,200,r.data)
+        self.assertEqual(r.data['rol_activo'],'vendedor')
+        self.assertIn('vendedor',r.data['usuario']['roles'])
+        self.assertEqual(r.data['usuario']['puesto_id'],self.stall.pk)
+        self.assertEqual(r.data['usuario']['mercado_id'],self.market.pk)
+
+        r=self.post('/api/auth/login/',{
+            'celular':'900000001','password':'CompraSegura!42','rol':'repartidor'})
+        self.assertEqual(r.status_code,403,r.data)
+        self.assertNotIn('token',r.data)
+
+        r=self.post('/api/auth/login/',{
+            'celular':'900000001','password':'CompraSegura!42','rol':'administrador'})
+        self.assertEqual(r.status_code,400,r.data)
 
     def test_duplicate_phone(self):
         self.assertEqual(self.post('/api/auth/registro/',{'nombres':'N','celular':'900000001','password':'ClaveFuerte!42'}).status_code,400)

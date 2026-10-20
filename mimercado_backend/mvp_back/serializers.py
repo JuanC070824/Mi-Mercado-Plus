@@ -32,6 +32,10 @@ class RegistroSerializer(serializers.Serializer):
 class LoginSerializer(serializers.Serializer):
     celular = PhoneField()
     password = serializers.CharField(write_only=True, trim_whitespace=False, max_length=128)
+    rol = serializers.ChoiceField(
+        choices=['comprador', 'vendedor', 'repartidor'],
+        required=False,
+    )
 
 class ItemSerializer(serializers.Serializer):
     producto_id = serializers.IntegerField(min_value=1)

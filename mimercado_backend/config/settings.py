@@ -111,6 +111,16 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+# Las contraseñas nunca se cifran de forma reversible. Django guarda hashes
+# con salt; Argon2 se usa para cuentas nuevas y PBKDF2 queda habilitado para
+# verificar cuentas creadas antes de este cambio.
+PASSWORD_HASHERS = [
+    'django.contrib.auth.hashers.Argon2PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
+    'django.contrib.auth.hashers.ScryptPasswordHasher',
+]
+
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/

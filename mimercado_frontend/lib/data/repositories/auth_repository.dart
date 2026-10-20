@@ -18,12 +18,15 @@ class ResultadoAuth {
   final Usuario? usuario;
 }
 
-abstract class AuthRepository {
+abstract class LoginRepository {
   Future<ResultadoAuth> iniciarSesion({
     required String celular,
     required String password,
     required Rol rol,
   });
+}
+
+abstract class AuthRepository implements LoginRepository {
 
   Future<ResultadoAuth> registrarCliente({
     required Usuario usuario,
