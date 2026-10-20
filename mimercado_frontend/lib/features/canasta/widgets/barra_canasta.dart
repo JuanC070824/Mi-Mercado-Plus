@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/formato.dart';
 import '../../../data/models/canasta.dart';
-import '../../../data/repositories/canasta_repository.dart';
+import '../../../data/repositories/repositorios_app.dart';
 
 /// Barra fija "Tu canasta · S/ X · Ver canasta". No se muestra si está vacía.
 class BarraCanasta extends StatelessWidget {
@@ -12,7 +12,7 @@ class BarraCanasta extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<Canasta>(
-      valueListenable: CanastaRepositoryMock.instancia.canasta,
+      valueListenable: canastaApp.canasta,
       builder: (context, canasta, _) {
         if (canasta.vacia) return const SizedBox.shrink();
         final n = canasta.cantidadProductos;

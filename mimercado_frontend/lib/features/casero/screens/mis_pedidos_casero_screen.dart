@@ -5,7 +5,7 @@ import '../../../core/widgets/componentes_app.dart';
 import '../../../core/widgets/encabezado_simple.dart';
 import '../../../data/models/pedido.dart';
 import '../../../data/models/usuario.dart';
-import '../../../data/repositories/pedido_repository.dart';
+import '../../../data/repositories/pedidos_vendedor_api_repository.dart';
 import 'casero_inicio_screen.dart';
 
 /// V6 · Mis pedidos del casero: Nuevos / En curso / Entregados.
@@ -18,11 +18,12 @@ class MisPedidosCaseroScreen extends StatefulWidget {
 }
 
 class _MisPedidosCaseroScreenState extends State<MisPedidosCaseroScreen> {
-  final PedidoRepository _repo = PedidoRepositoryMock.instancia;
+  final PedidosVendedorApiRepository _repo =
+      PedidosVendedorApiRepository.instancia;
   List<Pedido> _lista = [];
   bool _cargando = true;
 
-  int get _puestoId => widget.usuario.puestoId ?? 1;
+  int get _puestoId => widget.usuario.puestoId ?? 0;
 
   @override
   void initState() {
@@ -50,8 +51,14 @@ class _MisPedidosCaseroScreenState extends State<MisPedidosCaseroScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final nuevos = [for (final p in _lista) if (_parte(p).estado == EstadoPedidoPuesto.pendiente) p];
-    final entregados = [for (final p in _lista) if (_parte(p).estado == EstadoPedidoPuesto.recogido) p];
+    final nuevos = [
+      for (final p in _lista)
+        if (_parte(p).estado == EstadoPedidoPuesto.pendiente) p,
+    ];
+    final entregados = [
+      for (final p in _lista)
+        if (_parte(p).estado == EstadoPedidoPuesto.recogido) p,
+    ];
     final enCurso = [
       for (final p in _lista)
         if (!_parte(p).estado.descartado &&
@@ -74,7 +81,10 @@ class _MisPedidosCaseroScreenState extends State<MisPedidosCaseroScreen> {
                 unselectedLabelColor: AppColors.textoSecundario,
                 indicatorColor: AppColors.azul,
                 indicatorWeight: 4,
-                labelStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+                labelStyle: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                ),
                 unselectedLabelStyle: const TextStyle(fontSize: 17),
                 tabs: [
                   Tab(height: 56, text: 'Nuevos (${nuevos.length})'),

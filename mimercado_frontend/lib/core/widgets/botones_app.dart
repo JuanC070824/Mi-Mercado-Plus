@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 
-
 // Este es el botón azul y el botón con borde
 class BotonPrincipal extends StatelessWidget {
   const BotonPrincipal({
@@ -41,7 +40,10 @@ class BotonPrincipal extends StatelessWidget {
               )
             : Text(
                 texto,
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
       ),
     );

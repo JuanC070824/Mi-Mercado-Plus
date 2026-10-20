@@ -11,6 +11,7 @@ import '../../../data/models/cotizacion.dart';
 import '../../../data/models/pedido.dart';
 import '../../../data/models/usuario.dart';
 import '../../../data/repositories/pedido_repository.dart';
+import '../../../data/repositories/pedidos_vendedor_api_repository.dart';
 import '../widgets/alerta_pedido.dart';
 
 /// V3 · Pesar y poner precio: balanza "− kg +" por producto, "Así lo verá"
@@ -25,7 +26,8 @@ class PesarScreen extends StatefulWidget {
 }
 
 class _PesarScreenState extends State<PesarScreen> {
-  final PedidoRepository _repo = PedidoRepositoryMock.instancia;
+  final PedidosVendedorApiRepository _repo =
+      PedidosVendedorApiRepository.instancia;
   final _nota = TextEditingController();
 
   Pedido? _pedido;
@@ -40,7 +42,7 @@ class _PesarScreenState extends State<PesarScreen> {
   /// Nombre del producto que se ofrece en lugar del pedido (solo "Ofrezco otro").
   final Map<int, TextEditingController> _reemplazos = {};
 
-  int get _puestoId => widget.usuario.puestoId ?? 1;
+  int get _puestoId => widget.usuario.puestoId ?? 0;
 
   @override
   void initState() {
@@ -69,7 +71,9 @@ class _PesarScreenState extends State<PesarScreen> {
       for (final d in parte?.detalles ?? const <PedidoDetalle>[]) {
         _peso[d.id] = d.cantidadSolicitada;
         if (d.disponibilidad == Disponibilidad.reemplazo) {
-          _reemplazos[d.id] = TextEditingController(text: '${d.nombre} (otra variedad)');
+          _reemplazos[d.id] = TextEditingController(
+            text: '${d.nombre} (otra variedad)',
+          );
         }
       }
     });
@@ -77,21 +81,21 @@ class _PesarScreenState extends State<PesarScreen> {
 
   /// Productos que sí se entregan (sin los "Sin stock").
   List<PedidoDetalle> get _aPesar => [
-        for (final d in _parte?.detalles ?? const <PedidoDetalle>[])
-          if (d.disponibilidad != Disponibilidad.sinStock) d,
-      ];
+    for (final d in _parte?.detalles ?? const <PedidoDetalle>[])
+      if (d.disponibilidad != Disponibilidad.sinStock) d,
+  ];
 
   List<CotizacionDetalle> get _cotizacion => [
-        for (final d in _aPesar)
-          CotizacionDetalle(
-            pedidoDetalleId: d.id,
-            nombreFinal: _reemplazos[d.id]?.text.trim().isNotEmpty == true
-                ? _reemplazos[d.id]!.text.trim()
-                : d.nombre,
-            cantidadReal: _peso[d.id]!,
-            precioUnitario: d.precioEstimadoUnitario,
-          ),
-      ];
+    for (final d in _aPesar)
+      CotizacionDetalle(
+        pedidoDetalleId: d.id,
+        nombreFinal: _reemplazos[d.id]?.text.trim().isNotEmpty == true
+            ? _reemplazos[d.id]!.text.trim()
+            : d.nombre,
+        cantidadReal: _peso[d.id]!,
+        precioUnitario: d.precioEstimadoUnitario,
+      ),
+  ];
 
   double get _totalFinal =>
       redondear2(_cotizacion.fold(0.0, (s, d) => s + d.subtotal));
@@ -105,8 +109,10 @@ class _PesarScreenState extends State<PesarScreen> {
     try {
       await _repo.enviarPrecioFinal(parte.id, _cotizacion, nota: _nota.text);
       if (!mounted) return;
-      avisar(context,
-          'Enviaste el precio final. Te avisamos cuando ${_pedido!.clienteNombre} lo acepte.');
+      avisar(
+        context,
+        'Enviaste el precio final. Te avisamos cuando ${_pedido!.clienteNombre} lo acepte.',
+      );
       context.pop();
     } on PedidoException catch (e) {
       if (mounted) setState(() => _error = e.mensaje);
@@ -122,7 +128,9 @@ class _PesarScreenState extends State<PesarScreen> {
         children: [
           EncabezadoSimple(
             titulo: 'Pesar y poner precio',
-            subtitulo: _pedido == null ? null : 'Pedido #${_pedido!.codigoCorto}',
+            subtitulo: _pedido == null
+                ? null
+                : 'Pedido de ${_pedido!.clienteNombre}',
           ),
           Expanded(child: _cuerpo()),
         ],
@@ -135,7 +143,10 @@ class _PesarScreenState extends State<PesarScreen> {
     final p = _pedido;
     final parte = _parte;
     if (p == null || parte == null) {
-      return const AvisoPantalla(icono: Icons.search_off, titulo: 'No encontramos este pedido');
+      return const AvisoPantalla(
+        icono: Icons.search_off,
+        titulo: 'No encontramos este pedido',
+      );
     }
     if (parte.estado != EstadoPedidoPuesto.aceptado &&
         parte.estado != EstadoPedidoPuesto.pesando) {
@@ -150,11 +161,14 @@ class _PesarScreenState extends State<PesarScreen> {
       return AvisoPantalla(
         icono: Icons.remove_shopping_cart_outlined,
         titulo: 'No tienes ningún producto',
-        texto: 'Marcaste todo como "Sin stock". Es mejor rechazar el pedido para que '
+        texto:
+            'Marcaste todo como "Sin stock". Es mejor rechazar el pedido para que '
             'el cliente lo pida en otro puesto.',
         textoBoton: 'Rechazar pedido',
         alTocar: () async {
-          if (await rechazarConMotivo(context, parte) && mounted) context.pop();
+          if (await rechazarConMotivo(context, parte, repository: _repo) &&
+              mounted)
+            context.pop();
         },
       );
     }
@@ -162,7 +176,9 @@ class _PesarScreenState extends State<PesarScreen> {
     final nombre = p.clienteNombre.split(' ').first;
     final estimado = parte.subtotalEstimado;
     final finalTotal = _totalFinal;
-    final sinStock = parte.detalles.where((d) => d.disponibilidad == Disponibilidad.sinStock);
+    final sinStock = parte.detalles.where(
+      (d) => d.disponibilidad == Disponibilidad.sinStock,
+    );
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
@@ -177,11 +193,20 @@ class _PesarScreenState extends State<PesarScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(d.nombre, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+                Text(
+                  d.nombre,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
                 Text(
                   'Pidió ${cantidadConUnidad(d.cantidadSolicitada, d.unidad)} · '
                   '${soles(d.precioEstimadoUnitario)} / ${d.unidad.simbolo}',
-                  style: const TextStyle(fontSize: 16, color: AppColors.textoSecundario),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: AppColors.textoSecundario,
+                  ),
                 ),
                 if (_reemplazos.containsKey(d.id)) ...[
                   const SizedBox(height: 8),
@@ -194,7 +219,10 @@ class _PesarScreenState extends State<PesarScreen> {
                       prefixIcon: Icon(Icons.swap_horiz),
                       border: OutlineInputBorder(),
                       enabledBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: AppColors.borde, width: 1.5),
+                        borderSide: BorderSide(
+                          color: AppColors.borde,
+                          width: 1.5,
+                        ),
                       ),
                     ),
                   ),
@@ -210,13 +238,20 @@ class _PesarScreenState extends State<PesarScreen> {
                       unidad: d.unidad,
                       nombre: d.nombre,
                       onRestar: _peso[d.id]! > d.unidad.paso
-                          ? () => setState(() => _peso[d.id] = _peso[d.id]! - d.unidad.paso)
+                          ? () => setState(
+                              () => _peso[d.id] = _peso[d.id]! - d.unidad.paso,
+                            )
                           : null,
-                      onSumar: () => setState(() => _peso[d.id] = _peso[d.id]! + d.unidad.paso),
+                      onSumar: () => setState(
+                        () => _peso[d.id] = _peso[d.id]! + d.unidad.paso,
+                      ),
                     ),
                     Text(
                       soles(_peso[d.id]! * d.precioEstimadoUnitario),
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ],
                 ),
@@ -227,7 +262,8 @@ class _PesarScreenState extends State<PesarScreen> {
         ],
         if (sinStock.isNotEmpty) ...[
           EtiquetaEstado(
-            texto: 'Sin stock (no se cobra): ${sinStock.map((d) => d.nombre).join(', ')}',
+            texto:
+                'Sin stock (no se cobra): ${sinStock.map((d) => d.nombre).join(', ')}',
             icono: Icons.remove_shopping_cart_outlined,
             tipo: TipoEstado.error,
           ),
@@ -260,14 +296,23 @@ class _PesarScreenState extends State<PesarScreen> {
                   const Icon(Icons.visibility_outlined, color: AppColors.azul),
                   const SizedBox(width: 8),
                   Flexible(
-                    child: Text('Así lo verá $nombre',
-                        style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
+                    child: Text(
+                      'Así lo verá $nombre',
+                      style: const TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: 8),
               FilaMonto(etiqueta: 'Estimado', monto: estimado),
-              FilaMonto(etiqueta: 'Precio final', monto: finalTotal, destacado: true),
+              FilaMonto(
+                etiqueta: 'Precio final',
+                monto: finalTotal,
+                destacado: true,
+              ),
               if (finalTotal != estimado)
                 Text(
                   finalTotal > estimado
@@ -276,7 +321,10 @@ class _PesarScreenState extends State<PesarScreen> {
                   style: const TextStyle(fontSize: 16),
                 ),
               if (_nota.text.trim().isNotEmpty)
-                Text('Nota: "${_nota.text.trim()}"', style: const TextStyle(fontSize: 16)),
+                Text(
+                  'Nota: "${_nota.text.trim()}"',
+                  style: const TextStyle(fontSize: 16),
+                ),
             ],
           ),
         ),

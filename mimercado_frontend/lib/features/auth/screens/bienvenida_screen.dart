@@ -15,16 +15,16 @@ class BienvenidaScreen extends StatelessWidget {
     Rol.comerciante: 'assets/images/avatar_comerciante.png',
   };
 
-void _elegirRol(BuildContext context, Rol rol) {
-  switch (rol) {
-    case Rol.cliente:
-      context.push('/cliente/login');
-    case Rol.repartidor:
-      context.push('/repartidor/login');
-    case Rol.comerciante:
-      context.push('/casero/login');
+  void _elegirRol(BuildContext context, Rol rol) {
+    switch (rol) {
+      case Rol.cliente:
+        context.push('/cliente/login');
+      case Rol.repartidor:
+        context.push('/repartidor/login');
+      case Rol.comerciante:
+        context.push('/casero/login');
+    }
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +33,8 @@ void _elegirRol(BuildContext context, Rol rol) {
     return Scaffold(
       body: SafeArea(
         child: Center(
-          child: SingleChildScrollView(   // evita desbordes con texto grande
+          child: SingleChildScrollView(
+            // evita desbordes con texto grande
             padding: const EdgeInsets.all(24),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 420),
@@ -107,14 +108,12 @@ class _Portada extends StatelessWidget {
                     ? 'assets/images/fondo_mercado.png'
                     : 'assets/images/fondo_mercado.gif',
                 fit: BoxFit.cover,
-                excludeFromSemantics: true,   // es decorativo
-                errorBuilder: (context, error, stack) => Container(
-                  color: AppColors.azul.withValues(alpha: 0.15),
-                ),
+                excludeFromSemantics: true, // es decorativo
+                errorBuilder: (context, error, stack) =>
+                    Container(color: AppColors.azul.withValues(alpha: 0.15)),
               ),
             ),
           ),
-
         ],
       ),
     );

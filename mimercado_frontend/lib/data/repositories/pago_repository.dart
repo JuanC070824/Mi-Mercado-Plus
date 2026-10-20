@@ -2,9 +2,7 @@
 
 /// Resultado de un pago. Nunca guarda el código de aprobación de Yape.
 class ResultadoPago {
-  const ResultadoPago.aprobado()
-      : aprobado = true,
-        mensaje = '';
+  const ResultadoPago.aprobado() : aprobado = true, mensaje = '';
   const ResultadoPago.rechazado(this.mensaje) : aprobado = false;
 
   final bool aprobado;
@@ -34,7 +32,8 @@ class PagoRepositoryMock implements PagoRepository {
   String? validarCodigoYape(String? codigo) {
     final c = (codigo ?? '').trim();
     if (c.isEmpty) return 'Escribe el código de aprobación de Yape.';
-    if (!RegExp(r'^\d{6}$').hasMatch(c)) return 'El código debe tener 6 números.';
+    if (!RegExp(r'^\d{6}$').hasMatch(c))
+      return 'El código debe tener 6 números.';
     return null;
   }
 
@@ -47,7 +46,8 @@ class PagoRepositoryMock implements PagoRepository {
     await Future.delayed(const Duration(milliseconds: 1500));
     if (!RegExp(r'^9\d{8}$').hasMatch(celular)) {
       return const ResultadoPago.rechazado(
-          'El celular de Yape debe tener 9 números y empezar con 9.');
+        'El celular de Yape debe tener 9 números y empezar con 9.',
+      );
     }
     final errorCodigo = validarCodigoYape(codigo);
     if (errorCodigo != null) return ResultadoPago.rechazado(errorCodigo);

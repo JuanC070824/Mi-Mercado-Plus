@@ -75,11 +75,13 @@ class Cotizacion {
     return null;
   }
 
-  Cotizacion copyWith({EstadoCotizacion? estado, List<CotizacionPuesto>? puestos}) =>
-      Cotizacion(
-        version: version,
-        estado: estado ?? this.estado,
-        costoEnvio: costoEnvio,
-        puestos: puestos ?? this.puestos,
-      );
+  Cotizacion copyWith({
+    EstadoCotizacion? estado,
+    List<CotizacionPuesto>? puestos,
+  }) => Cotizacion(
+    version: version,
+    estado: estado ?? this.estado,
+    costoEnvio: costoEnvio,
+    puestos: puestos ?? this.puestos,
+  );
 }

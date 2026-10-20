@@ -93,14 +93,14 @@ class PedidoDetalle {
       redondear2(cantidadSolicitada * precioEstimadoUnitario);
 
   PedidoDetalle copyWith({Disponibilidad? disponibilidad}) => PedidoDetalle(
-        id: id,
-        productoId: productoId,
-        nombre: nombre,
-        unidad: unidad,
-        cantidadSolicitada: cantidadSolicitada,
-        precioEstimadoUnitario: precioEstimadoUnitario,
-        disponibilidad: disponibilidad ?? this.disponibilidad,
-      );
+    id: id,
+    productoId: productoId,
+    nombre: nombre,
+    unidad: unidad,
+    cantidadSolicitada: cantidadSolicitada,
+    precioEstimadoUnitario: precioEstimadoUnitario,
+    disponibilidad: disponibilidad ?? this.disponibilidad,
+  );
 }
 
 class PedidoPuesto {
@@ -131,17 +131,16 @@ class PedidoPuesto {
     EstadoPedidoPuesto? estado,
     List<PedidoDetalle>? detalles,
     String? motivoRechazo,
-  }) =>
-      PedidoPuesto(
-        id: id,
-        puesto: puesto,
-        codigoBolsa: codigoBolsa,
-        estado: estado ?? this.estado,
-        detalles: detalles ?? this.detalles,
-        listaMandado: listaMandado,
-        motivoRechazo: motivoRechazo ?? this.motivoRechazo,
-        parada: parada,
-      );
+  }) => PedidoPuesto(
+    id: id,
+    puesto: puesto,
+    codigoBolsa: codigoBolsa,
+    estado: estado ?? this.estado,
+    detalles: detalles ?? this.detalles,
+    listaMandado: listaMandado,
+    motivoRechazo: motivoRechazo ?? this.motivoRechazo,
+    parada: parada,
+  );
 }
 
 class EventoEstado {
@@ -218,24 +217,23 @@ class Pedido {
     List<PedidoPuesto>? puestos,
     List<EventoEstado>? historial,
     Cotizacion? cotizacion,
-  }) =>
-      Pedido(
-        id: id,
-        codigo: codigo,
-        codigoCorto: codigoCorto,
-        clienteNombre: clienteNombre,
-        clienteCelular: clienteCelular,
-        mercadoId: mercadoId,
-        estado: estado ?? this.estado,
-        metodoPago: metodoPago,
-        direccion: direccion,
-        referencia: referencia,
-        puestos: puestos ?? this.puestos,
-        costoEnvio: costoEnvio,
-        historial: historial ?? this.historial,
-        codigoEntrega: codigoEntrega,
-        cotizacion: cotizacion ?? this.cotizacion,
-        creadoEn: creadoEn,
-        programadoPara: programadoPara,
-      );
+  }) => Pedido(
+    id: id,
+    codigo: codigo,
+    codigoCorto: codigoCorto,
+    clienteNombre: clienteNombre,
+    clienteCelular: clienteCelular,
+    mercadoId: mercadoId,
+    estado: estado ?? this.estado,
+    metodoPago: metodoPago,
+    direccion: direccion,
+    referencia: referencia,
+    puestos: puestos ?? this.puestos,
+    costoEnvio: costoEnvio,
+    historial: historial ?? this.historial,
+    codigoEntrega: codigoEntrega,
+    cotizacion: cotizacion ?? this.cotizacion,
+    creadoEn: creadoEn,
+    programadoPara: programadoPara,
+  );
 }

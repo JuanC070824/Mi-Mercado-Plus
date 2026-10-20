@@ -4,7 +4,7 @@ import '../../data/models/direccion.dart';
 import '../../data/models/pedido.dart';
 import '../../data/models/rol.dart';
 import '../../data/models/usuario.dart';
-import '../../data/repositories/canasta_repository.dart';
+import '../../data/repositories/repositorios_app.dart';
 import '../../features/auth/screens/bienvenida_screen.dart';
 import '../../features/auth/screens/cliente_login_screen.dart';
 import '../../features/auth/screens/cliente_registro_screen.dart';
@@ -61,8 +61,7 @@ Widget _perfil(GoRouterState state) => PerfilScreen(
 void _cerrarSesion() {
   _usuarioActual = null;
   SesionState.cerrar();
-  CanastaRepositoryMock.instancia
-      .vaciar(); // la canasta no pasa al siguiente usuario
+  canastaApp.vaciar(); // la canasta no pasa al siguiente usuario
 }
 
 final appRouter = GoRouter(

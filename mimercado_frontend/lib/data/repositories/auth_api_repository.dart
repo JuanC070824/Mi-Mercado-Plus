@@ -86,6 +86,7 @@ class AuthApiRepository implements AuthRepository {
     );
     if (principal is! Map<String, dynamic>) return null;
     return Direccion(
+      id: (principal['id'] as num?)?.toInt(),
       etiqueta: principal['etiqueta']?.toString() ?? 'Casa',
       direccion: principal['direccion']?.toString() ?? '',
       referencia: principal['referencia']?.toString(),

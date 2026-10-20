@@ -165,9 +165,12 @@ class _SelectorMercadoState extends State<_SelectorMercado> {
                     _buscandoGps
                         ? 'Buscando tu ubicación…'
                         : (_lat == null
-                            ? 'Usar mi ubicación'
-                            : 'Actualizar mi ubicación'),
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                              ? 'Usar mi ubicación'
+                              : 'Actualizar mi ubicación'),
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.azul,
@@ -236,16 +239,18 @@ class _FilaMercado extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final m = item.mercado;
-    final detalle = [m.distrito, item.distanciaTexto]
-        .whereType<String>()
-        .join(' · ');
+    final detalle = [
+      m.distrito,
+      item.distanciaTexto,
+    ].whereType<String>().join(' · ');
 
     return Semantics(
       button: true,
       selected: seleccionado,
       onTap: onTap,
       excludeSemantics: true,
-      label: '${m.nombre}. $detalle'
+      label:
+          '${m.nombre}. $detalle'
           '${esMasCercano ? '. El más cercano' : ''}'
           '${seleccionado ? '. Seleccionado' : ''}',
       child: Material(
@@ -266,8 +271,11 @@ class _FilaMercado extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 children: [
-                  const Icon(Icons.storefront_outlined,
-                      color: AppColors.azul, size: 32),
+                  const Icon(
+                    Icons.storefront_outlined,
+                    color: AppColors.azul,
+                    size: 32,
+                  ),
                   const SizedBox(width: 14),
                   Expanded(
                     child: Column(
@@ -295,7 +303,9 @@ class _FilaMercado extends StatelessWidget {
                             padding: const EdgeInsets.only(top: 6),
                             child: Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 3),
+                                horizontal: 10,
+                                vertical: 3,
+                              ),
                               decoration: BoxDecoration(
                                 color: AppColors.azul,
                                 borderRadius: BorderRadius.circular(14),
@@ -314,8 +324,11 @@ class _FilaMercado extends StatelessWidget {
                     ),
                   ),
                   if (seleccionado)
-                    const Icon(Icons.check_circle,
-                        color: AppColors.azul, size: 28),
+                    const Icon(
+                      Icons.check_circle,
+                      color: AppColors.azul,
+                      size: 28,
+                    ),
                 ],
               ),
             ),
@@ -339,8 +352,11 @@ class _Aviso extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(esError ? Icons.error_outline : Icons.check_circle,
-              color: color, size: 24),
+          Icon(
+            esError ? Icons.error_outline : Icons.check_circle,
+            color: color,
+            size: 24,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(

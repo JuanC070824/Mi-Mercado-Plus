@@ -77,7 +77,9 @@ class _RutaScreenState extends State<RutaScreen> {
       body: Column(
         children: [
           EncabezadoSimple(
-            titulo: _pedido == null ? 'Mi ruta' : 'Ruta del pedido #${_pedido!.codigoCorto}',
+            titulo: _pedido == null
+                ? 'Mi ruta'
+                : 'Ruta del pedido #${_pedido!.codigoCorto}',
             mostrarAtras: false,
           ),
           Expanded(child: _cuerpo()),
@@ -98,8 +100,11 @@ class _RutaScreenState extends State<RutaScreen> {
         alTocar: () => context.go('/repartidor/inicio'),
       );
     }
-    final paradas = [...p.puestosActivos]..sort((a, b) => a.parada.compareTo(b.parada));
-    final recogidos = paradas.where((x) => x.estado == EstadoPedidoPuesto.recogido).length;
+    final paradas = [...p.puestosActivos]
+      ..sort((a, b) => a.parada.compareTo(b.parada));
+    final recogidos = paradas
+        .where((x) => x.estado == EstadoPedidoPuesto.recogido)
+        .length;
     final faltan = recogidos < paradas.length;
     final enCamino = p.estado == EstadoPedido.enCamino;
 
@@ -110,8 +115,10 @@ class _RutaScreenState extends State<RutaScreen> {
         const SizedBox(height: 16),
         Semantics(
           liveRegion: true,
-          child: Text('Recogidos $recogidos de ${paradas.length}',
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
+          child: Text(
+            'Recogidos $recogidos de ${paradas.length}',
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+          ),
         ),
         const SizedBox(height: 4),
         LinearProgressIndicator(
@@ -136,7 +143,10 @@ class _RutaScreenState extends State<RutaScreen> {
         const SizedBox(height: 4),
         BotonSecundario(
           texto: 'Avisar al cliente: estoy recogiendo',
-          onPressed: () => avisar(context, 'Le avisamos a ${p.clienteNombre} que estás recogiendo.'),
+          onPressed: () => avisar(
+            context,
+            'Le avisamos a ${p.clienteNombre} que estás recogiendo.',
+          ),
         ),
         const SizedBox(height: 12),
         if (faltan && !enCamino)
@@ -151,7 +161,9 @@ class _RutaScreenState extends State<RutaScreen> {
         BotonPrincipal(
           texto: enCamino ? 'Continuar con la entrega' : 'Ir a entregar',
           cargando: _ocupado == -1,
-          onPressed: (faltan && !enCamino) || _ocupado != null ? null : () => _irAEntregar(p),
+          onPressed: (faltan && !enCamino) || _ocupado != null
+              ? null
+              : () => _irAEntregar(p),
         ),
       ],
     );
@@ -166,7 +178,8 @@ class _MapaSimple extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: 'Ruta: ${paradas.map((p) => p.puesto.nombre).join(', luego ')}, y al final la casa del cliente',
+      label:
+          'Ruta: ${paradas.map((p) => p.puesto.nombre).join(', luego ')}, y al final la casa del cliente',
       excludeSemantics: true,
       child: TarjetaApp(
         color: AppColors.azulClaro,
@@ -178,8 +191,12 @@ class _MapaSimple extends StatelessWidget {
           children: [
             for (final p in paradas) ...[
               Icon(
-                p.estado == EstadoPedidoPuesto.recogido ? Icons.check_circle : Icons.storefront,
-                color: p.estado == EstadoPedidoPuesto.recogido ? AppColors.exitoTexto : AppColors.azul,
+                p.estado == EstadoPedidoPuesto.recogido
+                    ? Icons.check_circle
+                    : Icons.storefront,
+                color: p.estado == EstadoPedidoPuesto.recogido
+                    ? AppColors.exitoTexto
+                    : AppColors.azul,
                 size: 32,
               ),
               const Icon(Icons.arrow_forward, color: AppColors.textoSecundario),
@@ -193,7 +210,11 @@ class _MapaSimple extends StatelessWidget {
 }
 
 class _Parada extends StatelessWidget {
-  const _Parada({required this.parte, required this.cargando, required this.onRecoger});
+  const _Parada({
+    required this.parte,
+    required this.cargando,
+    required this.onRecoger,
+  });
   final PedidoPuesto parte;
   final bool cargando;
   final VoidCallback? onRecoger;
@@ -202,14 +223,26 @@ class _Parada extends StatelessWidget {
   Widget build(BuildContext context) {
     final e = parte.estado;
     final EtiquetaEstado etiqueta = switch (e) {
-      EstadoPedidoPuesto.recogido =>
-        const EtiquetaEstado(texto: 'Recogido', icono: Icons.done_all, tipo: TipoEstado.exito),
-      EstadoPedidoPuesto.listo =>
-        const EtiquetaEstado(texto: 'Listo', icono: Icons.shopping_bag_outlined, tipo: TipoEstado.info),
-      _ => const EtiquetaEstado(texto: 'Preparando…', icono: Icons.scale_outlined, tipo: TipoEstado.aviso),
+      EstadoPedidoPuesto.recogido => const EtiquetaEstado(
+        texto: 'Recogido',
+        icono: Icons.done_all,
+        tipo: TipoEstado.exito,
+      ),
+      EstadoPedidoPuesto.listo => const EtiquetaEstado(
+        texto: 'Listo',
+        icono: Icons.shopping_bag_outlined,
+        tipo: TipoEstado.info,
+      ),
+      _ => const EtiquetaEstado(
+        texto: 'Preparando…',
+        icono: Icons.scale_outlined,
+        tipo: TipoEstado.aviso,
+      ),
     };
     return TarjetaApp(
-      colorBorde: e == EstadoPedidoPuesto.listo ? AppColors.azul : AppColors.borde,
+      colorBorde: e == EstadoPedidoPuesto.listo
+          ? AppColors.azul
+          : AppColors.borde,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -217,10 +250,20 @@ class _Parada extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Parada ${parte.parada}: ${parte.puesto.nombre}',
-                    style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
-                Text('Bolsa #${parte.codigoBolsa} · ${parte.puesto.casero}',
-                    style: const TextStyle(fontSize: 17, color: AppColors.textoSecundario)),
+                Text(
+                  'Parada ${parte.parada}: ${parte.puesto.nombre}',
+                  style: const TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                Text(
+                  'Bolsa #${parte.codigoBolsa} · ${parte.puesto.casero}',
+                  style: const TextStyle(
+                    fontSize: 17,
+                    color: AppColors.textoSecundario,
+                  ),
+                ),
                 const SizedBox(height: 6),
                 etiqueta,
               ],
@@ -228,7 +271,11 @@ class _Parada extends StatelessWidget {
           ),
           if (e == EstadoPedidoPuesto.listo) ...[
             const SizedBox(height: 10),
-            BotonPrincipal(texto: 'Recogí la bolsa', cargando: cargando, onPressed: onRecoger),
+            BotonPrincipal(
+              texto: 'Recogí la bolsa',
+              cargando: cargando,
+              onPressed: onRecoger,
+            ),
           ],
         ],
       ),

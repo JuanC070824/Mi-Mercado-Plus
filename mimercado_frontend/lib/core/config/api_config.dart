@@ -9,7 +9,10 @@ class ApiConfig {
   static bool get configurada => baseUrl.trim().isNotEmpty;
 
   static Uri uri(String ruta, {String? baseUrlOverride}) {
-    final base = (baseUrlOverride ?? baseUrl).trim().replaceFirst(RegExp(r'/$'), '');
+    final base = (baseUrlOverride ?? baseUrl).trim().replaceFirst(
+      RegExp(r'/$'),
+      '',
+    );
     if (base.isEmpty) {
       throw StateError('Configura API_URL para conectarte al backend.');
     }

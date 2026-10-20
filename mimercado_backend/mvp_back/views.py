@@ -1,6 +1,6 @@
 from django.contrib.auth.hashers import make_password, check_password
 from django.db import transaction, IntegrityError
-from django.db.models import Q, Count, Sum
+from django.db.models import Q, Count, Sum, Max
 from django.utils import timezone
 from django.conf import settings
 from rest_framework.views import APIView
@@ -11,7 +11,8 @@ from rest_framework.throttling import ScopedRateThrottle
 from . import serializers as s
 from .models import (Usuario, UsuarioRol, Producto, Mercado, Puesto, Direccion,
                      Pedido, PedidoPuesto, PedidoDetalle, Cotizacion,
-                     CotizacionPuesto, CotizacionDetalle, RepartidorMercado)
+                     CotizacionPuesto, CotizacionDetalle, RepartidorMercado,
+                     Categoria, UnidadMedida, HistorialEstado, EntregaParada)
 from .authentication import issue_token
 from .services import put_item, cart_payload, change_item, checkout, require_buyer, accept_quote, quote_total, lock_user
 from .payments import pay_order
@@ -187,7 +188,13 @@ class PuestosView(APIView):
         if market:
             if not market.isdecimal():raise ValidationError('mercado_id debe ser entero.')
             rows=rows.filter(mercado_id=int(market))
-        return Response(list(rows.values('id','nombre','mercado_id','abierto')))
+        rows=rows.select_related('vendedor','categoria').order_by('nombre','id')
+        return Response([{
+            'id':p.pk,'nombre':p.nombre,'mercado_id':p.mercado_id,
+            'casero':' '.join(filter(None,[p.vendedor.nombres,p.vendedor.apellido_paterno])),
+            'categoria':p.categoria.nombre,'abierto':p.abierto,'foto_url':p.foto_url,
+            'calificacion':0.0,'resenas':0,
+        } for p in rows[:200]])
 
 class CategoriasView(APIView):
     permission_classes=[AllowAny]
@@ -376,7 +383,232 @@ class ProductosView(APIView):
                 rows=rows.filter(**{key:int(value)})
         return Response([{'id':p.pk,'puesto_id':p.puesto_id,'nombre':p.nombre,
             'unidad':p.unidad_codigo,'precio_unitario_centavos':cents(p.precio_unitario),
-            'disponible':p.disponible,'stock':None if p.stock is None else str(p.stock)} for p in rows[:200]])
+            'disponible':p.disponible,'foto_url':p.foto_url,
+            'stock':None if p.stock is None else str(p.stock)} for p in rows[:200]])
+
+
+def puesto_vendedor_actual(user):
+    if not UsuarioRol.objects.filter(usuario_id=user.pk,rol_codigo='vendedor').exists():
+        raise PermissionDenied('Esta cuenta no tiene el perfil de vendedor.')
+    puesto=Puesto.objects.filter(vendedor_id=user.pk,estado='activo').order_by('id').first()
+    if puesto is None:raise NotFound('Primero crea tu puesto en Mi puesto.')
+    return puesto
+
+
+def producto_payload(producto):
+    return {
+        'id':producto.pk,'puesto_id':producto.puesto_id,'nombre':producto.nombre,
+        'unidad':producto.unidad_codigo,
+        'precio_unitario_centavos':cents(producto.precio_unitario),
+        'disponible':producto.disponible,'foto_url':producto.foto_url,
+    }
+
+
+class VendedorProductosView(APIView):
+    def get(self,request):
+        puesto=puesto_vendedor_actual(request.user)
+        productos=Producto.objects.filter(puesto_id=puesto.pk,activo=True).order_by('nombre','id')
+        return Response({
+            'puesto_id':puesto.pk,
+            'productos':[producto_payload(p) for p in productos],
+            'unidades':list(UnidadMedida.objects.order_by('nombre').values(
+                'codigo','nombre','permite_fraccion')),
+            'iconos':s.ICONOS_PRODUCTO,
+        })
+
+    def post(self,request):
+        puesto=puesto_vendedor_actual(request.user)
+        data=validated(s.ProductoVendedorSerializer,request.data)
+        if not UnidadMedida.objects.filter(pk=data['unidad_codigo']).exists():
+            raise ValidationError({'unidad_codigo':'La unidad no existe en la base de datos.'})
+        producto=Producto.objects.create(
+            puesto=puesto,categoria_id=puesto.categoria_id,
+            nombre=data['nombre'].strip(),unidad_codigo=data['unidad_codigo'],
+            precio_unitario=data['precio_unitario'],disponible=data['disponible'],
+            foto_url=data['icono'],activo=True,
+        )
+        return Response(producto_payload(producto),status=201)
+
+
+class VendedorProductoView(APIView):
+    def patch(self,request,producto_id):
+        puesto=puesto_vendedor_actual(request.user)
+        producto=Producto.objects.filter(
+            pk=producto_id,puesto_id=puesto.pk,activo=True).first()
+        if producto is None:raise NotFound('Producto no encontrado en tu catálogo.')
+        data=validated(s.ProductoVendedorSerializer,request.data)
+        if not UnidadMedida.objects.filter(pk=data['unidad_codigo']).exists():
+            raise ValidationError({'unidad_codigo':'La unidad no existe en la base de datos.'})
+        producto.nombre=data['nombre'].strip()
+        producto.unidad_codigo=data['unidad_codigo']
+        producto.precio_unitario=data['precio_unitario']
+        producto.disponible=data['disponible']
+        producto.foto_url=data['icono']
+        producto.save(update_fields=[
+            'nombre','unidad_codigo','precio_unitario','disponible','foto_url'])
+        return Response(producto_payload(producto))
+
+
+def puesto_payload(puesto):
+    return {
+        'id':puesto.pk,'mercado_id':puesto.mercado_id,'nombre':puesto.nombre,
+        'casero':' '.join(filter(None,[puesto.vendedor.nombres,puesto.vendedor.apellido_paterno])),
+        'categoria':puesto.categoria.nombre,'abierto':puesto.abierto,
+        'calificacion':0.0,'resenas':0,
+    }
+
+
+def pedido_payload(pedido):
+    partes=[]
+    paradas={fila['pedido_puesto_id']:fila['orden'] for fila in
+             EntregaParada.objects.filter(pedido_id=pedido.pk).values('pedido_puesto_id','orden')}
+    for indice,parte in enumerate(PedidoPuesto.objects.filter(
+            pedido_id=pedido.pk).select_related('puesto__vendedor','puesto__categoria').order_by('id'),1):
+        detalles=[{
+            'id':d.pk,'producto_id':d.producto_id,'nombre':d.nombre_solicitado,
+            'unidad':d.unidad_codigo,'cantidad':str(d.cantidad_solicitada),
+            'precio_estimado_centavos':cents(d.precio_estimado_unitario),
+            'disponibilidad':d.disponibilidad,
+        } for d in PedidoDetalle.objects.filter(pedido_puesto_id=parte.pk).order_by('id')]
+        partes.append({
+            'id':parte.pk,'puesto':puesto_payload(parte.puesto),
+            'codigo_bolsa':parte.codigo_bolsa,'estado':parte.estado,
+            'lista_mandado':parte.lista_mandado,'motivo_rechazo':parte.motivo_rechazo,
+            'parada':paradas.get(parte.pk,indice),'detalles':detalles,
+        })
+    cotizacion=None
+    quote=Cotizacion.objects.filter(pedido_id=pedido.pk).order_by('-version').first()
+    if quote:
+        cot_puestos=[]
+        for grupo in CotizacionPuesto.objects.filter(cotizacion_id=quote.pk).order_by('id'):
+            cot_puestos.append({
+                'pedido_puesto_id':grupo.pedido_puesto_id,
+                'tasa_comision':str(grupo.tasa_comision),
+                'detalles':[{
+                    'pedido_detalle_id':d.pedido_detalle_id,'nombre_final':d.nombre_final,
+                    'cantidad_real':str(d.cantidad_real),'precio_unitario_centavos':cents(d.precio_unitario),
+                } for d in CotizacionDetalle.objects.filter(cotizacion_puesto_id=grupo.pk).order_by('id')],
+            })
+        cotizacion={'version':quote.version,'estado':quote.estado,
+                    'costo_envio_centavos':cents(quote.costo_envio),'puestos':cot_puestos}
+    historial=[{'hora':h.creado_en,'texto':h.observacion or h.estado.replace('_',' ').capitalize()}
+               for h in HistorialEstado.objects.filter(pedido_id=pedido.pk).order_by('creado_en','id')]
+    return {
+        'id':pedido.pk,'codigo':pedido.codigo,'codigo_corto':str(pedido.pk),
+        'cliente_nombre':' '.join(filter(None,[pedido.comprador.nombres,pedido.comprador.apellido_paterno])),
+        'cliente_celular':pedido.celular_contacto,'mercado_id':pedido.mercado_id,
+        'estado':pedido.estado,'metodo_pago':pedido.metodo_pago,
+        'direccion':pedido.direccion_entrega,'referencia':pedido.referencia_entrega,
+        'puestos':partes,'costo_envio_centavos':cents(quote.costo_envio if quote else 0),
+        'historial':historial,'codigo_entrega':'','cotizacion':cotizacion,
+        'creado_en':pedido.creado_en,'programado_para':pedido.programado_para,
+    }
+
+
+class VendedorPedidosView(APIView):
+    def get(self,request):
+        puesto=puesto_vendedor_actual(request.user)
+        ids=PedidoPuesto.objects.filter(puesto_id=puesto.pk).values_list('pedido_id',flat=True)
+        pedidos=Pedido.objects.filter(pk__in=ids).select_related('comprador').order_by('-creado_en','-id')[:100]
+        return Response([pedido_payload(p) for p in pedidos])
+
+
+class VendedorPedidoAccionView(APIView):
+    @transaction.atomic
+    def patch(self,request,pedido_puesto_id):
+        puesto=puesto_vendedor_actual(request.user)
+        parte=PedidoPuesto.objects.select_for_update().filter(
+            pk=pedido_puesto_id,puesto_id=puesto.pk).first()
+        if parte is None:raise NotFound('Pedido no encontrado para tu puesto.')
+        data=validated(s.AccionPedidoPuestoSerializer,request.data)
+        accion=data['accion']
+        permitidos={
+            'aceptar':({'pendiente'},'aceptado'),
+            'rechazar':({'pendiente','aceptado','pesando'},'rechazado'),
+            'listo':({'en_preparacion'},'listo'),
+            'entregar':({'listo'},'recogido'),
+        }
+        origenes,destino=permitidos[accion]
+        if parte.estado not in origenes:
+            raise ValidationError(f'El pedido no permite la acción {accion} en su estado actual.')
+        parte.estado=destino
+        campos=['estado']
+        if accion=='aceptar':parte.aceptado_en=timezone.now();campos.append('aceptado_en')
+        if accion=='rechazar':parte.motivo_rechazo=data['motivo'].strip();campos.append('motivo_rechazo')
+        if accion=='listo':parte.listo_en=timezone.now();campos.append('listo_en')
+        parte.save(update_fields=campos)
+        HistorialEstado.objects.create(pedido_id=parte.pedido_id,pedido_puesto_id=parte.pk,
+            estado=destino,actor_id=request.user.pk,observacion=f'El puesto marcó el pedido como {destino}.')
+        activas=PedidoPuesto.objects.filter(pedido_id=parte.pedido_id).exclude(estado__in=['rechazado','cancelado'])
+        pedido=parte.pedido
+        if not activas.exists():pedido.estado='cancelado'
+        elif accion=='listo' and not activas.exclude(estado='listo').exists():pedido.estado='listo_para_recojo'
+        elif accion=='entregar' and not activas.exclude(estado='recogido').exists():pedido.estado='en_camino'
+        pedido.save(update_fields=['estado'])
+        return Response({'id':parte.pk,'estado':parte.estado})
+
+
+class VendedorDetalleView(APIView):
+    def patch(self,request,detalle_id):
+        puesto=puesto_vendedor_actual(request.user)
+        detalle=PedidoDetalle.objects.select_related('pedido_puesto').filter(
+            pk=detalle_id,puesto_id=puesto.pk).first()
+        if detalle is None:raise NotFound('Producto del pedido no encontrado.')
+        if detalle.pedido_puesto.estado not in ['aceptado','pesando']:
+            raise ValidationError('Primero acepta el pedido para revisar sus productos.')
+        data=validated(s.DisponibilidadDetalleSerializer,request.data)
+        detalle.disponibilidad=data['disponibilidad']
+        detalle.save(update_fields=['disponibilidad'])
+        if detalle.pedido_puesto.estado=='aceptado':
+            detalle.pedido_puesto.estado='pesando'
+            detalle.pedido_puesto.save(update_fields=['estado'])
+        return Response({'id':detalle.pk,'disponibilidad':detalle.disponibilidad})
+
+
+class VendedorCotizacionView(APIView):
+    @transaction.atomic
+    def post(self,request,pedido_puesto_id):
+        puesto=puesto_vendedor_actual(request.user)
+        parte=PedidoPuesto.objects.select_for_update().filter(
+            pk=pedido_puesto_id,puesto_id=puesto.pk).first()
+        if parte is None:raise NotFound('Pedido no encontrado para tu puesto.')
+        if parte.estado not in ['aceptado','pesando']:
+            raise ValidationError('Este pedido no está listo para enviar su precio final.')
+        data=validated(s.CotizacionVendedorSerializer,request.data)
+        detalles={d.pk:d for d in PedidoDetalle.objects.filter(pedido_puesto_id=parte.pk)}
+        recibidos={fila['pedido_detalle_id'] for fila in data['detalles']}
+        esperados={d.pk for d in detalles.values() if d.disponibilidad!='sin_stock'}
+        if recibidos!=esperados:
+            raise ValidationError('Incluye exactamente todos los productos que sí entregarás.')
+        if any(detalles[i].disponibilidad=='pendiente' for i in recibidos):
+            raise ValidationError('Revisa la disponibilidad de todos los productos.')
+        quote=Cotizacion.objects.select_for_update().filter(
+            pedido_id=parte.pedido_id,estado='borrador').order_by('-version').first()
+        if quote is None:
+            version=(Cotizacion.objects.filter(pedido_id=parte.pedido_id).aggregate(
+                mayor=Max('version'))['mayor'] or 0)+1
+            quote=Cotizacion.objects.create(pedido_id=parte.pedido_id,version=version,
+                                             estado='borrador',costo_envio=5)
+        grupo,_=CotizacionPuesto.objects.get_or_create(
+            cotizacion_id=quote.pk,pedido_id=parte.pedido_id,pedido_puesto_id=parte.pk)
+        CotizacionDetalle.objects.filter(cotizacion_puesto_id=grupo.pk).delete()
+        for fila in data['detalles']:
+            detalle=detalles[fila['pedido_detalle_id']]
+            CotizacionDetalle.objects.create(
+                cotizacion_puesto_id=grupo.pk,pedido_puesto_id=parte.pk,
+                pedido_detalle_id=detalle.pk,nombre_final=fila['nombre_final'].strip(),
+                producto_final_id=detalle.producto_id,puesto_id=puesto.pk,
+                unidad_codigo=detalle.unidad_codigo,cantidad_real=fila['cantidad_real'],
+                precio_unitario=fila['precio_unitario'])
+        parte.estado='pesado';parte.save(update_fields=['estado'])
+        activas=PedidoPuesto.objects.filter(pedido_id=parte.pedido_id).exclude(
+            estado__in=['rechazado','cancelado'])
+        cotizadas=set(CotizacionPuesto.objects.filter(cotizacion_id=quote.pk).values_list(
+            'pedido_puesto_id',flat=True))
+        if set(activas.values_list('id',flat=True))==cotizadas:
+            quote.estado='enviada';quote.save(update_fields=['estado'])
+            Pedido.objects.filter(pk=parte.pedido_id).update(estado='esperando_confirmacion')
+        return Response({'id':quote.pk,'estado':quote.estado},status=201)
 
 class CarritoView(APIView):
     def get(self,request):
