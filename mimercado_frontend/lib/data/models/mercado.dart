@@ -4,16 +4,16 @@ class Mercado {
     required this.nombre,
     required this.direccion,
     this.distrito,
-    required this.latitud,
-    required this.longitud,
+    this.latitud,
+    this.longitud,
   });
 
   final int id;
   final String nombre;
   final String direccion;
   final String? distrito;
-  final double latitud;
-  final double longitud;
+  final double? latitud;
+  final double? longitud;
 }
 
 /// Un mercado junto con su distancia al cliente (null si aún no sabemos dónde está).

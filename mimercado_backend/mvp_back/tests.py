@@ -11,12 +11,34 @@ from .models import (Usuario,UsuarioRol,Rol,Mercado,Categoria,Puesto,Producto,Un
 from .authentication import issue_token
 from .money import line_total,cents
 from .payments import RejectedPayment,UncertainPayment,provider_charge
+from .dni import firmar_consulta,consultar_dni,DniNoEncontrado
 
 class MoneyTests(SimpleTestCase):
     def test_exact_decimal_and_half_up(self):
         self.assertEqual(cents(line_total(Decimal('1.125'),Decimal('4.00'))),450)
         self.assertEqual(cents(Decimal('1.005')),101)
         self.assertEqual(line_total('0.1','0.2'),Decimal('0.02'))
+
+class DniServiceTests(SimpleTestCase):
+    @override_settings(JSONPE_KEY='token-de-prueba')
+    @patch('mvp_back.dni.requests.post')
+    def test_jsonpe_contract_and_name_normalization(self,post):
+        response=type('R',(),{'status_code':200,'json':lambda self:{'success':True,'data':{
+            'nombres':'MARIA ESPERANZA','apellido_paterno':'DEL PILAR','apellido_materno':'LÓPEZ'}}})()
+        post.return_value=response
+        datos=consultar_dni('12345678')
+        self.assertEqual(datos['nombres'],'Maria Esperanza')
+        self.assertEqual(datos['apellido_paterno'],'Del Pilar')
+        self.assertEqual(datos['apellido_materno'],'López')
+        self.assertEqual(post.call_args.kwargs['json'],{'dni':'12345678'})
+        self.assertEqual(post.call_args.kwargs['headers']['Authorization'],'Bearer token-de-prueba')
+
+    @override_settings(JSONPE_KEY='token-de-prueba')
+    @patch('mvp_back.dni.requests.post')
+    def test_jsonpe_404_is_not_found(self,post):
+        post.return_value=type('R',(),{'status_code':404})()
+        with self.assertRaises(DniNoEncontrado):
+            consultar_dni('00000000')
 
 class ApiTests(TestCase):
     @classmethod
@@ -45,6 +67,10 @@ class ApiTests(TestCase):
         self.client.credentials(HTTP_AUTHORIZATION='Bearer '+issue_token(self.user))
 
     def post(self,url,data):return self.client.post(url,data,format='json')
+    def registro(self,celular='900000002',rol='comprador',dni='12345678'):
+        identidad={'dni':dni,'nombres':'Nuevo','apellido_paterno':'Usuario','apellido_materno':'Prueba'}
+        return {'dni':dni,'dni_token':firmar_consulta(identidad),'celular':celular,
+                'password':'ClaveFuerte!42','rol':rol}
     def add(self,product=None,quantity='1.000'):
         return self.post('/api/carrito/items/',{'producto_id':(product or self.p1).pk,'cantidad':quantity})
     def order(self):
@@ -65,21 +91,88 @@ class ApiTests(TestCase):
         return self.post('/api/pagos/yape/',{'pedido_id':order,'celular':'900000001','codigo':code,'idempotencia':key})
 
     def test_registration_hash_role_no_privilege_escalation(self):
-        r=self.post('/api/auth/registro/',{'nombres':'Nuevo','celular':'+51 900 000 002','password':'ClaveFuerte!42','rol':'administrador'})
+        data=self.registro()
+        data['celular']='+51 900 000 002'
+        r=self.post('/api/auth/registro/',data)
         self.assertEqual(r.status_code,201,r.data)
         u=Usuario.objects.get(celular='900000002')
+        self.assertEqual((u.nombres,u.apellido_paterno,u.apellido_materno),('Nuevo','Usuario','Prueba'))
         self.assertNotEqual(u.password_hash,'ClaveFuerte!42')
         self.assertTrue(check_password('ClaveFuerte!42',u.password_hash))
         self.assertEqual(list(UsuarioRol.objects.filter(usuario_id=u.pk).values_list('rol_codigo',flat=True)),['comprador'])
+
+    def test_registration_supports_all_three_roles(self):
+        for index,rol in enumerate(['comprador','vendedor','repartidor'],start=2):
+            celular=f'90000010{index}'
+            r=self.post('/api/auth/registro/',self.registro(celular=celular,rol=rol,dni=f'1234567{index}'))
+            self.assertEqual(r.status_code,201,r.data)
+            self.assertEqual(r.data['rol_activo'],rol)
+            self.assertTrue(UsuarioRol.objects.filter(usuario_id=r.data['usuario']['id'],rol_codigo=rol).exists())
+
+    def test_markets_endpoint_returns_only_active_markets_with_location(self):
+        self.market.distrito='Surquillo'
+        self.market.provincia='Lima'
+        self.market.departamento='Lima'
+        self.market.latitud=Decimal('-12.113000')
+        self.market.longitud=Decimal('-77.020000')
+        self.market.save()
+        Mercado.objects.create(nombre='Mercado suspendido',direccion='D3',estado='suspendido')
+
+        response=self.client.get('/api/mercados/')
+
+        self.assertEqual(response.status_code,200,response.data)
+        self.assertNotIn('Mercado suspendido',[row['nombre'] for row in response.data])
+        row=next(row for row in response.data if row['id']==self.market.pk)
+        self.assertEqual(row['distrito'],'Surquillo')
+        self.assertEqual(Decimal(str(row['latitud'])),Decimal('-12.113000'))
+        self.assertEqual(Decimal(str(row['longitud'])),Decimal('-77.020000'))
+
+    @patch('mvp_back.views.consultar_dni')
+    def test_dni_lookup_returns_names_and_signed_registration_token(self,consulta):
+        consulta.return_value={'dni':'12345678','nombres':'María Elena',
+            'apellido_paterno':'Del Pilar','apellido_materno':'López'}
+        r=self.post('/api/auth/dni/',{'dni':'12345678'})
+        self.assertEqual(r.status_code,200,r.data)
+        self.assertEqual(r.data['nombres'],'María Elena')
+        self.assertIn('registro_token',r.data)
+        data=self.registro()
+        data['dni_token']=r.data['registro_token']
+        creado=self.post('/api/auth/registro/',data)
+        self.assertEqual(creado.status_code,201,creado.data)
+        self.assertEqual(creado.data['usuario']['apellido_paterno'],'Del Pilar')
+
+    def test_registration_rejects_tampered_dni_token(self):
+        data=self.registro()
+        data['dni_token']+='alterado'
+        self.assertEqual(self.post('/api/auth/registro/',data).status_code,400)
 
     def test_login_and_wrong_password(self):
         r=self.post('/api/auth/login/',{'celular':'900000001','password':'CompraSegura!42'})
         self.assertEqual(r.status_code,200)
         self.assertIn('token',r.data)
+        self.assertEqual(r.data['rol_activo'],'comprador')
         self.assertEqual(self.post('/api/auth/login/',{'celular':'900000001','password':'incorrecta'}).status_code,401)
 
+    def test_login_validates_selected_role(self):
+        r=self.post('/api/auth/login/',{
+            'celular':'900000011','password':'password','rol':'vendedor'})
+        self.assertEqual(r.status_code,200,r.data)
+        self.assertEqual(r.data['rol_activo'],'vendedor')
+        self.assertIn('vendedor',r.data['usuario']['roles'])
+        self.assertEqual(r.data['usuario']['puesto_id'],self.stall.pk)
+        self.assertEqual(r.data['usuario']['mercado_id'],self.market.pk)
+
+        r=self.post('/api/auth/login/',{
+            'celular':'900000001','password':'CompraSegura!42','rol':'repartidor'})
+        self.assertEqual(r.status_code,403,r.data)
+        self.assertNotIn('token',r.data)
+
+        r=self.post('/api/auth/login/',{
+            'celular':'900000001','password':'CompraSegura!42','rol':'administrador'})
+        self.assertEqual(r.status_code,400,r.data)
+
     def test_duplicate_phone(self):
-        self.assertEqual(self.post('/api/auth/registro/',{'nombres':'N','celular':'900000001','password':'ClaveFuerte!42'}).status_code,400)
+        self.assertEqual(self.post('/api/auth/registro/',self.registro(celular='900000001')).status_code,400)
 
     def test_invalid_phone(self):
         self.assertEqual(self.post('/api/auth/login/',{'celular':'123','password':'X'}).status_code,400)

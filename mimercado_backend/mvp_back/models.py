@@ -64,6 +64,9 @@ class Mercado(models.Model):
     estado = models.CharField(max_length=15, default='activo')
     creado_en = models.DateTimeField(default=timezone.now)
 
+    def __str__(self):
+        return self.nombre
+
     class Meta:
         managed = False
         db_table = '"mimercadoplus"."mercados"'

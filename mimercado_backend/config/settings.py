@@ -111,6 +111,16 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+# Las contraseñas nunca se cifran de forma reversible. Django guarda hashes
+# con salt; Argon2 se usa para cuentas nuevas y PBKDF2 queda habilitado para
+# verificar cuentas creadas antes de este cambio.
+PASSWORD_HASHERS = [
+    'django.contrib.auth.hashers.Argon2PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
+    'django.contrib.auth.hashers.ScryptPasswordHasher',
+]
+
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
@@ -139,10 +149,14 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': ['mvp_back.authentication.BearerAuthentication'],
     'DEFAULT_PERMISSION_CLASSES': ['rest_framework.permissions.IsAuthenticated'],
     'UNAUTHENTICATED_USER': None,
-    'DEFAULT_THROTTLE_RATES': {'login': '10/min', 'registro': '5/min', 'pago': '5/min'},
+    'DEFAULT_THROTTLE_RATES': {'login': '10/min', 'registro': '5/min', 'dni': '20/min', 'pago': '5/min'},
     'DEFAULT_RENDERER_CLASSES': ['rest_framework.renderers.JSONRenderer'],
 }
 AUTH_TOKEN_TTL_SECONDS = int(os.getenv('AUTH_TOKEN_TTL_SECONDS', '3600'))
+JSONPE_KEY = os.getenv('JSONPE_KEY', '')
+JSONPE_DNI_URL = os.getenv('JSONPE_DNI_URL', 'https://api.json.pe/api/dni')
+JSONPE_TIMEOUT_SECONDS = int(os.getenv('JSONPE_TIMEOUT_SECONDS', '10'))
+JSONPE_REGISTRATION_TOKEN_TTL_SECONDS = int(os.getenv('JSONPE_REGISTRATION_TOKEN_TTL_SECONDS', '600'))
 PAYMENT_MODE = os.getenv('PAYMENT_MODE', 'disabled')  # mock | culqi_sandbox | disabled
 CULQI_PUBLIC_KEY = os.getenv('CULQI_PUBLIC_KEY', '')
 CULQI_SECRET_KEY = os.getenv('CULQI_SECRET_KEY', '')
