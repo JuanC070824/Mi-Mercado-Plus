@@ -16,6 +16,7 @@ import '../../features/canasta/screens/yape_screen.dart';
 import '../../features/casero/screens/casero_inicio_screen.dart';
 import '../../features/casero/screens/catalogo_casero_screen.dart';
 import '../../features/casero/screens/mis_pedidos_casero_screen.dart';
+import '../../features/casero/screens/mi_puesto_screen.dart';
 import '../../features/casero/screens/casero_pedido_screen.dart';
 import '../../features/casero/screens/pesar_screen.dart';
 import '../../features/mercado/screens/inicio_screen.dart';
@@ -28,6 +29,7 @@ import '../../features/repartidor/screens/entrega_screen.dart';
 import '../../features/repartidor/screens/repartidor_inicio_screen.dart';
 import '../../features/repartidor/screens/ruta_screen.dart';
 import '../widgets/barra_navegacion_app.dart';
+import '../state/sesion_state.dart';
 
 // ESTO ME SIRVE COMO LISTA DE RUTAS
 // Por ejemplo, /cliente/login lleva a la pantalla de login
@@ -58,6 +60,7 @@ Widget _perfil(GoRouterState state) => PerfilScreen(
 
 void _cerrarSesion() {
   _usuarioActual = null;
+  SesionState.cerrar();
   CanastaRepositoryMock.instancia
       .vaciar(); // la canasta no pasa al siguiente usuario
 }
@@ -246,8 +249,27 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/casero/puesto',
               redirect: (context, state) => _exigirRol(state, Rol.comerciante),
-              // TODO(V8): reemplazar por "Mi puesto" (ganancias, comisión, horario).
-              builder: (context, state) => _perfil(state),
+              builder: (context, state) => MiPuestoScreen(
+                usuario: _usuarioDe(state),
+                onPuestoGuardado: (puesto) {
+                  _usuarioActual = _usuarioActual!.copyWith(
+                    puestoId: puesto.id,
+                    mercadoId: puesto.mercado.id,
+                  );
+                },
+              ),
+              routes: [
+                GoRoute(
+                  path: 'perfil',
+                  builder: (context, state) => PerfilScreen(
+                    usuario: _usuarioDe(state),
+                    mostrarDireccion: false,
+                    mostrarAtras: true,
+                    onUsuarioActualizado: (u) => _usuarioActual = u,
+                    onSesionCerrada: _cerrarSesion,
+                  ),
+                ),
+              ],
             ),
           ],
         ),

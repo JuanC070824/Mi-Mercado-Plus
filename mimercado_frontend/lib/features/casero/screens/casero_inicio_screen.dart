@@ -8,6 +8,7 @@ import '../../../core/widgets/encabezado_simple.dart';
 import '../../../data/models/pedido.dart';
 import '../../../data/models/usuario.dart';
 import '../../../data/repositories/vendedor_inicio_repository.dart';
+import '../../../data/repositories/puesto_vendedor_repository.dart';
 
 class CaseroInicioScreen extends StatefulWidget {
   const CaseroInicioScreen({super.key, required this.usuario, this.repository});
@@ -30,12 +31,19 @@ class _CaseroInicioScreenState extends State<CaseroInicioScreen> {
   void initState() {
     super.initState();
     _repository = widget.repository ?? VendedorInicioApiRepository.instancia;
+    PuestoVendedorApiRepository.cambios.addListener(_cargar);
     if (widget.usuario.puestoId == null) {
       _inicio = const VendedorInicio.sinPuesto();
       _cargando = false;
     } else {
       _cargar();
     }
+  }
+
+  @override
+  void dispose() {
+    PuestoVendedorApiRepository.cambios.removeListener(_cargar);
+    super.dispose();
   }
 
   Future<void> _cargar() async {

@@ -71,3 +71,23 @@ class DireccionSerializer(serializers.Serializer):
 
 class EstadoPuestoSerializer(serializers.Serializer):
     abierto = serializers.BooleanField()
+
+class PuestoVendedorSerializer(serializers.Serializer):
+    mercado_id = serializers.IntegerField(min_value=1)
+    categoria_id = serializers.IntegerField(min_value=1)
+    nombre = serializers.CharField(max_length=150)
+    numero = serializers.CharField(max_length=30, required=False, allow_blank=True)
+    referencia = serializers.CharField(required=False, allow_blank=True, max_length=300)
+
+class PerfilActualizarSerializer(serializers.Serializer):
+    celular = PhoneField(required=False)
+    correo = serializers.EmailField(max_length=254, required=False, allow_blank=True)
+    password_actual = serializers.CharField(
+        write_only=True,
+        required=False,
+        allow_blank=True,
+        trim_whitespace=False,
+        max_length=128,
+    )
+    sonido = serializers.BooleanField(required=False)
+    vibracion = serializers.BooleanField(required=False)

@@ -32,7 +32,10 @@ def user_payload(user, roles=None, rol_activo=None):
     payload={'id':user.pk,'nombres':user.nombres,
              'apellido_paterno':user.apellido_paterno,
              'apellido_materno':user.apellido_materno,
-             'celular':user.celular,'correo':user.correo,'roles':roles}
+             'celular':user.celular,'correo':user.correo,'roles':roles,
+             'fecha_nacimiento':user.fecha_nacimiento,
+             'letra_grande':user.letra_grande,
+             'sonido':user.sonido,'vibracion':user.vibracion}
     if rol_activo=='vendedor':
         puesto=Puesto.objects.filter(vendedor_id=user.pk,estado='activo').order_by('id').first()
         if puesto:
@@ -139,7 +142,34 @@ class LoginView(APIView):
 
 class PerfilView(APIView):
     def get(self,request):
-        return Response(user_payload(request.user))
+        roles=list(UsuarioRol.objects.filter(usuario_id=request.user.pk).values_list('rol_codigo',flat=True))
+        activo=roles[0] if len(roles)==1 else None
+        return Response(user_payload(request.user,roles,activo))
+    def patch(self,request):
+        data=validated(s.PerfilActualizarSerializer,request.data)
+        celular=data.get('celular',request.user.celular)
+        correo=(data.get('correo',request.user.correo) or '').strip().lower() or None
+        if celular!=request.user.celular:
+            if not check_password(data.get('password_actual',''),request.user.password_hash):
+                raise ValidationError({'password_actual':'Escribe tu contraseña actual para cambiar el celular.'})
+            if Usuario.objects.filter(celular=celular).exclude(pk=request.user.pk).exists():
+                raise ValidationError({'celular':'Este celular ya está registrado.'})
+        if correo and Usuario.objects.filter(correo__iexact=correo).exclude(pk=request.user.pk).exists():
+            raise ValidationError({'correo':'Este correo ya está registrado.'})
+        request.user.celular=celular
+        request.user.correo=correo
+        campos=['celular','correo']
+        for campo in ['sonido','vibracion']:
+            if campo in data:
+                setattr(request.user,campo,data[campo])
+                campos.append(campo)
+        try:
+            request.user.save(update_fields=campos)
+        except IntegrityError:
+            raise ValidationError('El celular o correo ya pertenece a otra cuenta.')
+        roles=list(UsuarioRol.objects.filter(usuario_id=request.user.pk).values_list('rol_codigo',flat=True))
+        activo=roles[0] if len(roles)==1 else None
+        return Response(user_payload(request.user,roles,activo))
 
 class MercadosView(APIView):
     permission_classes=[AllowAny]
@@ -158,6 +188,81 @@ class PuestosView(APIView):
             if not market.isdecimal():raise ValidationError('mercado_id debe ser entero.')
             rows=rows.filter(mercado_id=int(market))
         return Response(list(rows.values('id','nombre','mercado_id','abierto')))
+
+class CategoriasView(APIView):
+    permission_classes=[AllowAny]
+    def get(self,request):
+        from .models import Categoria
+        return Response(list(Categoria.objects.order_by('nombre','id').values('id','nombre')))
+
+class VendedorPuestoView(APIView):
+    def _validar_vendedor(self,request):
+        if not UsuarioRol.objects.filter(
+            usuario_id=request.user.pk,rol_codigo='vendedor').exists():
+            raise PermissionDenied('Esta cuenta no tiene el perfil de vendedor.')
+
+    def _actual(self,request):
+        self._validar_vendedor(request)
+        return Puesto.objects.select_related('mercado','categoria').filter(
+            vendedor_id=request.user.pk,estado='activo').order_by('id').first()
+
+    def _payload(self,puesto):
+        return {
+            'id':puesto.pk,'nombre':puesto.nombre,'numero':puesto.numero,
+            'referencia':puesto.descripcion,'foto_url':puesto.foto_url,
+            'abierto':puesto.abierto,
+            'mercado':{
+                'id':puesto.mercado_id,'nombre':puesto.mercado.nombre,
+                'direccion':puesto.mercado.direccion,
+                'distrito':puesto.mercado.distrito,
+            },
+            'categoria':{'id':puesto.categoria_id,'nombre':puesto.categoria.nombre},
+        }
+
+    def get(self,request):
+        puesto=self._actual(request)
+        return Response({'tiene_puesto':puesto is not None,
+                         'puesto':self._payload(puesto) if puesto else None})
+
+    def post(self,request):
+        self._validar_vendedor(request)
+        if Puesto.objects.filter(vendedor_id=request.user.pk,estado='activo').exists():
+            raise ValidationError('Ya tienes un puesto activo. Puedes editarlo desde esta pantalla.')
+        data=validated(s.PuestoVendedorSerializer,request.data)
+        mercado=Mercado.objects.filter(pk=data['mercado_id'],estado='activo').first()
+        if mercado is None:raise ValidationError({'mercado_id':'Selecciona un mercado activo.'})
+        from .models import Categoria
+        categoria=Categoria.objects.filter(pk=data['categoria_id']).first()
+        if categoria is None:raise ValidationError({'categoria_id':'Selecciona una categoría válida.'})
+        try:
+            puesto=Puesto.objects.create(
+                mercado=mercado,vendedor=request.user,categoria=categoria,
+                nombre=data['nombre'].strip(),numero=data.get('numero','').strip() or None,
+                descripcion=data.get('referencia','').strip() or None,
+                abierto=False,estado='activo')
+        except IntegrityError:
+            raise ValidationError('Ese número de puesto ya está registrado en el mercado.')
+        return Response(self._payload(puesto),status=201)
+
+    def patch(self,request):
+        puesto=self._actual(request)
+        if puesto is None:raise NotFound('Aún no tienes un puesto activo.')
+        data=validated(s.PuestoVendedorSerializer,request.data)
+        mercado=Mercado.objects.filter(pk=data['mercado_id'],estado='activo').first()
+        if mercado is None:raise ValidationError({'mercado_id':'Selecciona un mercado activo.'})
+        from .models import Categoria
+        categoria=Categoria.objects.filter(pk=data['categoria_id']).first()
+        if categoria is None:raise ValidationError({'categoria_id':'Selecciona una categoría válida.'})
+        puesto.mercado=mercado
+        puesto.categoria=categoria
+        puesto.nombre=data['nombre'].strip()
+        puesto.numero=data.get('numero','').strip() or None
+        puesto.descripcion=data.get('referencia','').strip() or None
+        try:
+            puesto.save(update_fields=['mercado','categoria','nombre','numero','descripcion'])
+        except IntegrityError:
+            raise ValidationError('Ese número de puesto ya está registrado en el mercado.')
+        return Response(self._payload(puesto))
 
 class VendedorInicioView(APIView):
     def _puesto(self, request):

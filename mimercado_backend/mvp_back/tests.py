@@ -47,14 +47,14 @@ class ApiTests(TestCase):
             Rol.objects.create(codigo=code,nombre=code)
         UnidadMedida.objects.create(codigo='kg',nombre='Kilogramo',permite_fraccion=True)
         UnidadMedida.objects.create(codigo='unidad',nombre='Unidad',permite_fraccion=False)
-        cat=Categoria.objects.create(nombre='Verduras y frutas')
+        cls.cat=Categoria.objects.create(nombre='Verduras y frutas')
         cls.market=Mercado.objects.create(nombre='Mercado1',direccion='D1')
         other=Mercado.objects.create(nombre='Mercado2',direccion='D2')
         cls.seller=Usuario.objects.create(nombres='Rosa',celular='900000011',password_hash=make_password('password'))
         UsuarioRol.objects.create(usuario_id=cls.seller.pk,rol_codigo='vendedor')
-        cls.stall=Puesto.objects.create(mercado_id=cls.market.pk,vendedor_id=cls.seller.pk,categoria_id=cat.pk,nombre='Rosa',abierto=True)
-        cls.stall2=Puesto.objects.create(mercado_id=cls.market.pk,vendedor_id=cls.seller.pk,categoria_id=cat.pk,nombre='Julio',abierto=True)
-        p3=Puesto.objects.create(mercado_id=other.pk,vendedor_id=cls.seller.pk,categoria_id=cat.pk,nombre='Otro',abierto=True)
+        cls.stall=Puesto.objects.create(mercado_id=cls.market.pk,vendedor_id=cls.seller.pk,categoria_id=cls.cat.pk,nombre='Rosa',abierto=True)
+        cls.stall2=Puesto.objects.create(mercado_id=cls.market.pk,vendedor_id=cls.seller.pk,categoria_id=cls.cat.pk,nombre='Julio',abierto=True)
+        p3=Puesto.objects.create(mercado_id=other.pk,vendedor_id=cls.seller.pk,categoria_id=cls.cat.pk,nombre='Otro',abierto=True)
         cls.p1=Producto.objects.create(puesto_id=cls.stall.pk,nombre='Tomate',unidad_codigo='kg',precio_unitario=Decimal('4.00'),stock=Decimal('10'))
         cls.p2=Producto.objects.create(puesto_id=cls.stall2.pk,nombre='Pollo',unidad_codigo='kg',precio_unitario=Decimal('10.00'))
         cls.p3=Producto.objects.create(puesto_id=p3.pk,nombre='Otro',unidad_codigo='kg',precio_unitario=Decimal('1.00'))
@@ -152,6 +152,38 @@ class ApiTests(TestCase):
 
         self.assertEqual(response.status_code,200,response.data)
         self.assertEqual(response.data,{'tiene_puesto':False})
+
+    def test_seller_can_create_and_edit_own_stall(self):
+        seller=Usuario.objects.create(nombres='Elena',celular='900000098',password_hash=make_password('Clave1234'))
+        UsuarioRol.objects.create(usuario_id=seller.pk,rol_codigo='vendedor')
+        self.client.credentials(HTTP_AUTHORIZATION='Bearer '+issue_token(seller))
+        data={'mercado_id':self.market.pk,'categoria_id':self.cat.pk,
+              'nombre':'Frutas Elena','numero':'A-12','referencia':'Pasillo 2, junto a la entrada'}
+
+        response=self.post('/api/vendedor/puesto/',data)
+
+        self.assertEqual(response.status_code,201,response.data)
+        self.assertEqual(response.data['mercado']['direccion'],'D1')
+        self.assertEqual(response.data['referencia'],'Pasillo 2, junto a la entrada')
+        data['nombre']='Frutas y verduras Elena'
+        response=self.client.patch('/api/vendedor/puesto/',data,format='json')
+        self.assertEqual(response.status_code,200,response.data)
+        self.assertEqual(response.data['nombre'],'Frutas y verduras Elena')
+        self.assertEqual(Puesto.objects.get(vendedor_id=seller.pk).descripcion,
+                         'Pasillo 2, junto a la entrada')
+
+    def test_profile_requires_password_to_change_phone(self):
+        response=self.client.patch('/api/auth/me/',{
+            'celular':'900000077','correo':'nuevo@example.test'},format='json')
+        self.assertEqual(response.status_code,400,response.data)
+
+        response=self.client.patch('/api/auth/me/',{
+            'celular':'900000077','correo':'nuevo@example.test',
+            'password_actual':'CompraSegura!42','sonido':False},format='json')
+
+        self.assertEqual(response.status_code,200,response.data)
+        self.assertEqual(response.data['celular'],'900000077')
+        self.assertFalse(response.data['sonido'])
 
     @patch('mvp_back.views.consultar_dni')
     def test_dni_lookup_returns_names_and_signed_registration_token(self,consulta):
