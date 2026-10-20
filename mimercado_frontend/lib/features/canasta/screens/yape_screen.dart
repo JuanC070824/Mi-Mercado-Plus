@@ -11,7 +11,7 @@ import '../../../core/widgets/mensaje_error.dart';
 import '../../../data/models/direccion.dart';
 import '../../../data/models/pedido.dart';
 import '../../../data/models/usuario.dart';
-import '../../../data/repositories/canasta_repository.dart';
+import '../../../data/repositories/repositorios_app.dart';
 import '../../../data/repositories/pago_repository.dart';
 import '../../../data/repositories/pedido_repository.dart';
 import '../widgets/acciones_canasta.dart';
@@ -46,7 +46,7 @@ class _YapeScreenState extends State<YapeScreen> {
     setState(() => _error = null);
     if (!_form.currentState!.validate()) return;
     setState(() => _pagando = true);
-    final monto = CanastaRepositoryMock.instancia.canasta.value.totalEstimado;
+    final monto = canastaApp.canasta.value.totalEstimado;
     final r = await _pagos.pagarConYape(
       celular: _celular.text.trim(),
       codigo: _codigo.text.trim(),
@@ -82,7 +82,7 @@ class _YapeScreenState extends State<YapeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final total = CanastaRepositoryMock.instancia.canasta.value.totalEstimado;
+    final total = canastaApp.canasta.value.totalEstimado;
     return Scaffold(
       body: Column(
         children: [
@@ -101,8 +101,10 @@ class _YapeScreenState extends State<YapeScreen> {
                     child: MergeSemantics(
                       child: Column(
                         children: [
-                          const Text('Vas a pagar',
-                              style: TextStyle(fontSize: 18)),
+                          const Text(
+                            'Vas a pagar',
+                            style: TextStyle(fontSize: 18),
+                          ),
                           Text(
                             soles(total),
                             style: const TextStyle(
@@ -137,7 +139,8 @@ class _YapeScreenState extends State<YapeScreen> {
                   const _Paso(
                     numero: 3,
                     icono: Icons.edit_outlined,
-                    texto: 'Vuelve aquí y escríbelos abajo. Luego toca '
+                    texto:
+                        'Vuelve aquí y escríbelos abajo. Luego toca '
                         '"Confirmar y pagar".',
                   ),
                   const SizedBox(height: 16),
@@ -150,7 +153,9 @@ class _YapeScreenState extends State<YapeScreen> {
                     soloDigitos: true,
                     maxLongitud: 9,
                     icono: Icons.phone_android,
-                    autofillHints: const [AutofillHints.telephoneNumberNational],
+                    autofillHints: const [
+                      AutofillHints.telephoneNumberNational,
+                    ],
                     validator: Validadores.celular,
                   ),
                   const SizedBox(height: 12),
@@ -169,7 +174,8 @@ class _YapeScreenState extends State<YapeScreen> {
                   ),
                   const SizedBox(height: 8),
                   const EtiquetaEstado(
-                    texto: 'El código vence en pocos minutos. Si vence, genera '
+                    texto:
+                        'El código vence en pocos minutos. Si vence, genera '
                         'otro en Yape: tu canasta no se pierde.',
                     icono: Icons.timer_outlined,
                     tipo: TipoEstado.aviso,
@@ -226,7 +232,9 @@ class _Paso extends StatelessWidget {
               const SizedBox(width: 10),
               Icon(icono, size: 30, color: AppColors.azul),
               const SizedBox(width: 10),
-              Expanded(child: Text(texto, style: const TextStyle(fontSize: 17))),
+              Expanded(
+                child: Text(texto, style: const TextStyle(fontSize: 17)),
+              ),
             ],
           ),
         ),

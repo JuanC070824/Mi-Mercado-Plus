@@ -27,7 +27,10 @@ abstract class CanastaRepository {
 
   /// Fija la cantidad exacta (se ajusta al paso de la unidad). 0 = quitar.
   Future<Canasta> cambiarCantidad(
-      Puesto puesto, Producto producto, double cantidad);
+    Puesto puesto,
+    Producto producto,
+    double cantidad,
+  );
 
   Future<Canasta> quitar(int productoId);
 
@@ -50,9 +53,11 @@ class CanastaRepositoryMock implements CanastaRepository {
   ValueListenable<Canasta> get canasta => _canasta;
 
   @override
-  Future<Canasta> agregar(Puesto puesto, Producto producto) =>
-      cambiarCantidad(puesto, producto,
-          _canasta.value.cantidadDe(producto.id) + producto.unidad.paso);
+  Future<Canasta> agregar(Puesto puesto, Producto producto) => cambiarCantidad(
+    puesto,
+    producto,
+    _canasta.value.cantidadDe(producto.id) + producto.unidad.paso,
+  );
 
   @override
   Future<Canasta> restar(Producto producto) async {
@@ -83,7 +88,8 @@ class CanastaRepositoryMock implements CanastaRepository {
       }
       if (!puesto.abierto) {
         throw CanastaException(
-            '${puesto.nombre} está cerrado ahora. Prueba con otro puesto.');
+          '${puesto.nombre} está cerrado ahora. Prueba con otro puesto.',
+        );
       }
       if (!producto.disponible) {
         throw CanastaException('${producto.nombre} está agotado por hoy.');
@@ -141,16 +147,21 @@ class CanastaRepositoryMock implements CanastaRepository {
     final g = c.grupo(puestoId);
     if (g == null) {
       throw const CanastaException(
-          'Primero agrega un producto de este puesto a tu canasta.');
+        'Primero agrega un producto de este puesto a tu canasta.',
+      );
     }
     final actualizado = GrupoPuesto(
       puesto: g.puesto,
       items: g.items,
       listaMandado: limpio.isEmpty ? null : limpio,
     );
-    return _publicar(Canasta(grupos: [
-      for (final x in c.grupos) x.puesto.id == puestoId ? actualizado : x,
-    ]));
+    return _publicar(
+      Canasta(
+        grupos: [
+          for (final x in c.grupos) x.puesto.id == puestoId ? actualizado : x,
+        ],
+      ),
+    );
   }
 
   @override

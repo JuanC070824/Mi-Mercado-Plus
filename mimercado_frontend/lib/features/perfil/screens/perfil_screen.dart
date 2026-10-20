@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/config/api_config.dart';
 import '../../../core/state/accesibilidad_state.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/ubicacion_service.dart';
@@ -11,6 +12,7 @@ import '../../../core/widgets/mensaje_error.dart';
 import '../../../data/models/direccion.dart';
 import '../../../data/models/usuario.dart';
 import '../../../data/repositories/auth_repository.dart';
+import '../../../data/repositories/auth_api_repository.dart';
 
 enum _EstadoUbicacion { inicial, buscando, listo, error }
 
@@ -20,6 +22,8 @@ class PerfilScreen extends StatefulWidget {
     required this.usuario,
     required this.onUsuarioActualizado,
     required this.onSesionCerrada,
+    this.mostrarDireccion = true,
+    this.mostrarAtras = false,
   });
 
   final Usuario usuario;
@@ -29,13 +33,15 @@ class PerfilScreen extends StatefulWidget {
 
   /// Se llama al confirmar "Cerrar sesión" (el router olvida al usuario).
   final VoidCallback onSesionCerrada;
+  final bool mostrarDireccion;
+  final bool mostrarAtras;
 
   @override
   State<PerfilScreen> createState() => _PerfilScreenState();
 }
 
 class _PerfilScreenState extends State<PerfilScreen> {
-  final AuthRepository _repo = AuthRepositoryMock.instancia;
+  late final AuthRepository _repo;
   final _formKey = GlobalKey<FormState>();
 
   // Solo lectura
@@ -73,6 +79,9 @@ class _PerfilScreenState extends State<PerfilScreen> {
   @override
   void initState() {
     super.initState();
+    _repo = ApiConfig.configurada
+        ? AuthApiRepository.instancia
+        : AuthRepositoryMock.instancia;
     final u = widget.usuario;
     _ctrlNombres = TextEditingController(text: u.nombres);
     _ctrlPaterno = TextEditingController(text: u.apellidoPaterno ?? '');
@@ -83,7 +92,11 @@ class _PerfilScreenState extends State<PerfilScreen> {
     _gCorreo = u.correo ?? '';
     _sonido = u.sonido;
     _vibracion = u.vibracion;
-    _cargarDireccion();
+    if (widget.mostrarDireccion) {
+      _cargarDireccion();
+    } else {
+      _cargandoDir = false;
+    }
   }
 
   @override
@@ -125,8 +138,9 @@ class _PerfilScreenState extends State<PerfilScreen> {
   bool get _hayCambios =>
       _ctrlCelular.text.trim() != _gCelular ||
       _ctrlCorreo.text.trim() != _gCorreo ||
-      _ctrlDireccion.text.trim() != _gDireccion ||
-      _ctrlReferencia.text.trim() != _gReferencia;
+      (widget.mostrarDireccion &&
+          (_ctrlDireccion.text.trim() != _gDireccion ||
+              _ctrlReferencia.text.trim() != _gReferencia));
 
   String? _vacioANulo(String s) => s.trim().isEmpty ? null : s.trim();
 
@@ -187,15 +201,21 @@ class _PerfilScreenState extends State<PerfilScreen> {
   Future<void> _guardarCambios() async {
     setState(() => _errorGuardar = null);
     if (!_formKey.currentState!.validate()) {
-      setState(() =>
-          _errorGuardar = 'Revisa los campos marcados en rojo para continuar.');
+      setState(
+        () => _errorGuardar =
+            'Revisa los campos marcados en rojo para continuar.',
+      );
       return;
     }
 
-    final texto = _ctrlDireccion.text.trim();
+    final cambiaCelular = _ctrlCelular.text.trim() != _gCelular;
+    final passwordActual = cambiaCelular ? await _pedirPasswordActual() : null;
+    if (cambiaCelular && passwordActual == null) return;
+
+    final texto = widget.mostrarDireccion ? _ctrlDireccion.text.trim() : '';
     // Si el usuario cambió la dirección a mano, las coordenadas ya no valen.
     final coordenadasVigentes = texto == _textoConCoordenadas;
-    final Direccion? nueva = texto.isEmpty
+    final Direccion? nueva = !widget.mostrarDireccion || texto.isEmpty
         ? null
         : Direccion(
             etiqueta: _etiqueta,
@@ -212,6 +232,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
         celular: _ctrlCelular.text.trim(),
         correo: _vacioANulo(_ctrlCorreo.text),
         direccion: nueva,
+        passwordActual: passwordActual,
       );
       if (!mounted) return;
       if (!r.exito) {
@@ -250,6 +271,67 @@ class _PerfilScreenState extends State<PerfilScreen> {
         _errorGuardar = 'No pudimos guardar tus cambios. Inténtalo de nuevo.';
       });
     }
+  }
+
+  Future<String?> _pedirPasswordActual() async {
+    final controller = TextEditingController();
+    String? error;
+    final resultado = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Confirma el cambio de celular'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Usarás el nuevo número para iniciar sesión. Escribe tu contraseña actual para continuar.',
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: controller,
+                obscureText: true,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: 'Contraseña actual',
+                  errorText: error,
+                  border: const OutlineInputBorder(),
+                ),
+                onSubmitted: (_) {
+                  if (controller.text.isEmpty) {
+                    setDialogState(
+                      () => error = 'Escribe tu contraseña actual.',
+                    );
+                  } else {
+                    Navigator.of(dialogContext).pop(controller.text);
+                  }
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (controller.text.isEmpty) {
+                  setDialogState(() => error = 'Escribe tu contraseña actual.');
+                } else {
+                  Navigator.of(dialogContext).pop(controller.text);
+                }
+              },
+              child: const Text('Confirmar'),
+            ),
+          ],
+        ),
+      ),
+    );
+    controller.dispose();
+    return resultado;
   }
 
   Future<void> _guardarPreferencias() async {
@@ -327,7 +409,8 @@ class _PerfilScreenState extends State<PerfilScreen> {
     );
 
     if (confirmo != true || !mounted) return;
-    AccesibilidadState.letraGrande.value = false; // la letra grande es de la sesión
+    AccesibilidadState.letraGrande.value =
+        false; // la letra grande es de la sesión
     widget.onSesionCerrada();
     context.go('/');
   }
@@ -340,7 +423,9 @@ class _PerfilScreenState extends State<PerfilScreen> {
       body: Column(
         children: [
           _EncabezadoPerfil(
-              onSoporte: () => mostrarSoporte(context)),
+            onSoporte: () => mostrarSoporte(context),
+            mostrarAtras: widget.mostrarAtras,
+          ),
           Expanded(
             child: SingleChildScrollView(
               child: Center(
@@ -358,7 +443,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
                             children: [
                               _seccionInformacion(),
                               const SizedBox(height: 28),
-                              _seccionDireccion(),
+                              if (widget.mostrarDireccion) _seccionDireccion(),
                               _zonaGuardar(),
                             ],
                           ),
@@ -374,13 +459,17 @@ class _PerfilScreenState extends State<PerfilScreen> {
                             style: OutlinedButton.styleFrom(
                               foregroundColor: AppColors.error,
                               side: const BorderSide(
-                                  color: AppColors.error, width: 2),
+                                color: AppColors.error,
+                                width: 2,
+                              ),
                               shape: const StadiumBorder(),
                             ),
                             child: const Text(
                               'Cerrar sesión',
                               style: TextStyle(
-                                  fontSize: 20, fontWeight: FontWeight.w700),
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
                         ),
@@ -459,7 +548,9 @@ class _PerfilScreenState extends State<PerfilScreen> {
       contenido = const Padding(
         padding: EdgeInsets.symmetric(vertical: 24),
         child: Center(
-          child: CircularProgressIndicator(semanticsLabel: 'Cargando dirección'),
+          child: CircularProgressIndicator(
+            semanticsLabel: 'Cargando dirección',
+          ),
         ),
       );
     } else {
@@ -613,9 +704,13 @@ class _PerfilScreenState extends State<PerfilScreen> {
 /// Franja azul con el ícono de perfil, igual que EncabezadoAzul pero sin flecha
 /// (el perfil es una pestaña del menú inferior).
 class _EncabezadoPerfil extends StatelessWidget {
-  const _EncabezadoPerfil({required this.onSoporte});
+  const _EncabezadoPerfil({
+    required this.onSoporte,
+    required this.mostrarAtras,
+  });
 
   final VoidCallback onSoporte;
+  final bool mostrarAtras;
 
   @override
   Widget build(BuildContext context) {
@@ -628,22 +723,37 @@ class _EncabezadoPerfil extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(8, 8, 8, 20),
           child: Column(
             children: [
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton.icon(
-                  onPressed: onSoporte,
-                  style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
-                  icon: const Icon(Icons.headset_mic_outlined,
-                      color: AppColors.blanco),
-                  label: const Text(
-                    'Soporte',
-                    style: TextStyle(
+              Row(
+                children: [
+                  if (mostrarAtras)
+                    IconButton(
+                      tooltip: 'Volver a Mi puesto',
+                      onPressed: () => context.pop(),
+                      icon: const Icon(
+                        Icons.arrow_back,
+                        color: AppColors.blanco,
+                      ),
+                    ),
+                  const Spacer(),
+                  TextButton.icon(
+                    onPressed: onSoporte,
+                    style: TextButton.styleFrom(
+                      minimumSize: const Size(48, 48),
+                    ),
+                    icon: const Icon(
+                      Icons.headset_mic_outlined,
                       color: AppColors.blanco,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
+                    ),
+                    label: const Text(
+                      'Soporte',
+                      style: TextStyle(
+                        color: AppColors.blanco,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
-                ),
+                ],
               ),
               const SizedBox(height: 4),
               const CircleAvatar(
@@ -747,8 +857,11 @@ class _MensajeEstado extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(ok ? Icons.check_circle : Icons.error_outline,
-              color: color, size: 24),
+          Icon(
+            ok ? Icons.check_circle : Icons.error_outline,
+            color: color,
+            size: 24,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(

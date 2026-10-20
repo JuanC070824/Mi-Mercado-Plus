@@ -177,14 +177,19 @@ class _ElementoNavegacion extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
-                      color:
-                          seleccionado ? AppColors.azulClaro : Colors.transparent,
+                      color: seleccionado
+                          ? AppColors.azulClaro
+                          : Colors.transparent,
                       borderRadius: BorderRadius.circular(22),
                       border: Border.all(
-                        color: seleccionado ? AppColors.azul : Colors.transparent,
+                        color: seleccionado
+                            ? AppColors.azul
+                            : Colors.transparent,
                         width: 2,
                       ),
                     ),
@@ -203,7 +208,9 @@ class _ElementoNavegacion extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 15,
                       height: 1.15,
-                      fontWeight: seleccionado ? FontWeight.w800 : FontWeight.w600,
+                      fontWeight: seleccionado
+                          ? FontWeight.w800
+                          : FontWeight.w600,
                       color: color,
                     ),
                   ),

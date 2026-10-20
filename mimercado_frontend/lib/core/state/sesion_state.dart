@@ -6,7 +6,8 @@ class SesionState {
 
   static String? get token => _token;
   static bool get activa =>
-      _token != null && (_venceEn == null || DateTime.now().isBefore(_venceEn!));
+      _token != null &&
+      (_venceEn == null || DateTime.now().isBefore(_venceEn!));
 
   static void iniciar({required String token, required int expiresIn}) {
     _token = token;

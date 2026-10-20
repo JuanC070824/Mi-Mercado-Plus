@@ -3,7 +3,12 @@ import '../../../core/theme/app_colors.dart';
 
 /// Calificación de 1 a 5 estrellas con botones de 48 dp.
 class Estrellas extends StatelessWidget {
-  const Estrellas({super.key, required this.para, required this.valor, required this.onCambio});
+  const Estrellas({
+    super.key,
+    required this.para,
+    required this.valor,
+    required this.onCambio,
+  });
 
   final String para; // "Doña Rosa Verdulería"
   final int valor; // 0 = sin calificar

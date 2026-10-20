@@ -52,8 +52,10 @@ class _HojaPrecioState extends State<_HojaPrecio> {
     final mensaje = await showDialog<String>(
       context: context,
       builder: (ctx) => SimpleDialog(
-        title: const Text('Escribe a tus caseros',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+        title: const Text(
+          'Escribe a tus caseros',
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+        ),
         children: [
           for (final m in const [
             '¿Por qué cambió el precio?',
@@ -94,11 +96,15 @@ class _HojaPrecioState extends State<_HojaPrecio> {
         const SizedBox(height: 12),
         Semantics(
           header: true,
-          child: const Text('Tus caseros ya pesaron',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
+          child: const Text(
+            'Tus caseros ya pesaron',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+          ),
         ),
-        const Text('Revisa el precio final antes de que salga tu pedido.',
-            style: TextStyle(fontSize: 18)),
+        const Text(
+          'Revisa el precio final antes de que salga tu pedido.',
+          style: TextStyle(fontSize: 18),
+        ),
         const SizedBox(height: 16),
         for (final parte in p.puestosActivos) ...[
           _Puesto(parte: parte, cotizacion: c.dePuesto(parte.id)),
@@ -106,7 +112,8 @@ class _HojaPrecioState extends State<_HojaPrecio> {
         ],
         for (final parte in p.puestos.where((x) => x.estado.descartado)) ...[
           EtiquetaEstado(
-            texto: '${parte.puesto.nombre} no pudo atenderte'
+            texto:
+                '${parte.puesto.nombre} no pudo atenderte'
                 '${parte.motivoRechazo == null ? '' : ': ${parte.motivoRechazo}'}',
             icono: Icons.block,
             tipo: TipoEstado.error,
@@ -116,11 +123,18 @@ class _HojaPrecioState extends State<_HojaPrecio> {
         TarjetaApp(
           child: Column(
             children: [
-              FilaMonto(etiqueta: 'Productos (estimado)', monto: p.totalProductosEstimado),
+              FilaMonto(
+                etiqueta: 'Productos (estimado)',
+                monto: p.totalProductosEstimado,
+              ),
               FilaMonto(etiqueta: 'Productos (final)', monto: c.totalProductos),
               FilaMonto(etiqueta: 'Envío', monto: c.costoEnvio),
               const Divider(color: AppColors.divisor),
-              FilaMonto(etiqueta: 'Total final', monto: c.totalCliente, destacado: true),
+              FilaMonto(
+                etiqueta: 'Total final',
+                monto: c.totalCliente,
+                destacado: true,
+              ),
             ],
           ),
         ),
@@ -154,16 +168,26 @@ class _Puesto extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(parte.puesto.nombre,
-                style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
+            Text(
+              parte.puesto.nombre,
+              style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
+            ),
             FilaMonto(etiqueta: 'Estimado', monto: estimado),
-            if (final_ != null) FilaMonto(etiqueta: 'Final', monto: final_, destacado: true),
+            if (final_ != null)
+              FilaMonto(etiqueta: 'Final', monto: final_, destacado: true),
             if (cp?.nota != null)
-              Text('Nota del casero: "${cp!.nota}"', style: const TextStyle(fontSize: 17)),
+              Text(
+                'Nota del casero: "${cp!.nota}"',
+                style: const TextStyle(fontSize: 17),
+              ),
             if (cambio)
               EtiquetaEstado(
-                texto: final_ > estimado ? 'Subió por el peso real' : 'Bajó por el peso real',
-                icono: final_ > estimado ? Icons.trending_up : Icons.trending_down,
+                texto: final_ > estimado
+                    ? 'Subió por el peso real'
+                    : 'Bajó por el peso real',
+                icono: final_ > estimado
+                    ? Icons.trending_up
+                    : Icons.trending_down,
                 tipo: TipoEstado.aviso,
               ),
           ],

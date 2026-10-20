@@ -1,5 +1,6 @@
 class Direccion {
   const Direccion({
+    this.id,
     this.etiqueta = 'Casa',
     required this.direccion,
     this.referencia,
@@ -7,6 +8,8 @@ class Direccion {
     this.longitud,
     this.principal = true,
   });
+
+  final int? id;
 
   final String etiqueta;
   final String direccion;

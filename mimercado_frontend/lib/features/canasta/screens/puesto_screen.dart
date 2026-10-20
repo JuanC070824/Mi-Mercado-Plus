@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/config/api_config.dart';
 import '../../../core/utils/formato.dart';
 import '../../../core/widgets/componentes_app.dart';
 import '../../../core/widgets/control_cantidad.dart';
 import '../../../core/widgets/encabezado_simple.dart';
+import '../../../core/widgets/icono_producto.dart';
 import '../../../data/models/canasta.dart';
 import '../../../data/models/producto.dart';
 import '../../../data/models/puesto.dart';
 import '../../../data/repositories/canasta_repository.dart';
+import '../../../data/repositories/catalogo_api_repository.dart';
 import '../../../data/repositories/catalogo_repository.dart';
+import '../../../data/repositories/repositorios_app.dart';
 import '../widgets/acciones_canasta.dart';
 import '../widgets/barra_canasta.dart';
 
@@ -23,8 +27,10 @@ class PuestoScreen extends StatefulWidget {
 }
 
 class _PuestoScreenState extends State<PuestoScreen> {
-  final CatalogoRepository _catalogo = CatalogoRepositoryMock();
-  final CanastaRepository _canasta = CanastaRepositoryMock.instancia;
+  final CatalogoRepository _catalogo = ApiConfig.configurada
+      ? CatalogoApiRepository.instancia
+      : CatalogoRepositoryMock();
+  final CanastaRepository _canasta = canastaApp;
 
   Puesto? _puesto;
   List<Producto> _productos = [];
@@ -80,7 +86,7 @@ class _PuestoScreenState extends State<PuestoScreen> {
             subtitulo: p == null
                 ? null
                 : 'Casero: ${p.casero} · ★ ${p.calificacion.toStringAsFixed(1)} '
-                    '(${p.resenas} reseñas)',
+                      '(${p.resenas} reseñas)',
           ),
           Expanded(child: _cuerpo()),
         ],
@@ -200,27 +206,36 @@ class _TarjetaProducto extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          MergeSemantics(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  producto.nombre,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.texto,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              IconoProducto(valor: producto.imagen),
+              const SizedBox(width: 12),
+              Expanded(
+                child: MergeSemantics(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        producto.nombre,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.texto,
+                        ),
+                      ),
+                      Text(
+                        precio,
+                        style: const TextStyle(
+                          fontSize: 17,
+                          color: AppColors.textoSecundario,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                Text(
-                  precio,
-                  style: const TextStyle(
-                    fontSize: 17,
-                    color: AppColors.textoSecundario,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
           const SizedBox(height: 10),
           if (!producto.disponible)
@@ -242,7 +257,10 @@ class _TarjetaProducto extends StatelessWidget {
                 icon: const Icon(Icons.add_shopping_cart),
                 label: Text(
                   'Agregar ${cantidadConUnidad(unidad.paso, unidad)}',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             )

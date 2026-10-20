@@ -17,8 +17,8 @@ class HistorialScreen extends StatefulWidget {
 }
 
 class _HistorialScreenState extends State<HistorialScreen> {
-  late Future<List<Pedido>> _pedidos =
-      PedidoRepositoryMock.instancia.pedidosCliente(widget.usuario.celular);
+  late Future<List<Pedido>> _pedidos = PedidoRepositoryMock.instancia
+      .pedidosCliente(widget.usuario.celular);
 
   @override
   Widget build(BuildContext context) {
@@ -40,8 +40,9 @@ class _HistorialScreenState extends State<HistorialScreen> {
                     esError: true,
                     textoBoton: 'Reintentar',
                     alTocar: () => setState(() {
-                      _pedidos = PedidoRepositoryMock.instancia
-                          .pedidosCliente(widget.usuario.celular);
+                      _pedidos = PedidoRepositoryMock.instancia.pedidosCliente(
+                        widget.usuario.celular,
+                      );
                     }),
                   );
                 }
@@ -56,7 +57,8 @@ class _HistorialScreenState extends State<HistorialScreen> {
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
                   itemCount: lista.length,
                   separatorBuilder: (_, _) => const SizedBox(height: 12),
-                  itemBuilder: (context, i) => _TarjetaHistorial(pedido: lista[i]),
+                  itemBuilder: (context, i) =>
+                      _TarjetaHistorial(pedido: lista[i]),
                 );
               },
             ),
@@ -83,21 +85,36 @@ class _TarjetaHistorial extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: Text('#${p.codigoCorto}',
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+                  child: Text(
+                    '#${p.codigoCorto}',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                 ),
                 Text(
                   p.estado == EstadoPedido.cancelado
                       ? soles(0)
                       : soles(total ?? p.totalEstimado),
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ],
             ),
-            Text(fechaCorta(p.creadoEn),
-                style: const TextStyle(fontSize: 16, color: AppColors.textoSecundario)),
-            Text(p.puestos.map((x) => x.puesto.nombre).join(' · '),
-                style: const TextStyle(fontSize: 17)),
+            Text(
+              fechaCorta(p.creadoEn),
+              style: const TextStyle(
+                fontSize: 16,
+                color: AppColors.textoSecundario,
+              ),
+            ),
+            Text(
+              p.puestos.map((x) => x.puesto.nombre).join(' · '),
+              style: const TextStyle(fontSize: 17),
+            ),
             const SizedBox(height: 8),
             etiquetaDePedido(p.estado),
           ],

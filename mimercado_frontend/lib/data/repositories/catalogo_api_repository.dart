@@ -6,134 +6,196 @@ import 'package:http/http.dart' as http;
 
 import '../../core/config/api_config.dart';
 import '../models/mercado.dart';
+import '../models/producto.dart';
+import '../models/puesto.dart';
 import 'catalogo_repository.dart';
 
-/// Usa mercados reales del backend. El resto del catálogo continuará en su
-/// repositorio actual hasta implementar el flujo de puestos y productos.
-class CatalogoApiRepository extends CatalogoRepositoryMock {
+class CatalogoApiRepository implements CatalogoRepository {
   CatalogoApiRepository({http.Client? client, String? baseUrl})
     : _client = client ?? http.Client(),
       _baseUrl = baseUrl;
 
   static final CatalogoApiRepository instancia = CatalogoApiRepository();
-
   final http.Client _client;
   final String? _baseUrl;
+
+  Future<dynamic> _get(String ruta) async {
+    try {
+      final response = await _client
+          .get(ApiConfig.uri(ruta, baseUrlOverride: _baseUrl))
+          .timeout(const Duration(seconds: 15));
+      if (response.statusCode != 200) {
+        throw const CatalogoException('No pudimos cargar el catálogo.');
+      }
+      return jsonDecode(response.body);
+    } on CatalogoException {
+      rethrow;
+    } on TimeoutException {
+      throw const CatalogoException(
+        'La carga tardó demasiado. Inténtalo nuevamente.',
+      );
+    } catch (_) {
+      throw const CatalogoException(
+        'No pudimos conectarnos para cargar el catálogo.',
+      );
+    }
+  }
 
   @override
   Future<List<MercadoCercano>> mercados({
     double? latitud,
     double? longitud,
   }) async {
-    try {
-      final response = await _client
-          .get(ApiConfig.uri('/api/mercados/', baseUrlOverride: _baseUrl))
-          .timeout(const Duration(seconds: 15));
-
-      if (response.statusCode != 200) {
-        throw const CatalogoException(
-          'No pudimos cargar los mercados. Inténtalo nuevamente.',
-        );
-      }
-
-      final decoded = jsonDecode(response.body);
-      if (decoded is! List) {
-        throw const CatalogoException(
-          'El servidor devolvió una lista de mercados inválida.',
-        );
-      }
-
-      final mercados = decoded.map(_mercadoDesdeJson).toList();
-      final conUbicacion = latitud != null && longitud != null;
-      final resultado = [
-        for (final mercado in mercados)
-          MercadoCercano(
-            mercado,
-            conUbicacion &&
-                    mercado.latitud != null &&
-                    mercado.longitud != null
-                ? _distanciaKm(
-                    latitud,
-                    longitud,
-                    mercado.latitud!,
-                    mercado.longitud!,
-                  )
-                : null,
-          ),
-      ];
-
-      if (conUbicacion) {
-        resultado.sort((a, b) {
-          final distanciaA = a.distanciaKm;
-          final distanciaB = b.distanciaKm;
-          if (distanciaA == null) return distanciaB == null ? 0 : 1;
-          if (distanciaB == null) return -1;
-          return distanciaA.compareTo(distanciaB);
-        });
-      }
-      return resultado;
-    } on CatalogoException {
-      rethrow;
-    } on TimeoutException {
-      throw const CatalogoException(
-        'La carga de mercados tardó demasiado. Inténtalo nuevamente.',
-      );
-    } on FormatException {
-      throw const CatalogoException(
-        'El servidor devolvió una lista de mercados inválida.',
-      );
-    } catch (_) {
-      throw const CatalogoException(
-        'No pudimos conectarnos para cargar los mercados.',
-      );
+    final decoded = await _get('/api/mercados/');
+    if (decoded is! List) {
+      throw const CatalogoException('Lista de mercados inválida.');
     }
-  }
-
-  static Mercado _mercadoDesdeJson(dynamic value) {
-    if (value is! Map<String, dynamic>) {
-      throw const FormatException('Mercado inválido');
+    final resultado = <MercadoCercano>[];
+    for (final value in decoded) {
+      if (value is! Map<String, dynamic>) continue;
+      final mercado = Mercado(
+        id: (value['id'] as num).toInt(),
+        nombre: value['nombre'].toString(),
+        direccion: value['direccion'].toString(),
+        distrito: _texto(value['distrito']),
+        latitud: _decimal(value['latitud']),
+        longitud: _decimal(value['longitud']),
+      );
+      final distancia =
+          latitud != null &&
+              longitud != null &&
+              mercado.latitud != null &&
+              mercado.longitud != null
+          ? _distanciaKm(latitud, longitud, mercado.latitud!, mercado.longitud!)
+          : null;
+      resultado.add(MercadoCercano(mercado, distancia));
     }
-    final id = (value['id'] as num?)?.toInt();
-    final nombre = value['nombre']?.toString().trim() ?? '';
-    final direccion = value['direccion']?.toString().trim() ?? '';
-    if (id == null || nombre.isEmpty || direccion.isEmpty) {
-      throw const FormatException('Mercado incompleto');
-    }
-    return Mercado(
-      id: id,
-      nombre: nombre,
-      direccion: direccion,
-      distrito: _textoOpcional(value['distrito']),
-      latitud: _decimalOpcional(value['latitud']),
-      longitud: _decimalOpcional(value['longitud']),
+    resultado.sort(
+      (a, b) => (a.distanciaKm ?? double.infinity).compareTo(
+        b.distanciaKm ?? double.infinity,
+      ),
     );
+    return resultado;
   }
 
-  static String? _textoOpcional(dynamic value) {
-    final texto = value?.toString().trim();
-    return texto == null || texto.isEmpty ? null : texto;
+  @override
+  Future<List<Puesto>> masQueridos({int? mercadoId, int limite = 5}) async {
+    final todos = await _puestos(mercadoId: mercadoId);
+    todos.sort((a, b) => b.calificacion.compareTo(a.calificacion));
+    return todos.take(limite).toList();
   }
 
-  static double? _decimalOpcional(dynamic value) {
-    if (value == null) return null;
-    if (value is num) return value.toDouble();
-    return double.tryParse(value.toString());
+  @override
+  Future<List<Puesto>> buscar({
+    required int mercadoId,
+    CategoriaPuesto? categoria,
+    String texto = '',
+  }) async {
+    final q = texto.trim().toLowerCase();
+    return (await _puestos(mercadoId: mercadoId))
+        .where(
+          (p) =>
+              (categoria == null || p.categoria == categoria) &&
+              (q.isEmpty ||
+                  p.nombre.toLowerCase().contains(q) ||
+                  p.casero.toLowerCase().contains(q)),
+        )
+        .toList();
   }
 
-  static double _distanciaKm(
-    double latitudA,
-    double longitudA,
-    double latitudB,
-    double longitudB,
-  ) {
-    const radioTierra = 6371.0;
-    double radianes(double grados) => grados * pi / 180;
-    final diferenciaLatitud = radianes(latitudB - latitudA);
-    final diferenciaLongitud = radianes(longitudB - longitudA);
-    final calculo = pow(sin(diferenciaLatitud / 2), 2) +
-        cos(radianes(latitudA)) *
-            cos(radianes(latitudB)) *
-            pow(sin(diferenciaLongitud / 2), 2);
-    return 2 * radioTierra * asin(sqrt(calculo));
+  @override
+  Future<Puesto?> puesto(int id) async {
+    for (final p in await _puestos()) {
+      if (p.id == id) return p;
+    }
+    return null;
+  }
+
+  Future<List<Puesto>> _puestos({int? mercadoId}) async {
+    final ruta = mercadoId == null
+        ? '/api/puestos/'
+        : '/api/puestos/?mercado_id=$mercadoId';
+    final decoded = await _get(ruta);
+    if (decoded is! List) {
+      throw const CatalogoException('Lista de puestos inválida.');
+    }
+    return [
+      for (final value in decoded)
+        if (value is Map<String, dynamic>) _puesto(value),
+    ];
+  }
+
+  @override
+  Future<List<Producto>> productosDePuesto(int puestoId) async {
+    final decoded = await _get('/api/productos/?puesto_id=$puestoId');
+    if (decoded is! List) {
+      throw const CatalogoException('Lista de productos inválida.');
+    }
+    return [
+      for (final value in decoded)
+        if (value is Map<String, dynamic>) productoDesdeJson(value),
+    ];
+  }
+
+  @override
+  Future<void> actualizarProducto(Producto producto) =>
+      throw const CatalogoException(
+        'Usa el catálogo del vendedor para editar productos.',
+      );
+  @override
+  Future<Puesto> cambiarAbierto(int puestoId, bool abierto) =>
+      throw const CatalogoException('Usa Mi puesto para cambiar su estado.');
+
+  static Producto productoDesdeJson(Map<String, dynamic> value) => Producto(
+    id: (value['id'] as num).toInt(),
+    puestoId: (value['puesto_id'] as num).toInt(),
+    nombre: value['nombre'].toString(),
+    unidad: unidadDesdeCodigo(value['unidad']?.toString()),
+    precioUnitario:
+        ((value['precio_unitario_centavos'] as num?) ?? 0).toDouble() / 100,
+    disponible: value['disponible'] == true,
+    imagen: _texto(value['foto_url']),
+  );
+
+  static UnidadMedida unidadDesdeCodigo(String? codigo) => switch (codigo) {
+    'unidad' => UnidadMedida.unidad,
+    'atado' => UnidadMedida.atado,
+    'litro' => UnidadMedida.litro,
+    _ => UnidadMedida.kg,
+  };
+
+  static Puesto _puesto(Map<String, dynamic> value) => Puesto(
+    id: (value['id'] as num).toInt(),
+    mercadoId: (value['mercado_id'] as num).toInt(),
+    nombre: value['nombre'].toString(),
+    casero: value['casero']?.toString() ?? 'Casero',
+    categoria: _categoria(value['categoria']?.toString()),
+    calificacion: ((value['calificacion'] as num?) ?? 0).toDouble(),
+    resenas: ((value['resenas'] as num?) ?? 0).toInt(),
+    abierto: value['abierto'] == true,
+  );
+
+  static CategoriaPuesto _categoria(String? nombre) {
+    final n = (nombre ?? '').toLowerCase();
+    if (n.contains('carne') || n.contains('ave')) return CategoriaPuesto.carnes;
+    if (n.contains('pesc')) return CategoriaPuesto.pescados;
+    if (n.contains('abarrot')) return CategoriaPuesto.abarrotes;
+    return CategoriaPuesto.verduras;
+  }
+
+  static String? _texto(dynamic value) {
+    final t = value?.toString().trim();
+    return t == null || t.isEmpty ? null : t;
+  }
+
+  static double? _decimal(dynamic value) =>
+      value == null ? null : double.tryParse(value.toString());
+  static double _distanciaKm(double a, double b, double c, double d) {
+    const r = 6371.0;
+    double rad(double g) => g * pi / 180;
+    final x =
+        pow(sin(rad(c - a) / 2), 2) +
+        cos(rad(a)) * cos(rad(c)) * pow(sin(rad(d - b) / 2), 2);
+    return 2 * r * asin(sqrt(x));
   }
 }

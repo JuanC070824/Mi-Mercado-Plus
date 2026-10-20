@@ -66,7 +66,8 @@ def cart_payload(user):
         return {'id': None, 'mercado_id': None, 'puestos': [], 'total_productos_centavos': 0}
     groups = []
     grand = Decimal('0')
-    for group in CarritoPuesto.objects.filter(carrito_id=cart.pk).select_related('puesto').order_by('id'):
+    for group in CarritoPuesto.objects.filter(carrito_id=cart.pk).select_related(
+            'puesto__vendedor','puesto__categoria').order_by('id'):
         items = []
         subtotal = Decimal('0')
         for item in CarritoItem.objects.filter(carrito_puesto_id=group.pk).select_related('producto').order_by('id'):
@@ -75,9 +76,13 @@ def cart_payload(user):
             items.append({'id': item.pk, 'producto_id': item.producto_id, 'nombre': item.producto.nombre,
                           'cantidad': str(item.cantidad), 'unidad': item.producto.unidad_codigo,
                           'precio_unitario_centavos': cents(item.producto.precio_unitario),
+                          'disponible':item.producto.disponible,'foto_url':item.producto.foto_url,
                           'subtotal_centavos': cents(total)})
         grand += subtotal
         groups.append({'puesto_id': group.puesto_id, 'nombre': group.puesto.nombre,
+                       'mercado_id':group.puesto.mercado_id,'abierto':group.puesto.abierto,
+                       'casero':' '.join(filter(None,[group.puesto.vendedor.nombres,group.puesto.vendedor.apellido_paterno])),
+                       'categoria':group.puesto.categoria.nombre,'lista_mandado':group.lista_mandado,
                        'items': items, 'subtotal_centavos': cents(subtotal)})
     return {'id': cart.pk, 'mercado_id': cart.mercado_id, 'puestos': groups,
             'total_productos_centavos': cents(grand), 'precio_estimado': True}
@@ -190,6 +195,10 @@ def accept_quote(user, order_id, quote_id):
     quote.save(update_fields=['estado','aceptado_en'])
     order.estado = 'en_preparacion'
     order.save(update_fields=['estado'])
+    PedidoPuesto.objects.filter(
+        pedido_id=order.pk,
+        estado='pesado',
+    ).update(estado='en_preparacion')
     HistorialEstado.objects.create(pedido_id=order.pk,estado='en_preparacion',actor_id=user.pk,
                                   observacion=f'Precio final aceptado: cotización {quote.pk}.')
     return quote

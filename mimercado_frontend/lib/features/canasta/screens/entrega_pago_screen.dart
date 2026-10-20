@@ -10,7 +10,9 @@ import '../../../data/models/direccion.dart';
 import '../../../data/models/pedido.dart';
 import '../../../data/models/usuario.dart';
 import '../../../data/repositories/auth_repository.dart';
-import '../../../data/repositories/canasta_repository.dart';
+import '../../../data/repositories/auth_api_repository.dart';
+import '../../../core/config/api_config.dart';
+import '../../../data/repositories/repositorios_app.dart';
 import '../../../data/repositories/pedido_repository.dart';
 import '../widgets/acciones_canasta.dart';
 import '../widgets/opcion_elegible.dart';
@@ -26,7 +28,9 @@ class EntregaPagoScreen extends StatefulWidget {
 }
 
 class _EntregaPagoScreenState extends State<EntregaPagoScreen> {
-  final AuthRepository _auth = AuthRepositoryMock.instancia;
+  final AuthRepository _auth = ApiConfig.configurada
+      ? AuthApiRepository.instancia
+      : AuthRepositoryMock.instancia;
 
   Direccion? _direccion;
   bool _cargando = true;
@@ -83,7 +87,7 @@ class _EntregaPagoScreenState extends State<EntregaPagoScreen> {
           const EncabezadoSimple(titulo: '¿Dónde y cómo te entregamos?'),
           Expanded(
             child: ValueListenableBuilder<Canasta>(
-              valueListenable: CanastaRepositoryMock.instancia.canasta,
+              valueListenable: canastaApp.canasta,
               builder: (context, canasta, _) {
                 if (_cargando) return const CargandoApp();
                 if (canasta.vacia) {
@@ -127,22 +131,31 @@ class _EntregaPagoScreenState extends State<EntregaPagoScreen> {
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(dir.direccion,
-                              style: const TextStyle(
-                                  fontSize: 18, fontWeight: FontWeight.w700)),
+                          Text(
+                            dir.direccion,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                           if (dir.referencia != null)
-                            Text('Referencia: ${dir.referencia}',
-                                style: const TextStyle(
-                                    fontSize: 16,
-                                    color: AppColors.textoSecundario)),
+                            Text(
+                              'Referencia: ${dir.referencia}',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                color: AppColors.textoSecundario,
+                              ),
+                            ),
                         ],
                       ),
               ),
               TextButton(
                 onPressed: () => context.go('/perfil'),
                 style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
-                child: Text(dir == null ? 'Agregar' : 'Cambiar',
-                    style: const TextStyle(fontSize: 18)),
+                child: Text(
+                  dir == null ? 'Agregar' : 'Cambiar',
+                  style: const TextStyle(fontSize: 18),
+                ),
               ),
             ],
           ),
@@ -197,9 +210,10 @@ class _EntregaPagoScreenState extends State<EntregaPagoScreen> {
               FilaMonto(etiqueta: 'Envío', monto: c.envio),
               const Divider(color: AppColors.divisor),
               FilaMonto(
-                  etiqueta: 'Total estimado',
-                  monto: c.totalEstimado,
-                  destacado: true),
+                etiqueta: 'Total estimado',
+                monto: c.totalEstimado,
+                destacado: true,
+              ),
             ],
           ),
         ),
@@ -209,7 +223,9 @@ class _EntregaPagoScreenState extends State<EntregaPagoScreen> {
           const SizedBox(height: 12),
         ],
         BotonPrincipal(
-          texto: _metodo == MetodoPago.yape ? 'Continuar con Yape' : 'Confirmar pedido',
+          texto: _metodo == MetodoPago.yape
+              ? 'Continuar con Yape'
+              : 'Confirmar pedido',
           cargando: _enviando,
           onPressed: dir == null ? null : _confirmar,
         ),

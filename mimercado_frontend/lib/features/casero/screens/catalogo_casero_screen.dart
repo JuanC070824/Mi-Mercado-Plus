@@ -1,31 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/formato.dart';
 import '../../../core/widgets/componentes_app.dart';
 import '../../../core/widgets/encabezado_simple.dart';
+import '../../../core/widgets/icono_producto.dart';
 import '../../../data/models/producto.dart';
 import '../../../data/models/usuario.dart';
 import '../../../data/repositories/catalogo_repository.dart';
+import '../../../data/repositories/catalogo_vendedor_api_repository.dart';
 
-/// V7 · Mi catálogo: buscar, cambiar precio y Disponible / Agotado.
 class CatalogoCaseroScreen extends StatefulWidget {
   const CatalogoCaseroScreen({super.key, required this.usuario});
   final Usuario usuario;
-
   @override
   State<CatalogoCaseroScreen> createState() => _CatalogoCaseroScreenState();
 }
 
 class _CatalogoCaseroScreenState extends State<CatalogoCaseroScreen> {
-  final CatalogoRepository _repo = CatalogoRepositoryMock();
+  final _repo = CatalogoVendedorApiRepository.instancia;
   final _busqueda = TextEditingController();
   List<Producto> _productos = [];
   bool _cargando = true;
   String? _error;
   int? _guardando;
-
-  int get _puestoId => widget.usuario.puestoId ?? 1;
 
   @override
   void initState() {
@@ -40,32 +39,57 @@ class _CatalogoCaseroScreenState extends State<CatalogoCaseroScreen> {
   }
 
   Future<void> _cargar() async {
+    setState(() {
+      _cargando = true;
+      _error = null;
+    });
     try {
-      final l = await _repo.productosDePuesto(_puestoId);
-      if (!mounted) return;
-      setState(() {
-        _productos = l;
-        _cargando = false;
-        _error = null;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _cargando = false;
-        _error = 'No pudimos cargar tu catálogo.';
-      });
+      final productos = await _repo.cargar();
+      if (mounted) {
+        setState(() {
+          _productos = productos;
+          _cargando = false;
+        });
+      }
+    } on CatalogoException catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.mensaje;
+          _cargando = false;
+        });
+      }
     }
   }
 
-  Future<void> _guardar(Producto nuevo, String aviso) async {
-    setState(() => _guardando = nuevo.id);
+  Future<void> _editar([Producto? producto]) async {
+    final nuevo = await showDialog<Producto>(
+      context: context,
+      builder: (_) => _DialogoProducto(producto: producto),
+    );
+    if (nuevo == null || !mounted) return;
+    setState(() => _guardando = producto?.id ?? -1);
     try {
-      await _repo.actualizarProducto(nuevo);
+      final guardado = producto == null
+          ? await _repo.crear(nuevo)
+          : await _repo.actualizar(nuevo);
       if (!mounted) return;
       setState(() {
-        _productos = [for (final p in _productos) p.id == nuevo.id ? nuevo : p];
+        if (producto == null) {
+          _productos = [..._productos, guardado]
+            ..sort((a, b) => a.nombre.compareTo(b.nombre));
+        } else {
+          _productos = [
+            for (final p in _productos)
+              if (p.id == guardado.id) guardado else p,
+          ];
+        }
       });
-      avisar(context, aviso);
+      avisar(
+        context,
+        producto == null
+            ? '${guardado.nombre} fue añadido.'
+            : 'Producto actualizado.',
+      );
     } on CatalogoException catch (e) {
       if (mounted) avisar(context, e.mensaje);
     } finally {
@@ -73,23 +97,31 @@ class _CatalogoCaseroScreenState extends State<CatalogoCaseroScreen> {
     }
   }
 
-  Future<void> _editarPrecio(Producto p) async {
-    final precio = await showDialog<double>(
-      context: context,
-      builder: (ctx) => _DialogoPrecio(producto: p),
-    );
-    if (precio == null || !mounted) return;
-    await _guardar(p.copyWith(precioUnitario: precio),
-        'Nuevo precio de ${p.nombre}: ${soles(precio)} / ${p.unidad.simbolo}');
+  Future<void> _disponibilidad(Producto p, bool valor) async {
+    setState(() => _guardando = p.id);
+    try {
+      final guardado = await _repo.actualizar(p.copyWith(disponible: valor));
+      if (mounted) {
+        setState(
+          () => _productos = [
+            for (final x in _productos)
+              if (x.id == p.id) guardado else x,
+          ],
+        );
+      }
+    } on CatalogoException catch (e) {
+      if (mounted) avisar(context, e.mensaje);
+    } finally {
+      if (mounted) setState(() => _guardando = null);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final q = _busqueda.text.trim().toLowerCase();
-    final visibles = [
-      for (final p in _productos)
-        if (q.isEmpty || p.nombre.toLowerCase().contains(q)) p,
-    ];
+    final visibles = _productos
+        .where((p) => p.nombre.toLowerCase().contains(q))
+        .toList();
     return Scaffold(
       body: Column(
         children: [
@@ -104,14 +136,21 @@ class _CatalogoCaseroScreenState extends State<CatalogoCaseroScreen> {
                 labelText: 'Buscar producto',
                 prefixIcon: Icon(Icons.search),
                 border: OutlineInputBorder(),
-                enabledBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: AppColors.borde, width: 1.5),
-                ),
               ),
             ),
           ),
           Expanded(child: _cuerpo(visibles)),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _guardando == null ? () => _editar() : null,
+        backgroundColor: AppColors.azul,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.add),
+        label: const Text(
+          'Añadir producto',
+          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+        ),
       ),
     );
   }
@@ -127,65 +166,80 @@ class _CatalogoCaseroScreenState extends State<CatalogoCaseroScreen> {
         alTocar: _cargar,
       );
     }
+    if (_productos.isEmpty) {
+      return const AvisoPantalla(
+        icono: Icons.inventory_2_outlined,
+        titulo: 'Tu catálogo está vacío',
+        texto: 'Añade tu primer producto con el botón inferior.',
+      );
+    }
     if (visibles.isEmpty) {
-      return const AvisoPantalla(icono: Icons.search_off, titulo: 'No encontramos ese producto');
+      return const AvisoPantalla(
+        icono: Icons.search_off,
+        titulo: 'No encontramos ese producto',
+      );
     }
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
       itemCount: visibles.length,
       separatorBuilder: (_, _) => const SizedBox(height: 12),
-      itemBuilder: (context, i) {
+      itemBuilder: (_, i) {
         final p = visibles[i];
         final ocupado = _guardando == p.id;
         return TarjetaApp(
           colorBorde: p.disponible ? AppColors.borde : AppColors.error,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  IconoProducto(valor: p.imagen),
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: MergeSemantics(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(p.nombre,
-                              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-                          Text('${soles(p.precioUnitario)} / ${p.unidad.simbolo}',
-                              style: const TextStyle(fontSize: 18)),
-                        ],
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          p.nombre,
+                          style: const TextStyle(
+                            fontSize: 19,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        Text(
+                          '${soles(p.precioUnitario)} / ${p.unidad.simbolo}',
+                          style: const TextStyle(fontSize: 17),
+                        ),
+                      ],
                     ),
                   ),
-                  TextButton.icon(
-                    onPressed: ocupado ? null : () => _editarPrecio(p),
-                    style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
-                    icon: const Icon(Icons.edit_outlined),
-                    label: Text('Precio',
-                        semanticsLabel: 'Cambiar precio de ${p.nombre}',
-                        style: const TextStyle(fontSize: 17)),
+                  IconButton(
+                    onPressed: ocupado ? null : () => _editar(p),
+                    tooltip: 'Editar ${p.nombre}',
+                    icon: const Icon(
+                      Icons.edit_outlined,
+                      color: AppColors.azul,
+                    ),
                   ),
                 ],
               ),
-              Material(
-                type: MaterialType.transparency,
-                child: SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  value: p.disponible,
-                  onChanged: ocupado
-                      ? null
-                      : (v) => _guardar(
-                            p.copyWith(disponible: v),
-                            v ? '${p.nombre} vuelve a estar disponible.' : '${p.nombre} quedó agotado por hoy.',
-                          ),
-                  secondary: Icon(
-                    p.disponible ? Icons.check_circle : Icons.remove_shopping_cart_outlined,
-                    color: p.disponible ? AppColors.exitoTexto : AppColors.error,
+              const Divider(height: 20),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                value: p.disponible,
+                onChanged: ocupado ? null : (v) => _disponibilidad(p, v),
+                secondary: Icon(
+                  p.disponible
+                      ? Icons.check_circle
+                      : Icons.remove_shopping_cart_outlined,
+                  color: p.disponible ? AppColors.exitoTexto : AppColors.error,
+                ),
+                title: Text(
+                  p.disponible ? 'Disponible' : 'Agotado',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
                   ),
-                  title: Text(p.disponible ? 'Disponible' : 'Agotado',
-                      semanticsLabel: '${p.nombre}: ${p.disponible ? 'Disponible' : 'Agotado'}',
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
                 ),
               ),
             ],
@@ -196,70 +250,136 @@ class _CatalogoCaseroScreenState extends State<CatalogoCaseroScreen> {
   }
 }
 
-/// Ventana para cambiar el precio. Dueña de su TextEditingController, así se
-/// libera cuando la ventana termina de cerrarse (y no antes).
-class _DialogoPrecio extends StatefulWidget {
-  const _DialogoPrecio({required this.producto});
-  final Producto producto;
-
+class _DialogoProducto extends StatefulWidget {
+  const _DialogoProducto({this.producto});
+  final Producto? producto;
   @override
-  State<_DialogoPrecio> createState() => _DialogoPrecioState();
+  State<_DialogoProducto> createState() => _DialogoProductoState();
 }
 
-class _DialogoPrecioState extends State<_DialogoPrecio> {
-  late final _ctrl =
-      TextEditingController(text: widget.producto.precioUnitario.toStringAsFixed(2));
+class _DialogoProductoState extends State<_DialogoProducto> {
+  late final _nombre = TextEditingController(
+    text: widget.producto?.nombre ?? '',
+  );
+  late final _precio = TextEditingController(
+    text: widget.producto?.precioUnitario.toStringAsFixed(2) ?? '',
+  );
+  late UnidadMedida _unidad = widget.producto?.unidad ?? UnidadMedida.kg;
+  late String _icono = widget.producto?.imagen ?? 'icono:otro';
   String? _error;
-
   @override
   void dispose() {
-    _ctrl.dispose();
+    _nombre.dispose();
+    _precio.dispose();
     super.dispose();
   }
 
   void _guardar() {
-    final v = double.tryParse(_ctrl.text.replaceAll(',', '.'));
-    if (v == null || v < 0.1 || v > 999) {
-      setState(() => _error = 'Escribe un precio entre 0.10 y 999.');
+    final nombre = _nombre.text.trim();
+    final precio = double.tryParse(_precio.text.replaceAll(',', '.'));
+    if (nombre.length < 2) {
+      setState(() => _error = 'Escribe el nombre del producto.');
       return;
     }
-    Navigator.of(context).pop(v);
+    if (precio == null || precio < .1 || precio > 99999.99) {
+      setState(() => _error = 'Escribe un precio válido desde S/ 0.10.');
+      return;
+    }
+    final base = widget.producto;
+    Navigator.pop(
+      context,
+      Producto(
+        id: base?.id ?? 0,
+        puestoId: base?.puestoId ?? 0,
+        nombre: nombre,
+        unidad: _unidad,
+        precioUnitario: precio,
+        disponible: base?.disponible ?? true,
+        imagen: _icono,
+      ),
+    );
   }
 
   @override
-  Widget build(BuildContext context) {
-    final p = widget.producto;
-    return AlertDialog(
-      title: Text('Precio de ${p.nombre}',
-          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
-      content: TextField(
-        controller: _ctrl,
-        autofocus: true,
-        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
-        onSubmitted: (_) => _guardar(),
-        style: const TextStyle(fontSize: 22),
-        decoration: InputDecoration(
-          labelText: 'Soles por ${p.unidad.simbolo}',
-          prefixText: 'S/ ',
-          errorText: _error,
-          border: const OutlineInputBorder(),
-        ),
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text(
+      widget.producto == null ? 'Añadir producto' : 'Editar producto',
+    ),
+    content: SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            controller: _nombre,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: const InputDecoration(
+              labelText: 'Nombre',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _precio,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+            ],
+            decoration: const InputDecoration(
+              labelText: 'Precio',
+              prefixText: 'S/ ',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<UnidadMedida>(
+            initialValue: _unidad,
+            decoration: const InputDecoration(
+              labelText: 'Unidad de venta',
+              border: OutlineInputBorder(),
+            ),
+            items: [
+              for (final u in UnidadMedida.values)
+                DropdownMenuItem(value: u, child: Text(u.simbolo)),
+            ],
+            onChanged: (v) => setState(() => _unidad = v!),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Ícono del producto',
+            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final e in iconosProducto.entries)
+                ChoiceChip(
+                  avatar: Icon(e.value.icono, color: e.value.color),
+                  label: Text(e.value.nombre),
+                  selected: _icono == e.key,
+                  onSelected: (_) => setState(() => _icono = e.key),
+                ),
+            ],
+          ),
+          if (_error != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Text(
+                _error!,
+                style: const TextStyle(color: AppColors.error),
+              ),
+            ),
+        ],
       ),
-      actionsOverflowDirection: VerticalDirection.down,
-      actions: [
-        TextButton(
-          style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancelar', style: TextStyle(fontSize: 18)),
-        ),
-        FilledButton(
-          style: FilledButton.styleFrom(
-              backgroundColor: AppColors.azul, minimumSize: const Size(48, 48)),
-          onPressed: _guardar,
-          child: const Text('Guardar', style: TextStyle(fontSize: 18)),
-        ),
-      ],
-    );
-  }
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cancelar'),
+      ),
+      FilledButton(onPressed: _guardar, child: const Text('Guardar')),
+    ],
+  );
 }

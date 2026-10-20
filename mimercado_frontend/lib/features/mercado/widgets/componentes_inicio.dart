@@ -11,11 +11,11 @@ class ImagenCategoria extends StatelessWidget {
   final double tamano;
 
   static IconData _icono(CategoriaPuesto c) => switch (c) {
-        CategoriaPuesto.verduras => Icons.eco_rounded,
-        CategoriaPuesto.carnes => Icons.kebab_dining_rounded,
-        CategoriaPuesto.abarrotes => Icons.shopping_basket_rounded,
-        CategoriaPuesto.pescados => Icons.set_meal_rounded,
-      };
+    CategoriaPuesto.verduras => Icons.eco_rounded,
+    CategoriaPuesto.carnes => Icons.kebab_dining_rounded,
+    CategoriaPuesto.abarrotes => Icons.shopping_basket_rounded,
+    CategoriaPuesto.pescados => Icons.set_meal_rounded,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -99,7 +99,11 @@ class TarjetaCategoria extends StatelessWidget {
                 const Positioned(
                   top: 8,
                   right: 8,
-                  child: Icon(Icons.check_circle, color: AppColors.azul, size: 26),
+                  child: Icon(
+                    Icons.check_circle,
+                    color: AppColors.azul,
+                    size: 26,
+                  ),
                 ),
             ],
           ),
@@ -147,7 +151,11 @@ class BarraMercado extends StatelessWidget {
               child: Row(
                 children: [
                   if (m != null) ...[
-                    const Icon(Icons.location_on, color: AppColors.azul, size: 28),
+                    const Icon(
+                      Icons.location_on,
+                      color: AppColors.azul,
+                      size: 28,
+                    ),
                     const SizedBox(width: 10),
                   ],
                   Expanded(
@@ -185,7 +193,11 @@ class BarraMercado extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   m == null
-                      ? const Icon(Icons.search, color: AppColors.azul, size: 28)
+                      ? const Icon(
+                          Icons.search,
+                          color: AppColors.azul,
+                          size: 28,
+                        )
                       : const Text(
                           'Cambiar',
                           style: TextStyle(
@@ -221,13 +233,15 @@ class TarjetaCasero extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = puesto;
     final nota = p.calificacion.toStringAsFixed(1);
-    final textoResenas = '${p.resenas} ${p.resenas == 1 ? 'reseña' : 'reseñas'}';
+    final textoResenas =
+        '${p.resenas} ${p.resenas == 1 ? 'reseña' : 'reseñas'}';
 
     return Semantics(
       button: true,
       onTap: onTap,
       excludeSemantics: true,
-      label: '${p.nombre}. Casero ${p.casero}. Calificación $nota de 5, '
+      label:
+          '${p.nombre}. Casero ${p.casero}. Calificación $nota de 5, '
           '$textoResenas. ${p.abierto ? 'Abierto' : 'Cerrado'}.'
           '${nombreMercado == null ? '' : ' $nombreMercado.'}',
       child: Material(
@@ -250,7 +264,9 @@ class TarjetaCasero extends StatelessWidget {
                     color: Color(0xFFF3EBDD),
                     shape: BoxShape.circle,
                   ),
-                  child: Center(child: ImagenCategoria(p.categoria, tamano: 48)),
+                  child: Center(
+                    child: ImagenCategoria(p.categoria, tamano: 48),
+                  ),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -290,7 +306,9 @@ class TarjetaCasero extends StatelessWidget {
                         children: [
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: AppColors.calificacion,
                               borderRadius: BorderRadius.circular(16),
@@ -298,8 +316,11 @@ class TarjetaCasero extends StatelessWidget {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.star_rounded,
-                                    size: 18, color: AppColors.texto),
+                                const Icon(
+                                  Icons.star_rounded,
+                                  size: 18,
+                                  color: AppColors.texto,
+                                ),
                                 const SizedBox(width: 4),
                                 Text(
                                   '$nota · $textoResenas',

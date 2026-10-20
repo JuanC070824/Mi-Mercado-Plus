@@ -43,9 +43,11 @@ class OpcionElegible extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Icon(icono,
-                  size: 30,
-                  color: activa ? AppColors.azul : AppColors.textoSecundario),
+              Icon(
+                icono,
+                size: 30,
+                color: activa ? AppColors.azul : AppColors.textoSecundario,
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -57,7 +59,9 @@ class OpcionElegible extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 19,
                         fontWeight: FontWeight.w700,
-                        color: activa ? AppColors.texto : AppColors.textoSecundario,
+                        color: activa
+                            ? AppColors.texto
+                            : AppColors.textoSecundario,
                       ),
                     ),
                     if (detalle != null)

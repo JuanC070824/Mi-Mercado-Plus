@@ -47,7 +47,9 @@ class _DeslizarConfirmarState extends State<DeslizarConfirmar> {
               return Container(
                 height: _tamano + 8,
                 decoration: BoxDecoration(
-                  color: widget.habilitado ? AppColors.azulClaro : AppColors.fondo,
+                  color: widget.habilitado
+                      ? AppColors.azulClaro
+                      : AppColors.fondo,
                   borderRadius: BorderRadius.circular(40),
                   border: Border.all(color: AppColors.azul, width: 2),
                 ),
@@ -56,7 +58,10 @@ class _DeslizarConfirmarState extends State<DeslizarConfirmar> {
                   children: [
                     Center(
                       child: Padding(
-                        padding: const EdgeInsets.only(left: _tamano + 8, right: 12),
+                        padding: const EdgeInsets.only(
+                          left: _tamano + 8,
+                          right: 12,
+                        ),
                         child: Text(
                           widget.texto,
                           textAlign: TextAlign.center,
@@ -72,13 +77,19 @@ class _DeslizarConfirmarState extends State<DeslizarConfirmar> {
                       left: 4 + _x,
                       child: GestureDetector(
                         onHorizontalDragUpdate: widget.habilitado
-                            ? (d) => setState(() => _x = (_x + d.delta.dx).clamp(0, max))
+                            ? (d) => setState(
+                                () => _x = (_x + d.delta.dx).clamp(0, max),
+                              )
                             : null,
                         onHorizontalDragEnd: (_) => _soltar(c.maxWidth),
                         child: const CircleAvatar(
                           radius: _tamano / 2,
                           backgroundColor: AppColors.azul,
-                          child: Icon(Icons.chevron_right, color: AppColors.blanco, size: 36),
+                          child: Icon(
+                            Icons.chevron_right,
+                            color: AppColors.blanco,
+                            size: 36,
+                          ),
                         ),
                       ),
                     ),

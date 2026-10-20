@@ -68,3 +68,81 @@ class DireccionSerializer(serializers.Serializer):
     direccion = serializers.CharField()
     referencia = serializers.CharField(required=False, allow_blank=True)
     principal = serializers.BooleanField(default=False)
+
+class EstadoPuestoSerializer(serializers.Serializer):
+    abierto = serializers.BooleanField()
+
+class PuestoVendedorSerializer(serializers.Serializer):
+    mercado_id = serializers.IntegerField(min_value=1)
+    categoria_id = serializers.IntegerField(min_value=1)
+    nombre = serializers.CharField(max_length=150)
+    numero = serializers.CharField(max_length=30, required=False, allow_blank=True)
+    referencia = serializers.CharField(required=False, allow_blank=True, max_length=300)
+
+class PerfilActualizarSerializer(serializers.Serializer):
+    celular = PhoneField(required=False)
+    correo = serializers.EmailField(max_length=254, required=False, allow_blank=True)
+    password_actual = serializers.CharField(
+        write_only=True,
+        required=False,
+        allow_blank=True,
+        trim_whitespace=False,
+        max_length=128,
+    )
+    sonido = serializers.BooleanField(required=False)
+    vibracion = serializers.BooleanField(required=False)
+
+
+ICONOS_PRODUCTO = [
+    'icono:verdura', 'icono:fruta', 'icono:tuberculo', 'icono:abarrote',
+    'icono:carne', 'icono:pescado', 'icono:lacteo', 'icono:otro',
+]
+
+
+class ProductoVendedorSerializer(serializers.Serializer):
+    nombre = serializers.CharField(max_length=150)
+    unidad_codigo = serializers.ChoiceField(
+        choices=['kg', 'unidad', 'atado', 'litro'],
+    )
+    precio_unitario = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        min_value=Decimal('0.10'),
+        max_value=Decimal('99999.99'),
+    )
+    disponible = serializers.BooleanField(default=True)
+    icono = serializers.ChoiceField(choices=ICONOS_PRODUCTO, default='icono:otro')
+
+
+class DisponibilidadDetalleSerializer(serializers.Serializer):
+    disponibilidad = serializers.ChoiceField(
+        choices=['pendiente', 'disponible', 'sin_stock', 'reemplazo'],
+    )
+
+
+class AccionPedidoPuestoSerializer(serializers.Serializer):
+    accion = serializers.ChoiceField(
+        choices=['aceptar', 'rechazar', 'listo', 'entregar'],
+    )
+    motivo = serializers.CharField(required=False, allow_blank=True, max_length=300)
+
+    def validate(self, attrs):
+        if attrs['accion'] == 'rechazar' and not attrs.get('motivo', '').strip():
+            raise serializers.ValidationError({'motivo': 'Indica por qué rechazas el pedido.'})
+        return attrs
+
+
+class CotizacionDetalleVendedorSerializer(serializers.Serializer):
+    pedido_detalle_id = serializers.IntegerField(min_value=1)
+    nombre_final = serializers.CharField(max_length=150)
+    cantidad_real = serializers.DecimalField(
+        max_digits=12, decimal_places=3, min_value=Decimal('0.001'),
+    )
+    precio_unitario = serializers.DecimalField(
+        max_digits=12, decimal_places=2, min_value=Decimal('0.10'),
+    )
+
+
+class CotizacionVendedorSerializer(serializers.Serializer):
+    detalles = CotizacionDetalleVendedorSerializer(many=True, allow_empty=False)
+    nota = serializers.CharField(required=False, allow_blank=True, max_length=500)

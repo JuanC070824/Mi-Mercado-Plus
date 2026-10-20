@@ -11,7 +11,7 @@ import '../../../core/widgets/soporte_dialog.dart';
 import '../../../data/models/canasta.dart';
 import '../../../data/models/puesto.dart';
 import '../../../data/models/usuario.dart';
-import '../../../data/repositories/canasta_repository.dart';
+import '../../../data/repositories/repositorios_app.dart';
 import '../../../data/repositories/catalogo_repository.dart';
 import '../../../data/repositories/catalogo_api_repository.dart';
 import '../widgets/componentes_inicio.dart';
@@ -125,13 +125,14 @@ class _InicioScreenState extends State<InicioScreen> {
     );
     if (r == null || !mounted) return false;
     // Un repartidor solo recoge en un mercado: cambiar de mercado vacía la canasta.
-    final canasta = CanastaRepositoryMock.instancia;
+    final canasta = canastaApp;
     final mercadoCanasta = canasta.canasta.value.mercadoId;
     if (mercadoCanasta != null && mercadoCanasta != r.mercado.id) {
       final seguir = await confirmar(
         context,
         titulo: '¿Cambiar de mercado?',
-        texto: 'Tu canasta tiene productos de otro mercado. '
+        texto:
+            'Tu canasta tiene productos de otro mercado. '
             'Si cambias de mercado, se vaciará tu canasta.',
         textoSi: 'Sí, vaciar y cambiar',
       );
@@ -206,7 +207,6 @@ class _InicioScreenState extends State<InicioScreen> {
                   ? _pedirMercadoParaBuscar()
                   : _aviso('La búsqueda por voz estará disponible pronto.'),
               onSoporte: () => mostrarSoporte(context),
-              
             ),
             Center(
               child: ConstrainedBox(
@@ -337,8 +337,9 @@ class _InicioScreenState extends State<InicioScreen> {
             if (i > 0) const SizedBox(height: 12),
             TarjetaCasero(
               puesto: _puestos[i],
-              nombreMercado:
-                  sel == null ? _nombresMercado[_puestos[i].mercadoId] : null,
+              nombreMercado: sel == null
+                  ? _nombresMercado[_puestos[i].mercadoId]
+                  : null,
               onTap: () => context.push('/inicio/puesto/${_puestos[i].id}'),
             ),
           ],
@@ -379,7 +380,10 @@ class _InicioScreenState extends State<InicioScreen> {
           liveRegion: true, // el lector de pantalla anuncia el nuevo conteo
           child: Text(
             _subtitulo(),
-            style: const TextStyle(fontSize: 17, color: AppColors.textoSecundario),
+            style: const TextStyle(
+              fontSize: 17,
+              color: AppColors.textoSecundario,
+            ),
           ),
         ),
         const SizedBox(height: 12),
@@ -388,6 +392,7 @@ class _InicioScreenState extends State<InicioScreen> {
     );
   }
 }
+
 /// C1 · Tarjeta "Mi canasta · total". Solo aparece si la canasta tiene algo.
 class _TarjetaMiCanasta extends StatelessWidget {
   const _TarjetaMiCanasta();
@@ -395,7 +400,7 @@ class _TarjetaMiCanasta extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<Canasta>(
-      valueListenable: CanastaRepositoryMock.instancia.canasta,
+      valueListenable: canastaApp.canasta,
       builder: (context, c, _) {
         if (c.vacia) return const SizedBox.shrink();
         final n = c.cantidadProductos;
@@ -403,7 +408,8 @@ class _TarjetaMiCanasta extends StatelessWidget {
           padding: const EdgeInsets.only(top: 4),
           child: Semantics(
             button: true,
-            label: 'Mi canasta: $n ${n == 1 ? 'producto' : 'productos'}, '
+            label:
+                'Mi canasta: $n ${n == 1 ? 'producto' : 'productos'}, '
                 '${soles(c.totalProductos)}. Ver canasta',
             excludeSemantics: true,
             child: InkWell(
@@ -414,8 +420,11 @@ class _TarjetaMiCanasta extends StatelessWidget {
                 colorBorde: AppColors.azul,
                 child: Row(
                   children: [
-                    const Icon(Icons.shopping_basket_rounded,
-                        size: 36, color: AppColors.azul),
+                    const Icon(
+                      Icons.shopping_basket_rounded,
+                      size: 36,
+                      color: AppColors.azul,
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -424,7 +433,10 @@ class _TarjetaMiCanasta extends StatelessWidget {
                         children: [
                           Text(
                             'Mi canasta · $n ${n == 1 ? 'producto' : 'productos'}',
-                            style: const TextStyle(fontSize: 18, color: AppColors.texto),
+                            style: const TextStyle(
+                              fontSize: 18,
+                              color: AppColors.texto,
+                            ),
                           ),
                           Text(
                             soles(c.totalProductos),
@@ -437,7 +449,11 @@ class _TarjetaMiCanasta extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const Icon(Icons.chevron_right, size: 32, color: AppColors.azul),
+                    const Icon(
+                      Icons.chevron_right,
+                      size: 32,
+                      color: AppColors.azul,
+                    ),
                   ],
                 ),
               ),

@@ -81,13 +81,17 @@ class UbicacionService {
 
       final data = jsonDecode(r.body) as Map<String, dynamic>;
       final a = (data['address'] as Map<String, dynamic>?) ?? {};
-      final calle = [a['road'], a['house_number']].whereType<String>().join(' ');
+      final calle = [
+        a['road'],
+        a['house_number'],
+      ].whereType<String>().join(' ');
       final zona = a['suburb'] ?? a['neighbourhood'] ?? a['city_district'];
       final ciudad = a['city'] ?? a['town'] ?? a['village'];
-      final partes = [calle, zona, ciudad]
-          .whereType<String>()
-          .where((s) => s.trim().isNotEmpty)
-          .toList();
+      final partes = [
+        calle,
+        zona,
+        ciudad,
+      ].whereType<String>().where((s) => s.trim().isNotEmpty).toList();
       if (partes.isEmpty) return data['display_name'] as String?;
       return partes.join(', ');
     } catch (_) {

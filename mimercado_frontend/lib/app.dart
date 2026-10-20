@@ -29,7 +29,8 @@ class MiMercadoApp extends StatelessWidget {
               data: mq.copyWith(
                 textScaler: grande
                     ? const TextScaler.linear(
-                        AccesibilidadState.factorLetraGrande)
+                        AccesibilidadState.factorLetraGrande,
+                      )
                     : mq.textScaler,
               ),
               child: child ?? const SizedBox.shrink(),

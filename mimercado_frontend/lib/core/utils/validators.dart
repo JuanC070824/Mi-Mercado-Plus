@@ -2,20 +2,26 @@ import 'package:flutter/services.dart';
 
 // Esto me sirve para las reglas de validación (9 dígitos, correo válido, etc.)
 
-
 class Validadores {
   static String? requerido(String? v, {String campo = 'Este campo'}) {
     if (v == null || v.trim().isEmpty) return '$campo es obligatorio';
     return null;
   }
+
   static String? dni(String? v) {
     final t = v?.trim() ?? '';
     if (t.isEmpty) return 'El DNI es obligatorio';
     if (!RegExp(r'^\d+$').hasMatch(t)) return 'El DNI solo lleva números';
-    if (t.length != 8) return 'El DNI debe tener 8 dígitos (llevas ${t.length})';
+    if (t.length != 8)
+      return 'El DNI debe tener 8 dígitos (llevas ${t.length})';
     return null;
   }
-  static String? nombre(String? v, {required String campo, bool opcional = false}) {
+
+  static String? nombre(
+    String? v, {
+    required String campo,
+    bool opcional = false,
+  }) {
     final t = v?.trim() ?? '';
     if (t.isEmpty) return opcional ? null : '$campo es obligatorio';
     if (t.length < 2) return '$campo debe tener al menos 2 letras';
@@ -29,7 +35,8 @@ class Validadores {
     final t = v?.trim() ?? '';
     if (t.isEmpty) return 'El celular es obligatorio';
     if (!RegExp(r'^\d+$').hasMatch(t)) return 'El celular solo lleva números';
-    if (t.length != 9) return 'El celular debe tener 9 dígitos (llevas ${t.length})';
+    if (t.length != 9)
+      return 'El celular debe tener 9 dígitos (llevas ${t.length})';
     if (!t.startsWith('9')) return 'El celular debe empezar con 9';
     return null;
   }
@@ -97,7 +104,10 @@ class Validadores {
 /// Escribe las barras solas: el usuario teclea 12052000 y ve 12/05/2000.
 class FormateadorFecha extends TextInputFormatter {
   @override
-  TextEditingValue formatEditUpdate(TextEditingValue anterior, TextEditingValue nuevo) {
+  TextEditingValue formatEditUpdate(
+    TextEditingValue anterior,
+    TextEditingValue nuevo,
+  ) {
     final digitos = nuevo.text.replaceAll(RegExp(r'\D'), '');
     final limpio = digitos.length > 8 ? digitos.substring(0, 8) : digitos;
     final b = StringBuffer();

@@ -21,7 +21,8 @@ class GrupoPuesto {
     this.listaMandado,
   });
 
-  final Puesto puesto; // completo: crearPedido necesita el Puesto, no solo el id
+  final Puesto
+  puesto; // completo: crearPedido necesita el Puesto, no solo el id
   final List<ItemCanasta> items;
   final String? listaMandado; // texto libre: "un atado de culantro y 3 ajíes"
 
