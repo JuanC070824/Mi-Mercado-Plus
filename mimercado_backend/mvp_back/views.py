@@ -142,7 +142,10 @@ class PerfilView(APIView):
 class MercadosView(APIView):
     permission_classes=[AllowAny]
     def get(self,request):
-        return Response(list(Mercado.objects.filter(estado='activo').values('id','nombre','direccion')))
+        mercados=Mercado.objects.filter(estado='activo').order_by('nombre','id').values(
+            'id','nombre','direccion','distrito','provincia','departamento','latitud','longitud'
+        )
+        return Response(list(mercados))
 
 class PuestosView(APIView):
     permission_classes=[AllowAny]

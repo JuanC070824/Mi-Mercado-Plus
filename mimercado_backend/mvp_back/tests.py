@@ -109,6 +109,24 @@ class ApiTests(TestCase):
             self.assertEqual(r.data['rol_activo'],rol)
             self.assertTrue(UsuarioRol.objects.filter(usuario_id=r.data['usuario']['id'],rol_codigo=rol).exists())
 
+    def test_markets_endpoint_returns_only_active_markets_with_location(self):
+        self.market.distrito='Surquillo'
+        self.market.provincia='Lima'
+        self.market.departamento='Lima'
+        self.market.latitud=Decimal('-12.113000')
+        self.market.longitud=Decimal('-77.020000')
+        self.market.save()
+        Mercado.objects.create(nombre='Mercado suspendido',direccion='D3',estado='suspendido')
+
+        response=self.client.get('/api/mercados/')
+
+        self.assertEqual(response.status_code,200,response.data)
+        self.assertNotIn('Mercado suspendido',[row['nombre'] for row in response.data])
+        row=next(row for row in response.data if row['id']==self.market.pk)
+        self.assertEqual(row['distrito'],'Surquillo')
+        self.assertEqual(Decimal(str(row['latitud'])),Decimal('-12.113000'))
+        self.assertEqual(Decimal(str(row['longitud'])),Decimal('-77.020000'))
+
     @patch('mvp_back.views.consultar_dni')
     def test_dni_lookup_returns_names_and_signed_registration_token(self,consulta):
         consulta.return_value={'dni':'12345678','nombres':'María Elena',
