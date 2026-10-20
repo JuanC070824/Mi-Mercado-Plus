@@ -63,7 +63,10 @@ class _EntregaScreenState extends State<EntregaScreen> {
 
   Future<void> _entregar(Pedido p) async {
     if (!RegExp(r'^\d{4}$').hasMatch(_codigo.text.trim())) {
-      setState(() => _error = 'El código de entrega tiene 4 números. Pídeselo al cliente.');
+      setState(
+        () => _error =
+            'El código de entrega tiene 4 números. Pídeselo al cliente.',
+      );
       return;
     }
     setState(() {
@@ -74,24 +77,40 @@ class _EntregaScreenState extends State<EntregaScreen> {
       final ok = await _repo.validarCodigoEntrega(p.id, _codigo.text.trim());
       if (!mounted) return;
       if (!ok) {
-        setState(() => _error = 'El código no coincide. Pídeselo de nuevo al cliente.');
+        setState(
+          () => _error = 'El código no coincide. Pídeselo de nuevo al cliente.',
+        );
         return;
       }
       await showDialog<void>(
         context: context,
         builder: (ctx) => AlertDialog(
-          icon: const Icon(Icons.check_circle, size: 56, color: AppColors.exitoTexto),
-          title: const Text('¡Pedido entregado!',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800)),
-          content: Text('Ganaste ${soles(p.costoEnvio)}. ¡Buen trabajo!',
-              textAlign: TextAlign.center, style: const TextStyle(fontSize: 18)),
+          icon: const Icon(
+            Icons.check_circle,
+            size: 56,
+            color: AppColors.exitoTexto,
+          ),
+          title: const Text(
+            '¡Pedido entregado!',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800),
+          ),
+          content: Text(
+            'Ganaste ${soles(p.costoEnvio)}. ¡Buen trabajo!',
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 18),
+          ),
           actions: [
             FilledButton(
               style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.azul, minimumSize: const Size(48, 56)),
+                backgroundColor: AppColors.azul,
+                minimumSize: const Size(48, 56),
+              ),
               onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Volver al inicio', style: TextStyle(fontSize: 18)),
+              child: const Text(
+                'Volver al inicio',
+                style: TextStyle(fontSize: 18),
+              ),
             ),
           ],
         ),
@@ -139,17 +158,32 @@ class _EntregaScreenState extends State<EntregaScreen> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.person_outline, color: AppColors.azul, size: 30),
+                  const Icon(
+                    Icons.person_outline,
+                    color: AppColors.azul,
+                    size: 30,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Text(p.clienteNombre,
-                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+                    child: Text(
+                      p.clienteNombre,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                   ),
                   IconButton.outlined(
                     tooltip: 'Llamar a ${p.clienteNombre}',
-                    constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-                    onPressed: () =>
-                        mostrarLlamar(context, nombre: p.clienteNombre, celular: p.clienteCelular),
+                    constraints: const BoxConstraints(
+                      minWidth: 48,
+                      minHeight: 48,
+                    ),
+                    onPressed: () => mostrarLlamar(
+                      context,
+                      nombre: p.clienteNombre,
+                      celular: p.clienteCelular,
+                    ),
                     icon: const Icon(Icons.call, color: AppColors.azul),
                   ),
                 ],
@@ -157,8 +191,13 @@ class _EntregaScreenState extends State<EntregaScreen> {
               const SizedBox(height: 6),
               Text(p.direccion, style: const TextStyle(fontSize: 18)),
               if (p.referencia != null)
-                Text('Referencia: ${p.referencia}',
-                    style: const TextStyle(fontSize: 17, color: AppColors.textoSecundario)),
+                Text(
+                  'Referencia: ${p.referencia}',
+                  style: const TextStyle(
+                    fontSize: 17,
+                    color: AppColors.textoSecundario,
+                  ),
+                ),
             ],
           ),
         ),
@@ -169,12 +208,26 @@ class _EntregaScreenState extends State<EntregaScreen> {
           child: MergeSemantics(
             child: Column(
               children: [
-                Text(yaPago ? 'Ya pagó con Yape' : 'Cobra en ${p.metodoPago.etiqueta.toLowerCase()}',
-                    style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
-                Text(soles(total),
-                    style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w900)),
-                const Text('Precio final aceptado por el cliente',
-                    style: TextStyle(fontSize: 16)),
+                Text(
+                  yaPago
+                      ? 'Ya pagó con Yape'
+                      : 'Cobra en ${p.metodoPago.etiqueta.toLowerCase()}',
+                  style: const TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  soles(total),
+                  style: const TextStyle(
+                    fontSize: 34,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const Text(
+                  'Precio final aceptado por el cliente',
+                  style: TextStyle(fontSize: 16),
+                ),
               ],
             ),
           ),
@@ -187,7 +240,10 @@ class _EntregaScreenState extends State<EntregaScreen> {
         const SizedBox(height: 20),
         const TituloSeccion('Código de entrega'),
         const SizedBox(height: 4),
-        const Text('Pide al cliente su código de 4 números.', style: TextStyle(fontSize: 17)),
+        const Text(
+          'Pide al cliente su código de 4 números.',
+          style: TextStyle(fontSize: 17),
+        ),
         const SizedBox(height: 8),
         TextField(
           controller: _codigo,
@@ -196,7 +252,11 @@ class _EntregaScreenState extends State<EntregaScreen> {
           textAlign: TextAlign.center,
           autofillHints: const [AutofillHints.oneTimeCode],
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w800, letterSpacing: 12),
+          style: const TextStyle(
+            fontSize: 32,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 12,
+          ),
           decoration: const InputDecoration(
             labelText: 'Código del cliente',
             border: OutlineInputBorder(),

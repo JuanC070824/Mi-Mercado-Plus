@@ -8,8 +8,9 @@ String cantidadConUnidad(double cantidad, UnidadMedida unidad) {
   final numero = cantidad == cantidad.roundToDouble()
       ? cantidad.toStringAsFixed(0)
       : cantidad.toStringAsFixed(1);
-  final simbolo =
-      unidad == UnidadMedida.atado && cantidad != 1 ? 'atados' : unidad.simbolo;
+  final simbolo = unidad == UnidadMedida.atado && cantidad != 1
+      ? 'atados'
+      : unidad.simbolo;
   return '$numero $simbolo';
 }
 
@@ -21,7 +22,11 @@ String horaCorta(DateTime h) =>
 String fechaCorta(DateTime h, {DateTime? ahora}) {
   final hoy = ahora ?? DateTime.now();
   final dia = DateTime(h.year, h.month, h.day);
-  final diferencia = DateTime(hoy.year, hoy.month, hoy.day).difference(dia).inDays;
+  final diferencia = DateTime(
+    hoy.year,
+    hoy.month,
+    hoy.day,
+  ).difference(dia).inDays;
   if (diferencia == 0) return 'Hoy ${horaCorta(h)}';
   if (diferencia == 1) return 'Ayer ${horaCorta(h)}';
   return '${h.day.toString().padLeft(2, '0')}/${h.month.toString().padLeft(2, '0')} '

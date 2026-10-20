@@ -11,6 +11,7 @@ import '../../../data/models/pedido.dart';
 import '../../../data/models/producto.dart';
 import '../../../data/models/usuario.dart';
 import '../../../data/repositories/pedido_repository.dart';
+import '../../../data/repositories/pedidos_vendedor_api_repository.dart';
 import '../widgets/alerta_pedido.dart';
 import '../widgets/llamar_dialog.dart';
 
@@ -18,7 +19,11 @@ import '../widgets/llamar_dialog.dart';
 /// estado de SU parte: aceptar/rechazar (V1b/V1c), revisar (V2), pesar (V3),
 /// empaquetar (V4) y entregar al repartidor (V5).
 class CaseroPedidoScreen extends StatefulWidget {
-  const CaseroPedidoScreen({super.key, required this.pedidoId, required this.usuario});
+  const CaseroPedidoScreen({
+    super.key,
+    required this.pedidoId,
+    required this.usuario,
+  });
   final int pedidoId;
   final Usuario usuario;
 
@@ -27,13 +32,14 @@ class CaseroPedidoScreen extends StatefulWidget {
 }
 
 class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
-  final PedidoRepository _repo = PedidoRepositoryMock.instancia;
+  final PedidosVendedorApiRepository _repo =
+      PedidosVendedorApiRepository.instancia;
 
   Pedido? _pedido;
   bool _cargando = true;
   bool _ocupado = false;
 
-  int get _puestoId => widget.usuario.puestoId ?? 1;
+  int get _puestoId => widget.usuario.puestoId ?? 0;
 
   @override
   void initState() {
@@ -77,7 +83,9 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
     return Scaffold(
       body: Column(
         children: [
-          EncabezadoSimple(titulo: p == null ? 'Pedido' : 'Pedido #${p.codigoCorto}'),
+          EncabezadoSimple(
+            titulo: p == null ? 'Pedido' : 'Pedido de ${p.clienteNombre}',
+          ),
           Expanded(child: _cuerpo()),
         ],
       ),
@@ -116,27 +124,42 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
               const Icon(Icons.person_outline, color: AppColors.azul, size: 30),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(p.clienteNombre,
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+                child: Text(
+                  p.clienteNombre,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ),
               IconButton.outlined(
                 tooltip: 'Llamar a ${p.clienteNombre}',
                 constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-                onPressed: () =>
-                    mostrarLlamar(context, nombre: p.clienteNombre, celular: p.clienteCelular),
+                onPressed: () => mostrarLlamar(
+                  context,
+                  nombre: p.clienteNombre,
+                  celular: p.clienteCelular,
+                ),
                 icon: const Icon(Icons.call, color: AppColors.azul),
               ),
             ],
           ),
           Text(
             '${fechaCorta(p.creadoEn)} · Bolsa ${parte.codigoBolsa}',
-            style: const TextStyle(fontSize: 16, color: AppColors.textoSecundario),
+            style: const TextStyle(
+              fontSize: 16,
+              color: AppColors.textoSecundario,
+            ),
           ),
           const SizedBox(height: 8),
           etiquetaDePuesto(parte.estado),
           if (compartido != null) ...[
             const SizedBox(height: 8),
-            EtiquetaEstado(texto: compartido, icono: Icons.people_outline, tipo: TipoEstado.info),
+            EtiquetaEstado(
+              texto: compartido,
+              icono: Icons.people_outline,
+              tipo: TipoEstado.info,
+            ),
           ],
         ],
       ),
@@ -151,14 +174,18 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
           const SizedBox(height: 8),
           ListaProductosParte(parte: parte),
           const SizedBox(height: 8),
-          Text('Estimado: ${soles(parte.subtotalEstimado)}',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+          Text(
+            'Estimado: ${soles(parte.subtotalEstimado)}',
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+          ),
           const SizedBox(height: 20),
           BotonPrincipal(
             texto: 'Aceptar pedido',
             cargando: _ocupado,
-            onPressed: () => _hacer(() => _repo.aceptarSubpedido(parte.id),
-                exito: 'Aceptaste el pedido. Ahora revisa los productos.'),
+            onPressed: () => _hacer(
+              () => _repo.aceptarSubpedido(parte.id),
+              exito: 'Aceptaste el pedido. Ahora revisa los productos.',
+            ),
           ),
           const SizedBox(height: 12),
           OutlinedButton.icon(
@@ -168,7 +195,9 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
               minimumSize: const Size(48, 56),
               shape: const StadiumBorder(),
             ),
-            onPressed: _ocupado ? null : () => rechazarConMotivo(context, parte),
+            onPressed: _ocupado
+                ? null
+                : () => rechazarConMotivo(context, parte, repository: _repo),
             icon: const Icon(Icons.close),
             label: const Text('Rechazar', style: TextStyle(fontSize: 20)),
           ),
@@ -179,7 +208,9 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
           AvisoPantalla(
             icono: Icons.block,
             titulo: 'No atendiste este pedido',
-            texto: parte.motivoRechazo == null ? null : 'Motivo: ${parte.motivoRechazo}',
+            texto: parte.motivoRechazo == null
+                ? null
+                : 'Motivo: ${parte.motivoRechazo}',
           ),
         ];
       case EstadoPedidoPuesto.aceptado:
@@ -206,15 +237,16 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
 
   /// Lo tengo → Sin stock → Ofrezco otro → Lo tengo…
   static Disponibilidad _siguiente(Disponibilidad d) => switch (d) {
-        Disponibilidad.pendiente => Disponibilidad.disponible,
-        Disponibilidad.disponible => Disponibilidad.sinStock,
-        Disponibilidad.sinStock => Disponibilidad.reemplazo,
-        Disponibilidad.reemplazo => Disponibilidad.disponible,
-      };
+    Disponibilidad.pendiente => Disponibilidad.disponible,
+    Disponibilidad.disponible => Disponibilidad.sinStock,
+    Disponibilidad.sinStock => Disponibilidad.reemplazo,
+    Disponibilidad.reemplazo => Disponibilidad.disponible,
+  };
 
   List<Widget> _revisar(Pedido p, PedidoPuesto parte) {
-    final revisados =
-        parte.detalles.where((d) => d.disponibilidad != Disponibilidad.pendiente).length;
+    final revisados = parte.detalles
+        .where((d) => d.disponibilidad != Disponibilidad.pendiente)
+        .length;
     return [
       if (p.puestos.length > 1) ...[
         _compartido(p, parte),
@@ -232,7 +264,10 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
         _FilaRevisar(
           detalle: d,
           habilitado: !_ocupado,
-          onTap: () => _hacer(() => _repo.marcarDisponibilidad(d.id, _siguiente(d.disponibilidad))),
+          onTap: () => _hacer(
+            () =>
+                _repo.marcarDisponibilidad(d.id, _siguiente(d.disponibilidad)),
+          ),
         ),
         const SizedBox(height: 8),
       ],
@@ -245,11 +280,18 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Lista de mandado',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                const Text(
+                  'Lista de mandado',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                ),
                 Text(parte.listaMandado!, style: const TextStyle(fontSize: 18)),
-                const Text('Agrégalo al pesar como producto extra.',
-                    style: TextStyle(fontSize: 16, color: AppColors.textoSecundario)),
+                const Text(
+                  'Agrégalo al pesar como producto extra.',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: AppColors.textoSecundario,
+                  ),
+                ),
               ],
             ),
           ),
@@ -271,73 +313,86 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
               avatar: const Icon(Icons.chat_bubble_outline, size: 20),
               label: Text(m, style: const TextStyle(fontSize: 16)),
               materialTapTargetSize: MaterialTapTargetSize.padded,
-              onPressed: () => avisar(context, 'Le enviamos a ${p.clienteNombre}: "$m"'),
+              onPressed: () =>
+                  avisar(context, 'Le enviamos a ${p.clienteNombre}: "$m"'),
             ),
         ],
       ),
-      ..._despuesDeRevisar(p, parte, todosRevisados: revisados == parte.detalles.length),
+      ..._despuesDeRevisar(
+        p,
+        parte,
+        todosRevisados: revisados == parte.detalles.length,
+      ),
     ];
   }
 
   /// Lo que sigue después de revisar: ir a la balanza (V3).
-  List<Widget> _despuesDeRevisar(Pedido p, PedidoPuesto parte, {required bool todosRevisados}) => [
-        const SizedBox(height: 20),
-        EtiquetaEstado(
-          texto: todosRevisados
-              ? 'Listo para pesar'
-              : 'Revisa todos los productos para poder pesar',
-          icono: todosRevisados ? Icons.check_circle : Icons.info_outline,
-          tipo: todosRevisados ? TipoEstado.exito : TipoEstado.info,
-        ),
-        const SizedBox(height: 12),
-        BotonPrincipal(
-          texto: 'Pesar y poner precio',
-          onPressed: todosRevisados
-              ? () => context.push('/casero/inicio/pedido/${p.id}/pesar')
-              : null,
-        ),
-      ];
+  List<Widget> _despuesDeRevisar(
+    Pedido p,
+    PedidoPuesto parte, {
+    required bool todosRevisados,
+  }) => [
+    const SizedBox(height: 20),
+    EtiquetaEstado(
+      texto: todosRevisados
+          ? 'Listo para pesar'
+          : 'Revisa todos los productos para poder pesar',
+      icono: todosRevisados ? Icons.check_circle : Icons.info_outline,
+      tipo: todosRevisados ? TipoEstado.exito : TipoEstado.info,
+    ),
+    const SizedBox(height: 12),
+    BotonPrincipal(
+      texto: 'Pesar y poner precio',
+      onPressed: todosRevisados
+          ? () => context.push('/casero/inicio/pedido/${p.id}/pesar')
+          : null,
+    ),
+  ];
 
   // ------------------------------------------------------ V4 Empaquetar
 
   List<Widget> _empaquetar(Pedido p, PedidoPuesto parte) => [
-        TarjetaApp(
-          color: AppColors.exitoFondo,
-          colorBorde: AppColors.exitoTexto,
-          child: Row(
-            children: [
-              const Icon(Icons.check_circle, color: AppColors.exitoTexto, size: 32),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  '${p.clienteNombre.split(' ').first} aceptó el precio final. '
-                  '¡Ya puedes empaquetar!',
-                  style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
-                ),
-              ),
-            ],
+    TarjetaApp(
+      color: AppColors.exitoFondo,
+      colorBorde: AppColors.exitoTexto,
+      child: Row(
+        children: [
+          const Icon(Icons.check_circle, color: AppColors.exitoTexto, size: 32),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              '${p.clienteNombre.split(' ').first} aceptó el precio final. '
+              '¡Ya puedes empaquetar!',
+              style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
+            ),
           ),
-        ),
-        if (p.puestos.length > 1) ...[
-          const SizedBox(height: 16),
-          _compartido(p, parte),
         ],
-        const SizedBox(height: 16),
-        const TituloSeccion('Paso a paso'),
-        const SizedBox(height: 8),
-        LineaTiempo(eventos: p.historial),
-        const SizedBox(height: 12),
-        Text('Pon en la bolsa ${parte.codigoBolsa} todo lo que pesaste.',
-            style: const TextStyle(fontSize: 18)),
-        const SizedBox(height: 12),
-        DeslizarConfirmar(
-          texto: 'Desliza: ya empaqueté',
-          textoToque: 'O toca aquí: ya empaqueté',
-          habilitado: !_ocupado,
-          onConfirmar: () => _hacer(() => _repo.marcarListo(parte.id),
-              exito: 'Bolsa lista. Espera al repartidor.'),
-        ),
-      ];
+      ),
+    ),
+    if (p.puestos.length > 1) ...[
+      const SizedBox(height: 16),
+      _compartido(p, parte),
+    ],
+    const SizedBox(height: 16),
+    const TituloSeccion('Paso a paso'),
+    const SizedBox(height: 8),
+    LineaTiempo(eventos: p.historial),
+    const SizedBox(height: 12),
+    Text(
+      'Pon en la bolsa ${parte.codigoBolsa} todo lo que pesaste.',
+      style: const TextStyle(fontSize: 18),
+    ),
+    const SizedBox(height: 12),
+    DeslizarConfirmar(
+      texto: 'Desliza: ya empaqueté',
+      textoToque: 'O toca aquí: ya empaqueté',
+      habilitado: !_ocupado,
+      onConfirmar: () => _hacer(
+        () => _repo.marcarListo(parte.id),
+        exito: 'Bolsa lista. Espera al repartidor.',
+      ),
+    ),
+  ];
 
   // --------------------------------------------- V5 Entregar al repartidor
 
@@ -348,7 +403,10 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
     final cp = p.cotizacion?.dePuesto(parte.id);
     final items = [
       for (final d in cp?.detalles ?? const <CotizacionDetalle>[])
-        (d.pedidoDetalleId, '${d.nombreFinal} · ${cantidadConUnidad(d.cantidadReal, _unidadDe(parte, d.pedidoDetalleId))}'),
+        (
+          d.pedidoDetalleId,
+          '${d.nombreFinal} · ${cantidadConUnidad(d.cantidadReal, _unidadDe(parte, d.pedidoDetalleId))}',
+        ),
     ];
     final completo = items.every((i) => _enBolsa.contains(i.$1));
     final n = p.puestosActivos.length;
@@ -372,13 +430,14 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
       const SizedBox(height: 16),
       Center(
         child: Semantics(
-          label: 'Código de bolsa ${parte.codigoBolsa}, bolsa ${parte.parada} de $n',
+          label:
+              'Código de bolsa ${parte.codigoBolsa}, bolsa ${parte.parada} de $n',
           excludeSemantics: true,
           child: Column(
             children: [
               const Text('Código de bolsa', style: TextStyle(fontSize: 18)),
               Text(
-                '#${parte.codigoBolsa}',
+                'Bolsa del pedido',
                 style: const TextStyle(
                   fontSize: 40,
                   fontWeight: FontWeight.w900,
@@ -386,8 +445,13 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
                   letterSpacing: 2,
                 ),
               ),
-              Text('Bolsa ${parte.parada} de $n',
-                  style: const TextStyle(fontSize: 18, color: AppColors.textoSecundario)),
+              Text(
+                'Bolsa ${parte.parada} de $n',
+                style: const TextStyle(
+                  fontSize: 18,
+                  color: AppColors.textoSecundario,
+                ),
+              ),
             ],
           ),
         ),
@@ -397,7 +461,9 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
       for (final (id, texto) in items)
         CheckboxListTile(
           value: _enBolsa.contains(id),
-          onChanged: (v) => setState(() => v == true ? _enBolsa.add(id) : _enBolsa.remove(id)),
+          onChanged: (v) => setState(
+            () => v == true ? _enBolsa.add(id) : _enBolsa.remove(id),
+          ),
           title: Text(texto, style: const TextStyle(fontSize: 18)),
           controlAffinity: ListTileControlAffinity.leading,
           contentPadding: EdgeInsets.zero,
@@ -407,16 +473,20 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
         texto: 'Ya se lo entregué',
         cargando: _ocupado,
         onPressed: completo
-            ? () => _hacer(() => _repo.entregarARepartidor(parte.id),
-                exito: '¡Listo! Entregaste la bolsa ${parte.codigoBolsa}.')
+            ? () => _hacer(
+                () => _repo.entregarARepartidor(parte.id),
+                exito: '¡Listo! Entregaste la bolsa ${parte.codigoBolsa}.',
+              )
             : null,
       ),
       if (!completo)
         const Padding(
           padding: EdgeInsets.only(top: 8),
-          child: Text('Marca cada producto de la bolsa para poder entregarla.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 16, color: AppColors.textoSecundario)),
+          child: Text(
+            'Marca cada producto de la bolsa para poder entregarla.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 16, color: AppColors.textoSecundario),
+          ),
         ),
     ];
   }
@@ -451,12 +521,20 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
             children: [
               for (final d in cp.detalles)
                 FilaMonto(
-                  etiqueta: '${d.nombreFinal} · ${cantidadConUnidad(d.cantidadReal, _unidadDe(parte, d.pedidoDetalleId))}',
+                  etiqueta:
+                      '${d.nombreFinal} · ${cantidadConUnidad(d.cantidadReal, _unidadDe(parte, d.pedidoDetalleId))}',
                   monto: d.subtotal,
                 ),
               const Divider(color: AppColors.divisor),
-              FilaMonto(etiqueta: 'Precio final', monto: cp.bruto, destacado: true),
-              FilaMonto(etiqueta: 'Comisión MiMercado+ (5 %)', monto: cp.comision),
+              FilaMonto(
+                etiqueta: 'Precio final',
+                monto: cp.bruto,
+                destacado: true,
+              ),
+              FilaMonto(
+                etiqueta: 'Comisión MiMercado+ (5 %)',
+                monto: cp.comision,
+              ),
               FilaMonto(etiqueta: 'Recibes', monto: cp.neto),
             ],
           ),
@@ -476,8 +554,10 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Pedido compartido',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+          const Text(
+            'Pedido compartido',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+          ),
           const SizedBox(height: 6),
           for (final otro in p.puestos)
             if (otro.id != parte.id)
@@ -488,8 +568,10 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
                   runSpacing: 4,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    Text('${otro.parada}. ${otro.puesto.nombre}',
-                        style: const TextStyle(fontSize: 17)),
+                    Text(
+                      '${otro.parada}. ${otro.puesto.nombre}',
+                      style: const TextStyle(fontSize: 17),
+                    ),
                     etiquetaDePuesto(otro.estado),
                   ],
                 ),
@@ -501,7 +583,11 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
 }
 
 class _FilaRevisar extends StatelessWidget {
-  const _FilaRevisar({required this.detalle, required this.habilitado, required this.onTap});
+  const _FilaRevisar({
+    required this.detalle,
+    required this.habilitado,
+    required this.onTap,
+  });
 
   final PedidoDetalle detalle;
   final bool habilitado;
@@ -513,12 +599,16 @@ class _FilaRevisar extends StatelessWidget {
     final (icono, tipo) = switch (d) {
       Disponibilidad.pendiente => (Icons.help_outline, TipoEstado.neutro),
       Disponibilidad.disponible => (Icons.check_circle, TipoEstado.exito),
-      Disponibilidad.sinStock => (Icons.remove_shopping_cart_outlined, TipoEstado.error),
+      Disponibilidad.sinStock => (
+        Icons.remove_shopping_cart_outlined,
+        TipoEstado.error,
+      ),
       Disponibilidad.reemplazo => (Icons.swap_horiz, TipoEstado.aviso),
     };
     return Semantics(
       button: true,
-      label: '${detalle.nombre}, '
+      label:
+          '${detalle.nombre}, '
           '${cantidadConUnidad(detalle.cantidadSolicitada, detalle.unidad)}: ${d.etiqueta}. '
           'Toca para cambiar',
       excludeSemantics: true,
@@ -534,15 +624,34 @@ class _FilaRevisar extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(detalle.nombre,
-                        style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
-                    Text(cantidadConUnidad(detalle.cantidadSolicitada, detalle.unidad),
-                        style: const TextStyle(fontSize: 17, color: AppColors.textoSecundario)),
+                    Text(
+                      detalle.nombre,
+                      style: const TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    Text(
+                      cantidadConUnidad(
+                        detalle.cantidadSolicitada,
+                        detalle.unidad,
+                      ),
+                      style: const TextStyle(
+                        fontSize: 17,
+                        color: AppColors.textoSecundario,
+                      ),
+                    ),
                   ],
                 ),
               ),
               const SizedBox(width: 8),
-              Flexible(child: EtiquetaEstado(texto: d.etiqueta, icono: icono, tipo: tipo)),
+              Flexible(
+                child: EtiquetaEstado(
+                  texto: d.etiqueta,
+                  icono: icono,
+                  tipo: tipo,
+                ),
+              ),
             ],
           ),
         ),

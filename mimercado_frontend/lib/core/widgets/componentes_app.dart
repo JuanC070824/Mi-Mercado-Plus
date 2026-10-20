@@ -53,12 +53,12 @@ class EtiquetaEstado extends StatelessWidget {
   final TipoEstado tipo;
 
   (Color, Color) get _colores => switch (tipo) {
-        TipoEstado.exito => (AppColors.exitoTexto, AppColors.exitoFondo),
-        TipoEstado.aviso => (AppColors.aviso, AppColors.avisoFondo),
-        TipoEstado.info => (AppColors.azul, AppColors.azulClaro),
-        TipoEstado.error => (AppColors.error, AppColors.errorFondo),
-        TipoEstado.neutro => (AppColors.textoSecundario, AppColors.fondo),
-      };
+    TipoEstado.exito => (AppColors.exitoTexto, AppColors.exitoFondo),
+    TipoEstado.aviso => (AppColors.aviso, AppColors.avisoFondo),
+    TipoEstado.info => (AppColors.azul, AppColors.azulClaro),
+    TipoEstado.error => (AppColors.error, AppColors.errorFondo),
+    TipoEstado.neutro => (AppColors.textoSecundario, AppColors.fondo),
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -95,10 +95,16 @@ class EtiquetaEstado extends StatelessWidget {
 EtiquetaEstado etiquetaDePuesto(EstadoPedidoPuesto e) {
   final (icono, tipo) = switch (e) {
     EstadoPedidoPuesto.pendiente => (Icons.schedule, TipoEstado.neutro),
-    EstadoPedidoPuesto.aceptado => (Icons.thumb_up_alt_outlined, TipoEstado.info),
+    EstadoPedidoPuesto.aceptado => (
+      Icons.thumb_up_alt_outlined,
+      TipoEstado.info,
+    ),
     EstadoPedidoPuesto.pesando => (Icons.scale_outlined, TipoEstado.aviso),
     EstadoPedidoPuesto.pesado => (Icons.check_circle, TipoEstado.exito),
-    EstadoPedidoPuesto.enPreparacion => (Icons.inventory_2_outlined, TipoEstado.info),
+    EstadoPedidoPuesto.enPreparacion => (
+      Icons.inventory_2_outlined,
+      TipoEstado.info,
+    ),
     EstadoPedidoPuesto.listo => (Icons.shopping_bag_outlined, TipoEstado.exito),
     EstadoPedidoPuesto.recogido => (Icons.done_all, TipoEstado.exito),
     EstadoPedidoPuesto.rechazado => (Icons.block, TipoEstado.error),
@@ -113,7 +119,10 @@ EtiquetaEstado etiquetaDePedido(EstadoPedido e) {
     EstadoPedido.pendiente => (Icons.schedule, TipoEstado.neutro),
     EstadoPedido.enPreparacion => (Icons.scale_outlined, TipoEstado.aviso),
     EstadoPedido.esperandoConfirmacion => (Icons.price_check, TipoEstado.aviso),
-    EstadoPedido.listoParaRecojo => (Icons.shopping_bag_outlined, TipoEstado.info),
+    EstadoPedido.listoParaRecojo => (
+      Icons.shopping_bag_outlined,
+      TipoEstado.info,
+    ),
     EstadoPedido.enRecojo => (Icons.directions_walk, TipoEstado.info),
     EstadoPedido.enCamino => (Icons.delivery_dining, TipoEstado.info),
     EstadoPedido.entregado => (Icons.check_circle, TipoEstado.exito),
@@ -377,7 +386,10 @@ Future<bool> confirmar(
   final r = await showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
-      title: Text(titulo, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+      title: Text(
+        titulo,
+        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+      ),
       content: Text(texto, style: const TextStyle(fontSize: 18)),
       actionsOverflowDirection: VerticalDirection.down,
       actions: [

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'app_colors.dart';
 
-
 // EL TEMA GENERAL (FONDOS, TAMAÑOS DE TEXTO, ETC...)
 ThemeData buildAppTheme() {
   return ThemeData(

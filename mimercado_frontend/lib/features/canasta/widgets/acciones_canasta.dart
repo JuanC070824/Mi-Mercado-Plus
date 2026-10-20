@@ -5,7 +5,11 @@ import '../../../data/models/pedido.dart';
 import '../../../data/models/puesto.dart';
 import '../../../data/models/usuario.dart';
 import '../../../data/repositories/canasta_repository.dart';
+import '../../../data/repositories/canasta_api_repository.dart';
+import '../../../data/repositories/repositorios_app.dart';
 import '../../../data/repositories/pedido_repository.dart';
+import '../../../data/repositories/pedido_cliente_api_repository.dart';
+import '../../../core/config/api_config.dart';
 
 /// Ejecuta un cambio en la canasta mostrando el error al usuario si falla.
 /// Si la canasta es de otro mercado, pregunta antes de vaciarla.
@@ -15,13 +19,14 @@ Future<bool> cambiarCanasta(
   Puesto puesto,
   Future<Object?> Function() accion,
 ) async {
-  final repo = CanastaRepositoryMock.instancia;
+  final repo = canastaApp;
   final actual = repo.canasta.value;
   if (actual.mercadoId != null && actual.mercadoId != puesto.mercadoId) {
     final seguir = await confirmar(
       context,
       titulo: '¿Empezar una canasta nueva?',
-      texto: 'Tu canasta tiene productos de otro mercado y un repartidor solo '
+      texto:
+          'Tu canasta tiene productos de otro mercado y un repartidor solo '
           'recoge en un mercado. Si sigues, vaciamos tu canasta y empiezas aquí.',
       textoSi: 'Vaciar y seguir',
     );
@@ -44,8 +49,19 @@ Future<Pedido> enviarPedido({
   required Direccion direccion,
   required MetodoPago metodo,
 }) async {
-  final repoCanasta = CanastaRepositoryMock.instancia;
+  final repoCanasta = canastaApp;
   final canasta = repoCanasta.canasta.value;
+  if (ApiConfig.configurada) {
+    final pedido = await PedidoClienteApiRepository.instancia.crear(
+      canasta: canasta,
+      direccion: direccion,
+      metodo: metodo,
+      clienteNombre: usuario.nombres,
+      celular: usuario.celular,
+    );
+    if (repoCanasta is CanastaApiRepository) await repoCanasta.cargar();
+    return pedido;
+  }
   final pedido = await PedidoRepositoryMock.instancia.crearPedido(
     clienteNombre: usuario.nombres,
     clienteCelular: usuario.celular,

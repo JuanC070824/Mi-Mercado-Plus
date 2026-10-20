@@ -74,7 +74,9 @@ class _CampoTextoAppState extends State<CampoTextoApp> {
             tooltip: _oculto ? 'Mostrar contraseña' : 'Ocultar contraseña',
             constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
             icon: Icon(
-              _oculto ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+              _oculto
+                  ? Icons.visibility_outlined
+                  : Icons.visibility_off_outlined,
               color: AppColors.azul,
             ),
             onPressed: () => setState(() => _oculto = !_oculto),
@@ -139,8 +141,10 @@ class _CampoTextoAppState extends State<CampoTextoApp> {
                 ? null
                 : Icon(widget.icono, color: AppColors.azul),
             suffixIcon: sufijo,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 18,
+            ),
             enabledBorder: _borde(AppColors.azul),
             focusedBorder: _borde(AppColors.azul, 3),
             errorBorder: _borde(AppColors.error),

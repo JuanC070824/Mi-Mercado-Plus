@@ -17,7 +17,8 @@ class EncabezadoSimple extends StatelessWidget {
   final String titulo;
   final String? subtitulo;
   final bool mostrarAtras;
-  final VoidCallback? alVolver; // por defecto: pop, o Inicio si no hay a dónde volver
+  final VoidCallback?
+  alVolver; // por defecto: pop, o Inicio si no hay a dónde volver
 
   @override
   Widget build(BuildContext context) {
@@ -35,9 +36,13 @@ class EncabezadoSimple extends StatelessWidget {
                 IconButton(
                   tooltip: 'Volver',
                   iconSize: 28,
-                  constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                  constraints: const BoxConstraints(
+                    minWidth: 48,
+                    minHeight: 48,
+                  ),
                   icon: const Icon(Icons.arrow_back, color: AppColors.blanco),
-                  onPressed: alVolver ??
+                  onPressed:
+                      alVolver ??
                       () => context.canPop() ? context.pop() : context.go('/'),
                 )
               else

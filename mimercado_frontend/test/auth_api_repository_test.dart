@@ -140,4 +140,47 @@ void main() {
     expect(resultado.usuario?.apellidoPaterno, 'Quispe');
     expect(SesionState.token, 'token-registro');
   });
+
+  test('cambiar celular envía la contraseña actual al backend', () async {
+    SesionState.iniciar(token: 'token-perfil', expiresIn: 3600);
+    final client = MockClient((request) async {
+      expect(request.url.toString(), 'https://api.example.test/api/auth/me/');
+      expect(request.method, 'PATCH');
+      expect(request.headers['Authorization'], 'Bearer token-perfil');
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      expect(body['celular'], '900000022');
+      expect(body['password_actual'], 'ClaveSegura!42');
+      return http.Response(
+        jsonEncode({
+          'id': 2,
+          'nombres': 'Rosa',
+          'celular': '900000022',
+          'correo': 'rosa@example.test',
+          'roles': ['vendedor'],
+          'puesto_id': 7,
+          'mercado_id': 3,
+          'sonido': true,
+          'vibracion': true,
+        }),
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    });
+    final repo = AuthApiRepository(
+      client: client,
+      baseUrl: 'https://api.example.test',
+    );
+
+    final resultado = await repo.actualizarPerfil(
+      celularActual: '900000011',
+      celular: '900000022',
+      correo: 'rosa@example.test',
+      passwordActual: 'ClaveSegura!42',
+    );
+
+    expect(resultado.exito, isTrue);
+    expect(resultado.usuario?.celular, '900000022');
+    expect(resultado.usuario?.rol, Rol.comerciante);
+    expect(resultado.usuario?.puestoId, 7);
+  });
 }

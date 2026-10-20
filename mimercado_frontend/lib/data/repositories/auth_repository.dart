@@ -42,6 +42,7 @@ abstract class AuthRepository implements LoginRepository, RegistroRepository {
     required String celular,
     String? correo,
     Direccion? direccion,
+    String? passwordActual,
   });
 
   /// Guarda las preferencias de la cuenta (usuarios.sonido / usuarios.vibracion).
@@ -193,6 +194,7 @@ class AuthRepositoryMock implements AuthRepository {
     required String celular,
     String? correo,
     Direccion? direccion,
+    String? passwordActual,
   }) async {
     await Future.delayed(const Duration(milliseconds: 700));
     final c = _porCelular[celularActual];

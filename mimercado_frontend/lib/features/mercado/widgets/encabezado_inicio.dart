@@ -54,7 +54,9 @@ class EncabezadoInicio extends StatelessWidget {
                             Text(
                               'Soporte',
                               style: TextStyle(
-                                  fontSize: 18, fontWeight: FontWeight.w700),
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                             SizedBox(width: 8),
                             Icon(Icons.headset_mic_outlined, size: 26),
@@ -109,10 +111,15 @@ class EncabezadoInicio extends StatelessWidget {
                       return TextField(
                         controller: controlador,
                         readOnly: busquedaBloqueada,
-                        onTap: busquedaBloqueada ? onTapBusquedaBloqueada : null,
+                        onTap: busquedaBloqueada
+                            ? onTapBusquedaBloqueada
+                            : null,
                         onChanged: onCambio,
                         textInputAction: TextInputAction.search,
-                        style: const TextStyle(fontSize: 20, color: AppColors.texto),
+                        style: const TextStyle(
+                          fontSize: 20,
+                          color: AppColors.texto,
+                        ),
                         decoration: InputDecoration(
                           hintText: 'Busca a tu casero',
                           hintStyle: const TextStyle(
@@ -132,7 +139,9 @@ class EncabezadoInicio extends StatelessWidget {
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(32),
                             borderSide: const BorderSide(
-                              color: Color(0xFFFFD166), // anillo de foco visible sobre el azul
+                              color: Color(
+                                0xFFFFD166,
+                              ), // anillo de foco visible sobre el azul
                               width: 3,
                             ),
                           ),
@@ -143,16 +152,26 @@ class EncabezadoInicio extends StatelessWidget {
                                 IconButton(
                                   tooltip: 'Borrar búsqueda',
                                   constraints: const BoxConstraints(
-                                      minWidth: 48, minHeight: 48),
-                                  icon: const Icon(Icons.close, color: AppColors.azul),
+                                    minWidth: 48,
+                                    minHeight: 48,
+                                  ),
+                                  icon: const Icon(
+                                    Icons.close,
+                                    color: AppColors.azul,
+                                  ),
                                   onPressed: onLimpiar,
                                 ),
                               IconButton(
                                 tooltip: 'Buscar por voz',
                                 constraints: const BoxConstraints(
-                                    minWidth: 48, minHeight: 48),
-                                icon: const Icon(Icons.mic,
-                                    size: 28, color: AppColors.azul),
+                                  minWidth: 48,
+                                  minHeight: 48,
+                                ),
+                                icon: const Icon(
+                                  Icons.mic,
+                                  size: 28,
+                                  color: AppColors.azul,
+                                ),
                                 onPressed: onVoz,
                               ),
                             ],
@@ -222,8 +241,11 @@ class _BotonLetra extends StatelessWidget {
                       ),
                       if (grande) ...[
                         const SizedBox(width: 6),
-                        const Icon(Icons.check_circle,
-                            color: AppColors.azul, size: 22),
+                        const Icon(
+                          Icons.check_circle,
+                          color: AppColors.azul,
+                          size: 22,
+                        ),
                       ],
                     ],
                   ),

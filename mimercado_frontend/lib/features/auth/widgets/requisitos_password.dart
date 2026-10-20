@@ -4,8 +4,6 @@ import '../../../core/utils/validators.dart';
 
 //ESTOS WIDGETS SOLO LOS USA LA CARPETA AUTH, NO SON COMO LOS QUE SE VEN EN LA CARPETA CORE QUE ES GENERAL
 
-
-
 class RequisitosPassword extends StatelessWidget {
   const RequisitosPassword({super.key, required this.controller});
   final TextEditingController controller;

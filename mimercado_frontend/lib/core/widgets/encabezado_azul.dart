@@ -32,9 +32,14 @@ class EncabezadoAzul extends StatelessWidget {
                     IconButton(
                       tooltip: 'Volver',
                       iconSize: 28,
-                      constraints:
-                          const BoxConstraints(minWidth: 48, minHeight: 48),
-                      icon: const Icon(Icons.arrow_back, color: AppColors.blanco),
+                      constraints: const BoxConstraints(
+                        minWidth: 48,
+                        minHeight: 48,
+                      ),
+                      icon: const Icon(
+                        Icons.arrow_back,
+                        color: AppColors.blanco,
+                      ),
                       onPressed: () =>
                           context.canPop() ? context.pop() : context.go('/'),
                     )
@@ -43,9 +48,13 @@ class EncabezadoAzul extends StatelessWidget {
                   const Spacer(),
                   TextButton.icon(
                     onPressed: () => mostrarSoporte(context),
-                    style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
-                    icon: const Icon(Icons.headset_mic_outlined,
-                        color: AppColors.blanco),
+                    style: TextButton.styleFrom(
+                      minimumSize: const Size(48, 48),
+                    ),
+                    icon: const Icon(
+                      Icons.headset_mic_outlined,
+                      color: AppColors.blanco,
+                    ),
                     label: const Text(
                       'Soporte',
                       style: TextStyle(
@@ -64,7 +73,10 @@ class EncabezadoAzul extends StatelessWidget {
                 child: Padding(
                   padding: const EdgeInsets.all(4),
                   child: Transform.translate(
-                    offset: const Offset(-2.5, 0),   // (derecha/izquierda, abajo/arriba)
+                    offset: const Offset(
+                      -2.5,
+                      0,
+                    ), // (derecha/izquierda, abajo/arriba)
                     child: Transform.scale(
                       scale: 1.6,
                       child: Image.asset(

@@ -10,7 +10,11 @@ Future<void> mostrarSoporte(BuildContext context) {
   return showDialog<void>(
     context: context,
     builder: (ctx) => AlertDialog(
-      icon: const Icon(Icons.headset_mic_outlined, size: 40, color: AppColors.azul),
+      icon: const Icon(
+        Icons.headset_mic_outlined,
+        size: 40,
+        color: AppColors.azul,
+      ),
       title: const Text(
         '¿Necesitas ayuda?',
         textAlign: TextAlign.center,

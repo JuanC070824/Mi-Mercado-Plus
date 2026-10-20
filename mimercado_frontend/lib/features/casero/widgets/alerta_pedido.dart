@@ -6,6 +6,7 @@ import '../../../core/widgets/componentes_app.dart';
 import '../../../data/models/pedido.dart';
 import '../../../data/models/usuario.dart';
 import '../../../data/repositories/pedido_repository.dart';
+import '../../../data/repositories/pedidos_vendedor_api_repository.dart';
 import '../../canasta/widgets/opcion_elegible.dart';
 
 /// Texto del aviso de pedido compartido: con qué otros puestos y en qué orden recoge.
@@ -54,12 +55,20 @@ class ListaProductosParte extends StatelessWidget {
                       Icon(Icons.edit_note, color: AppColors.aviso),
                       SizedBox(width: 6),
                       Flexible(
-                        child: Text('Lista de mandado',
-                            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+                        child: Text(
+                          'Lista de mandado',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
                       ),
                     ],
                   ),
-                  Text(parte.listaMandado!, style: const TextStyle(fontSize: 18)),
+                  Text(
+                    parte.listaMandado!,
+                    style: const TextStyle(fontSize: 18),
+                  ),
                 ],
               ),
             ),
@@ -86,7 +95,11 @@ Future<bool?> mostrarNuevoPedido(
     context: context,
     barrierDismissible: false,
     builder: (ctx) => AlertDialog(
-      icon: const Icon(Icons.notifications_active, size: 48, color: AppColors.azul),
+      icon: const Icon(
+        Icons.notifications_active,
+        size: 48,
+        color: AppColors.azul,
+      ),
       title: Semantics(
         liveRegion: true,
         child: const Text(
@@ -101,7 +114,7 @@ Future<bool?> mostrarNuevoPedido(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '#${pedido.codigoCorto} · ${pedido.clienteNombre}',
+              'Pedido de ${pedido.clienteNombre}',
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
@@ -135,8 +148,10 @@ Future<bool?> mostrarNuevoPedido(
             ),
             onPressed: () => Navigator.of(ctx).pop(true),
             icon: const Icon(Icons.check),
-            label: const Text('Aceptar pedido',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+            label: const Text(
+              'Aceptar pedido',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+            ),
           ),
         ),
         SizedBox(
@@ -188,14 +203,18 @@ Future<MotivoRechazo?> elegirMotivoRechazo(BuildContext context) {
                 const SizedBox(height: 4),
                 const Text(
                   'Le avisamos al cliente para que lo pida en otro puesto.',
-                  style: TextStyle(fontSize: 17, color: AppColors.textoSecundario),
+                  style: TextStyle(
+                    fontSize: 17,
+                    color: AppColors.textoSecundario,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 for (final m in MotivoRechazo.values) ...[
                   OpcionElegible(
                     titulo: m.etiqueta,
                     icono: switch (m) {
-                      MotivoRechazo.faltaStock => Icons.remove_shopping_cart_outlined,
+                      MotivoRechazo.faltaStock =>
+                        Icons.remove_shopping_cart_outlined,
                       MotivoRechazo.cerrando => Icons.lock_clock,
                       MotivoRechazo.muchosPedidos => Icons.hourglass_bottom,
                     },
@@ -211,15 +230,21 @@ Future<MotivoRechazo?> elegirMotivoRechazo(BuildContext context) {
                     minimumSize: const Size(48, 56),
                     shape: const StadiumBorder(),
                   ),
-                  onPressed:
-                      elegido == null ? null : () => Navigator.of(ctx).pop(elegido),
-                  child: const Text('Sí, rechazar pedido',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+                  onPressed: elegido == null
+                      ? null
+                      : () => Navigator.of(ctx).pop(elegido),
+                  child: const Text(
+                    'Sí, rechazar pedido',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                  ),
                 ),
                 TextButton(
                   style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
                   onPressed: () => Navigator.of(ctx).pop(),
-                  child: const Text('No, volver', style: TextStyle(fontSize: 18)),
+                  child: const Text(
+                    'No, volver',
+                    style: TextStyle(fontSize: 18),
+                  ),
                 ),
               ],
             ),
@@ -231,12 +256,18 @@ Future<MotivoRechazo?> elegirMotivoRechazo(BuildContext context) {
 }
 
 /// Pide el motivo y rechaza. Devuelve true si se rechazó.
-Future<bool> rechazarConMotivo(BuildContext context, PedidoPuesto parte) async {
+Future<bool> rechazarConMotivo(
+  BuildContext context,
+  PedidoPuesto parte, {
+  PedidosVendedorApiRepository? repository,
+}) async {
   final motivo = await elegirMotivoRechazo(context);
   if (motivo == null) return false;
   try {
-    await PedidoRepositoryMock.instancia.rechazarSubpedido(parte.id, motivo.etiqueta);
-    if (context.mounted) avisar(context, 'Rechazaste el pedido. Le avisamos al cliente.');
+    await (repository ?? PedidosVendedorApiRepository.instancia)
+        .rechazarSubpedido(parte.id, motivo.etiqueta);
+    if (context.mounted)
+      avisar(context, 'Rechazaste el pedido. Le avisamos al cliente.');
     return true;
   } on PedidoException catch (e) {
     if (context.mounted) avisar(context, e.mensaje);

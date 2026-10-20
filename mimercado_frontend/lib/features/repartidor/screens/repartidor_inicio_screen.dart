@@ -34,7 +34,8 @@ class _RepartidorInicioScreenState extends State<RepartidorInicioScreen> {
   bool _cargando = true;
   int? _aceptando;
 
-  Repartidor? get _yo => PedidoRepositoryMock.repartidorPorCelular(widget.usuario.celular);
+  Repartidor? get _yo =>
+      PedidoRepositoryMock.repartidorPorCelular(widget.usuario.celular);
   int get _mercadoId => widget.usuario.mercadoId ?? _yo?.mercadoId ?? 1;
 
   @override
@@ -89,7 +90,11 @@ class _RepartidorInicioScreenState extends State<RepartidorInicioScreen> {
     return Scaffold(
       body: Column(
         children: [
-          EncabezadoSimple(titulo: '¡Hola, $nombre!', subtitulo: _mercado, mostrarAtras: false),
+          EncabezadoSimple(
+            titulo: '¡Hola, $nombre!',
+            subtitulo: _mercado,
+            mostrarAtras: false,
+          ),
           Expanded(
             child: _cargando
                 ? const CargandoApp()
@@ -119,12 +124,21 @@ class _RepartidorInicioScreenState extends State<RepartidorInicioScreen> {
               secondary: Icon(
                 _disponible ? Icons.check_circle : Icons.pause_circle_outline,
                 size: 32,
-                color: _disponible ? AppColors.exitoTexto : AppColors.textoSecundario,
+                color: _disponible
+                    ? AppColors.exitoTexto
+                    : AppColors.textoSecundario,
               ),
-              title: Text(_disponible ? 'Disponible' : 'No disponible',
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+              title: Text(
+                _disponible ? 'Disponible' : 'No disponible',
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
               subtitle: Text(
-                _disponible ? 'Te llegan pedidos de tu mercado' : 'No te llegarán pedidos',
+                _disponible
+                    ? 'Te llegan pedidos de tu mercado'
+                    : 'No te llegarán pedidos',
                 style: const TextStyle(fontSize: 16),
               ),
             ),
@@ -133,9 +147,21 @@ class _RepartidorInicioScreenState extends State<RepartidorInicioScreen> {
         const SizedBox(height: 16),
         Row(
           children: [
-            Expanded(child: _Dato(icono: Icons.done_all, valor: '${_hoy.length}', texto: 'entregas hoy')),
+            Expanded(
+              child: _Dato(
+                icono: Icons.done_all,
+                valor: '${_hoy.length}',
+                texto: 'entregas hoy',
+              ),
+            ),
             const SizedBox(width: 12),
-            Expanded(child: _Dato(icono: Icons.payments_outlined, valor: soles(ganado), texto: 'ganado hoy')),
+            Expanded(
+              child: _Dato(
+                icono: Icons.payments_outlined,
+                valor: soles(ganado),
+                texto: 'ganado hoy',
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 12),
@@ -144,7 +170,9 @@ class _RepartidorInicioScreenState extends State<RepartidorInicioScreen> {
             child: Row(
               children: [
                 Icon(
-                  yo.movilidad == Movilidad.carretilla ? Icons.shopping_cart_outlined : Icons.electric_rickshaw,
+                  yo.movilidad == Movilidad.carretilla
+                      ? Icons.shopping_cart_outlined
+                      : Icons.electric_rickshaw,
                   color: AppColors.azul,
                   size: 32,
                 ),
@@ -155,12 +183,24 @@ class _RepartidorInicioScreenState extends State<RepartidorInicioScreen> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Movilidad registrada',
-                            style: TextStyle(fontSize: 16, color: AppColors.textoSecundario)),
-                        Text(yo.movilidadTexto,
-                            style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
-                        Text('★ ${yo.calificacion.toStringAsFixed(1)} · Autorizado en ${_mercado ?? 'tu mercado'}',
-                            style: const TextStyle(fontSize: 16)),
+                        const Text(
+                          'Movilidad registrada',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: AppColors.textoSecundario,
+                          ),
+                        ),
+                        Text(
+                          yo.movilidadTexto,
+                          style: const TextStyle(
+                            fontSize: 19,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        Text(
+                          '★ ${yo.calificacion.toStringAsFixed(1)} · Autorizado en ${_mercado ?? 'tu mercado'}',
+                          style: const TextStyle(fontSize: 16),
+                        ),
                       ],
                     ),
                   ),
@@ -176,10 +216,18 @@ class _RepartidorInicioScreenState extends State<RepartidorInicioScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Tienes la entrega #${_enCurso!.codigoCorto} en curso',
-                    style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
+                Text(
+                  'Tienes la entrega #${_enCurso!.codigoCorto} en curso',
+                  style: const TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
                 const SizedBox(height: 8),
-                BotonPrincipal(texto: 'Ir a mi ruta', onPressed: () => context.go('/repartidor/ruta')),
+                BotonPrincipal(
+                  texto: 'Ir a mi ruta',
+                  onPressed: () => context.go('/repartidor/ruta'),
+                ),
               ],
             ),
           ),
@@ -194,8 +242,10 @@ class _RepartidorInicioScreenState extends State<RepartidorInicioScreen> {
           const SizedBox(height: 8),
           if (_paraRecoger.isEmpty)
             const TarjetaApp(
-              child: Text('Por ahora no hay pedidos listos. Te avisamos cuando haya uno.',
-                  style: TextStyle(fontSize: 18)),
+              child: Text(
+                'Por ahora no hay pedidos listos. Te avisamos cuando haya uno.',
+                style: TextStyle(fontSize: 18),
+              ),
             ),
           for (final p in _paraRecoger) ...[
             _TarjetaPedido(
@@ -219,23 +269,36 @@ class _Dato extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MergeSemantics(
-        child: TarjetaApp(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(icono, color: AppColors.azul, size: 28),
-              Text(valor, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
-              Text(texto, style: const TextStyle(fontSize: 16, color: AppColors.textoSecundario)),
-            ],
+    child: TarjetaApp(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icono, color: AppColors.azul, size: 28),
+          Text(
+            valor,
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
           ),
-        ),
-      );
+          Text(
+            texto,
+            style: const TextStyle(
+              fontSize: 16,
+              color: AppColors.textoSecundario,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 /// R1b · Pedido para recoger: puestos en orden, dirección y ganancia.
 class _TarjetaPedido extends StatelessWidget {
-  const _TarjetaPedido({required this.pedido, required this.cargando, required this.onAceptar});
+  const _TarjetaPedido({
+    required this.pedido,
+    required this.cargando,
+    required this.onAceptar,
+  });
   final Pedido pedido;
   final bool cargando;
   final VoidCallback? onAceptar;
@@ -248,29 +311,44 @@ class _TarjetaPedido extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('#${pedido.codigoCorto} · recojo en ${puestos.length} '
-              '${puestos.length == 1 ? 'puesto' : 'puestos'}',
-              style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
+          Text(
+            '#${pedido.codigoCorto} · recojo en ${puestos.length} '
+            '${puestos.length == 1 ? 'puesto' : 'puestos'}',
+            style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
+          ),
           const SizedBox(height: 4),
           for (final pp in puestos)
-            Text('${pp.parada}. ${pp.puesto.nombre}', style: const TextStyle(fontSize: 17)),
+            Text(
+              '${pp.parada}. ${pp.puesto.nombre}',
+              style: const TextStyle(fontSize: 17),
+            ),
           const SizedBox(height: 4),
-          Text('Entregar en: ${pedido.direccion}',
-              style: const TextStyle(fontSize: 17, color: AppColors.textoSecundario)),
+          Text(
+            'Entregar en: ${pedido.direccion}',
+            style: const TextStyle(
+              fontSize: 17,
+              color: AppColors.textoSecundario,
+            ),
+          ),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: [
               EtiquetaEstado(
-                  texto: 'Ganas ${soles(pedido.costoEnvio)}',
-                  icono: Icons.payments_outlined,
-                  tipo: TipoEstado.exito),
+                texto: 'Ganas ${soles(pedido.costoEnvio)}',
+                icono: Icons.payments_outlined,
+                tipo: TipoEstado.exito,
+              ),
               etiquetaDePedido(pedido.estado),
             ],
           ),
           const SizedBox(height: 12),
-          BotonPrincipal(texto: 'Aceptar pedido', cargando: cargando, onPressed: onAceptar),
+          BotonPrincipal(
+            texto: 'Aceptar pedido',
+            cargando: cargando,
+            onPressed: onAceptar,
+          ),
         ],
       ),
     );

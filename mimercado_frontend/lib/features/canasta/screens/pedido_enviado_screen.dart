@@ -25,8 +25,12 @@ class PedidoEnviadoScreen extends StatelessWidget {
               children: [
                 const PasosCompra(paso: 3),
                 const SizedBox(height: 32),
-                const Icon(Icons.check_circle,
-                    size: 110, color: AppColors.exitoTexto, semanticLabel: 'Hecho'),
+                const Icon(
+                  Icons.check_circle,
+                  size: 110,
+                  color: AppColors.exitoTexto,
+                  semanticLabel: 'Hecho',
+                ),
                 const SizedBox(height: 16),
                 Semantics(
                   liveRegion: true,
@@ -41,7 +45,7 @@ class PedidoEnviadoScreen extends StatelessWidget {
                   p == null
                       ? 'Tus caseros ya recibieron tu pedido.'
                       : 'Tu pedido #${p.codigoCorto} ya llegó a tus caseros. '
-                          'Te avisamos cuando pesen y tengan el precio final.',
+                            'Te avisamos cuando pesen y tengan el precio final.',
                   textAlign: TextAlign.center,
                   style: const TextStyle(fontSize: 18),
                 ),
@@ -51,7 +55,9 @@ class PedidoEnviadoScreen extends StatelessWidget {
                     'Total estimado: ${soles(p.totalEstimado)} · ${p.metodoPago.etiqueta}',
                     textAlign: TextAlign.center,
                     style: const TextStyle(
-                        fontSize: 18, color: AppColors.textoSecundario),
+                      fontSize: 18,
+                      color: AppColors.textoSecundario,
+                    ),
                   ),
                 ],
                 const SizedBox(height: 32),

@@ -8,6 +8,7 @@ import '../../../core/widgets/control_cantidad.dart';
 import '../../../core/widgets/encabezado_simple.dart';
 import '../../../data/models/canasta.dart';
 import '../../../data/repositories/canasta_repository.dart';
+import '../../../data/repositories/repositorios_app.dart';
 import '../widgets/acciones_canasta.dart';
 import '../widgets/pasos_compra.dart';
 
@@ -20,10 +21,13 @@ class CanastaScreen extends StatefulWidget {
 }
 
 class _CanastaScreenState extends State<CanastaScreen> {
-  final CanastaRepository _repo = CanastaRepositoryMock.instancia;
+  final CanastaRepository _repo = canastaApp;
   bool _ocupado = false;
 
-  Future<void> _cambiar(GrupoPuesto g, Future<Object?> Function() accion) async {
+  Future<void> _cambiar(
+    GrupoPuesto g,
+    Future<Object?> Function() accion,
+  ) async {
     if (_ocupado) return;
     setState(() => _ocupado = true);
     await cambiarCanasta(context, g.puesto, accion);
@@ -48,8 +52,12 @@ class _CanastaScreenState extends State<CanastaScreen> {
     try {
       await _repo.guardarListaMandado(g.puesto.id, texto);
       if (mounted) {
-        avisar(context,
-            texto.trim().isEmpty ? 'Borraste la lista de mandado.' : 'Lista de mandado guardada.');
+        avisar(
+          context,
+          texto.trim().isEmpty
+              ? 'Borraste la lista de mandado.'
+              : 'Lista de mandado guardada.',
+        );
       }
     } on CanastaException catch (e) {
       if (mounted) avisar(context, e.mensaje);
@@ -103,7 +111,8 @@ class _CanastaScreenState extends State<CanastaScreen> {
           _GrupoPuesto(
             grupo: g,
             habilitado: !_ocupado,
-            onSumar: (it) => _cambiar(g, () => _repo.agregar(g.puesto, it.producto)),
+            onSumar: (it) =>
+                _cambiar(g, () => _repo.agregar(g.puesto, it.producto)),
             onRestar: (it) => _cambiar(g, () => _repo.restar(it.producto)),
             onQuitar: (it) => _cambiar(g, () => _repo.quitar(it.producto.id)),
             onLista: () => _editarLista(g),
@@ -195,22 +204,33 @@ class _GrupoPuesto extends StatelessWidget {
         children: [
           Semantics(
             header: true,
-            label: 'Puesto ${grupo.puesto.nombre}, $n '
+            label:
+                'Puesto ${grupo.puesto.nombre}, $n '
                 '${n == 1 ? 'producto' : 'productos'}, subtotal ${soles(grupo.subtotal)}',
             excludeSemantics: true,
             child: Row(
               children: [
-                const Icon(Icons.storefront_rounded, color: AppColors.azul, size: 28),
+                const Icon(
+                  Icons.storefront_rounded,
+                  color: AppColors.azul,
+                  size: 28,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     grupo.puesto.nombre,
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
                 Text(
                   soles(grupo.subtotal),
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ],
             ),
@@ -226,7 +246,10 @@ class _GrupoPuesto extends StatelessWidget {
                       children: [
                         Text(
                           it.producto.nombre,
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                         Text(
                           soles(it.subtotal),
@@ -241,9 +264,15 @@ class _GrupoPuesto extends StatelessWidget {
                 ),
                 IconButton(
                   tooltip: 'Quitar ${it.producto.nombre}',
-                  constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                  constraints: const BoxConstraints(
+                    minWidth: 48,
+                    minHeight: 48,
+                  ),
                   onPressed: habilitado ? () => onQuitar(it) : null,
-                  icon: const Icon(Icons.delete_outline, color: AppColors.error),
+                  icon: const Icon(
+                    Icons.delete_outline,
+                    color: AppColors.error,
+                  ),
                 ),
               ],
             ),
@@ -274,25 +303,36 @@ class _GrupoPuesto extends StatelessWidget {
                     Flexible(
                       child: Text(
                         'Lista de mandado',
-                        style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  lista ?? '¿Algo que no está en la lista? Pídeselo al casero aquí.',
+                  lista ??
+                      '¿Algo que no está en la lista? Pídeselo al casero aquí.',
                   style: TextStyle(
                     fontSize: 17,
-                    color: lista == null ? AppColors.textoSecundario : AppColors.texto,
+                    color: lista == null
+                        ? AppColors.textoSecundario
+                        : AppColors.texto,
                   ),
                 ),
                 TextButton(
                   onPressed: onLista,
                   style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
                   child: Text(
-                    lista == null ? 'Escribir lista de mandado' : 'Cambiar lista',
-                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                    lista == null
+                        ? 'Escribir lista de mandado'
+                        : 'Cambiar lista',
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ],
@@ -322,7 +362,11 @@ Future<String?> mostrarListaMandado(BuildContext context, GrupoPuesto g) {
     isScrollControlled: true,
     builder: (ctx) => Padding(
       padding: EdgeInsets.fromLTRB(
-          16, 16, 16, 16 + MediaQuery.of(ctx).viewInsets.bottom),
+        16,
+        16,
+        16,
+        16 + MediaQuery.of(ctx).viewInsets.bottom,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -342,7 +386,7 @@ Future<String?> mostrarListaMandado(BuildContext context, GrupoPuesto g) {
             autofocus: true,
             minLines: 3,
             maxLines: 5,
-            maxLength: CanastaRepositoryMock.maxListaMandado,
+            maxLength: 300,
             textCapitalization: TextCapitalization.sentences,
             style: const TextStyle(fontSize: 18),
             decoration: const InputDecoration(
