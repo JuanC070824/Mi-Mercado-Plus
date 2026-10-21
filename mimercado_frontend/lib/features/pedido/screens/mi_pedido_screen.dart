@@ -1,4 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../../core/config/api_config.dart';
+import '../../../data/repositories/pedidos_api_repository.dart';
+import '../widgets/pago_yape_simulado.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/formato.dart';
@@ -25,7 +29,9 @@ class MiPedidoScreen extends StatefulWidget {
 }
 
 class _MiPedidoScreenState extends State<MiPedidoScreen> {
-  final PedidoRepository _repo = PedidoRepositoryMock.instancia;
+  final PedidoRepository _repo = pedidosApp;
+  Timer? _refresco;
+  bool _consultando = false;
 
   /// Pedidos cuya hoja de precio final ya se abrió sola (no repetirla).
   static final Set<int> _precioMostrado = {};
@@ -44,16 +50,31 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
   void initState() {
     super.initState();
     _repo.cambios.addListener(_cargar);
+    if (ApiConfig.configurada) {
+      _refresco = Timer.periodic(const Duration(seconds: 10), (_) {
+        if (mounted &&
+            TickerMode.valuesOf(context).enabled &&
+            (ModalRoute.of(context)?.isCurrent ?? false) &&
+            (WidgetsBinding.instance.lifecycleState == null ||
+                WidgetsBinding.instance.lifecycleState ==
+                    AppLifecycleState.resumed)) {
+          _cargar();
+        }
+      });
+    }
     _cargar();
   }
 
   @override
   void dispose() {
     _repo.cambios.removeListener(_cargar);
+    _refresco?.cancel();
     super.dispose();
   }
 
   Future<void> _cargar() async {
+    if (_consultando) return;
+    _consultando = true;
     try {
       final cel = widget.usuario.celular;
       final p =
@@ -74,6 +95,8 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
         _cargando = false;
         _error = 'No pudimos cargar tu pedido. Inténtalo de nuevo.';
       });
+    } finally {
+      _consultando = false;
     }
   }
 
@@ -95,14 +118,10 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final p = _pedido;
     return Scaffold(
       body: Column(
         children: [
-          EncabezadoSimple(
-            titulo: p == null ? 'Mi pedido' : 'Mi pedido #${p.codigoCorto}',
-            mostrarAtras: false,
-          ),
+          const EncabezadoSimple(titulo: 'Mi pedido', mostrarAtras: false),
           Expanded(child: _cuerpo()),
         ],
       ),
@@ -128,7 +147,8 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
     final llego =
         p.estado == EstadoPedido.enCamino &&
         p.historial.isNotEmpty &&
-        p.historial.last.texto == 'El repartidor llegó a tu puerta';
+        (p.historial.last.texto == 'El repartidor llegó a tu puerta' ||
+            p.historial.last.texto == 'El repartidor llegó a tu dirección.');
     return RefreshIndicator(
       onRefresh: _cargar,
       child: ListView(
@@ -139,6 +159,12 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
             const SizedBox(height: 16),
           ], // C7b
           ..._ahora(p),
+          if (ApiConfig.configurada &&
+              aceptado &&
+              p.metodoPago == MetodoPago.yape) ...[
+            const SizedBox(height: 16),
+            PagoYapeSimulado(pedido: p, usuario: widget.usuario),
+          ],
           const SizedBox(height: 20),
           if (p.estado == EstadoPedido.enCamino)
             ..._enCamino(p) // C7
@@ -240,7 +266,9 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
                             style: const TextStyle(fontSize: 17),
                           ),
                           Text(
-                            '★ ${r.calificacion.toStringAsFixed(1)}',
+                            r.calificacion > 0
+                                ? '★ ${r.calificacion.toStringAsFixed(1)}'
+                                : 'Repartidor de tu mercado',
                             style: const TextStyle(
                               fontSize: 16,
                               color: AppColors.textoSecundario,
@@ -337,19 +365,22 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Llega en unos 8 minutos',
+            Text(
+              ApiConfig.configurada
+                  ? 'Tu repartidor va en camino'
+                  : 'Llega en unos 8 minutos',
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 8),
-            LinearProgressIndicator(
-              value: 0.7,
-              minHeight: 12,
-              borderRadius: BorderRadius.circular(6),
-              color: AppColors.azul,
-              backgroundColor: AppColors.divisor,
-              semanticsLabel: 'Tu pedido está cerca',
-            ),
+            if (!ApiConfig.configurada)
+              LinearProgressIndicator(
+                value: 0.7,
+                minHeight: 12,
+                borderRadius: BorderRadius.circular(6),
+                color: AppColors.azul,
+                backgroundColor: AppColors.divisor,
+                semanticsLabel: 'Tu pedido está cerca',
+              ),
             if (_repartidor != null) ...[
               const SizedBox(height: 8),
               Text(

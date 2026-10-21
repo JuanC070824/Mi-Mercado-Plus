@@ -13,6 +13,7 @@ import '../../../data/models/direccion.dart';
 import '../../../data/models/usuario.dart';
 import '../../../data/models/rol.dart';
 import '../../casero/widgets/preferencias_vendedor.dart';
+import '../../repartidor/widgets/movilidad_repartidor.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../data/repositories/auth_api_repository.dart';
 
@@ -451,6 +452,11 @@ class _PerfilScreenState extends State<PerfilScreen> {
                           ),
                         ),
                         const SizedBox(height: 28),
+                        if (widget.usuario.rol == Rol.repartidor &&
+                            ApiConfig.configurada) ...[
+                          const MovilidadRepartidor(),
+                          const SizedBox(height: 28),
+                        ],
                         _seccionPreferencias(),
                         const SizedBox(height: 32),
                         SizedBox(
@@ -670,7 +676,8 @@ class _PerfilScreenState extends State<PerfilScreen> {
   }
 
   Widget _seccionPreferencias() {
-    if (widget.usuario.rol == Rol.comerciante) {
+    if (widget.usuario.rol == Rol.comerciante ||
+        widget.usuario.rol == Rol.repartidor) {
       return PreferenciasVendedor(
         usuario: widget.usuario,
         onActualizado: widget.onUsuarioActualizado,

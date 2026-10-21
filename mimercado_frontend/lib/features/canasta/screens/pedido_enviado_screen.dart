@@ -44,7 +44,7 @@ class PedidoEnviadoScreen extends StatelessWidget {
                 Text(
                   p == null
                       ? 'Tus caseros ya recibieron tu pedido.'
-                      : 'Tu pedido #${p.codigoCorto} ya llegó a tus caseros. '
+                      : 'Tu pedido ya llegó a tus caseros. '
                             'Te avisamos cuando pesen y tengan el precio final.',
                   textAlign: TextAlign.center,
                   style: const TextStyle(fontSize: 18),

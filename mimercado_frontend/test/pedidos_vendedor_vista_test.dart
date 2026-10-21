@@ -169,7 +169,7 @@ void main() {
       2,
     );
     await tester.scrollUntilVisible(
-      find.text('Pedido MM-3'),
+      find.text('Recogido'),
       200,
       scrollable: find
           .byWidgetPredicate(
@@ -177,7 +177,7 @@ void main() {
           )
           .last,
     );
-    expect(find.text('Pedido MM-3'), findsOneWidget);
+    expect(find.text('Recogido'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -185,15 +185,15 @@ void main() {
     tester,
   ) async {
     await _abrirLista(tester, _PedidosPrueba());
-    expect(find.text('Pedido MM-1'), findsOneWidget);
+    expect(find.text('Nuevo pedido'), findsOneWidget);
     await tester.tap(find.text('En curso (1)'));
     await tester.pumpAndSettle();
-    expect(find.text('Pedido MM-2'), findsOneWidget);
+    expect(find.text('Empaquetando'), findsOneWidget);
     final entregados = find.text('Entregados (1)');
     await tester.ensureVisible(entregados);
     await tester.tap(entregados);
     await tester.pumpAndSettle();
-    expect(find.text('Pedido MM-3'), findsOneWidget);
+    expect(find.text('Recogido'), findsOneWidget);
     expect(
       find.textContaining('Bolsas entregadas al repartidor.'),
       findsOneWidget,
@@ -209,7 +209,7 @@ void main() {
     await tester.tap(find.text('Reintentar'));
     await tester.pumpAndSettle();
     expect(repo.llamadas, 2);
-    expect(find.text('Pedido MM-1'), findsOneWidget);
+    expect(find.text('Nuevo pedido'), findsOneWidget);
     expect(find.text('Reintentar'), findsNothing);
   });
 

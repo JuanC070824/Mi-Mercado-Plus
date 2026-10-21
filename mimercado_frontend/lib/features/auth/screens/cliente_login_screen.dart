@@ -47,7 +47,7 @@ class _ClienteLoginScreenState extends State<ClienteLoginScreen> {
   @override
   void initState() {
     super.initState();
-    _repo = ApiConfig.configurada
+    _repo = ApiConfig.configurada || widget.rol == Rol.repartidor
         ? AuthApiRepository.instancia
         : AuthRepositoryMock.instancia;
   }
@@ -62,6 +62,14 @@ class _ClienteLoginScreenState extends State<ClienteLoginScreen> {
   Future<void> _ingresar() async {
     setState(() => _error = null);
     if (!_formKey.currentState!.validate()) return;
+
+    if (widget.rol == Rol.repartidor && !ApiConfig.configurada) {
+      setState(
+        () => _error =
+            'No está configurada la conexión al servicio de repartidores. Solicita al responsable iniciar la versión conectada al servidor.',
+      );
+      return;
+    }
 
     setState(() => _cargando = true);
     final r = await _repo.iniciarSesion(

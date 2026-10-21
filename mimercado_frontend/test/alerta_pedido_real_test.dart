@@ -191,7 +191,14 @@ void main() {
     final pedidos = _Pedidos();
     final router = await _abrir(tester, pedidos);
     expect(find.text('¡NUEVO PEDIDO!'), findsOneWidget);
-    expect(find.text('Pedido MM-1'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(Dialog),
+        matching: find.textContaining('Pedido de '),
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('MM-'), findsNothing);
     await _tocar(tester, 'Aceptar pedido');
     expect(pedidos.aceptaciones, 1);
     expect(router.canPop(), isTrue);

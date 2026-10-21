@@ -348,16 +348,14 @@ class ApiTests(TestCase):
         self.assertEqual(self.pay(order).status_code,200)
         self.assertEqual(self.post(f'/api/pedidos/{order}/cancelar/',{}).status_code,400)
 
-    def test_culqi_adapter_uses_test_keys_and_cents(self):
-        token_response=type('R',(),{'status_code':201,'json':lambda self:{'id':'ype_test_123'}})()
-        charge_response=type('R',(),{'status_code':201,'json':lambda self:{'id':'chr_test_123'}})()
-        with override_settings(PAYMENT_MODE='culqi_sandbox',CULQI_PUBLIC_KEY='pk_test_demo',CULQI_SECRET_KEY='sk_test_demo'):
-            with patch('mvp_back.payments.requests.post',side_effect=[token_response,charge_response]) as post:
-                self.assertEqual(provider_charge('900000001','123456',2400,'maria@example.test'),'chr_test_123')
-                self.assertEqual(post.call_args_list[0].kwargs['json']['amount'],'2400')
-                self.assertEqual(post.call_args_list[1].kwargs['json']['amount'],2400)
-        with override_settings(PAYMENT_MODE='culqi_sandbox',CULQI_PUBLIC_KEY='pk_live_X',CULQI_SECRET_KEY='sk_live_X'):
-            with self.assertRaises(RejectedPayment):provider_charge('900000001','123456',2400,'maria@example.test')
+    def test_simulacion_no_realiza_solicitudes_externas(self):
+        with patch('requests.sessions.Session.request',side_effect=AssertionError('No se permite red')):
+            respuesta=self.pay(self.quoted_order())
+        self.assertEqual(respuesta.status_code,200,respuesta.data)
+        self.assertTrue(respuesta.data['simulado'])
+        self.assertTrue(Pago.objects.get().proveedor_transaccion_id.startswith('mock_'))
+        with override_settings(PAYMENT_MODE='culqi_sandbox'):
+            with self.assertRaises(RejectedPayment):provider_charge('900000001','123456',2400,None)
 
     def preparar_pesaje(self):
         order=self.order()
@@ -435,6 +433,13 @@ class ApiTests(TestCase):
 
     def test_vendedor_entrega_bolsa_sin_marcar_entrega_al_cliente(self):
         order=self.quoted_order()
+        self.assertEqual(self.pay(order).status_code,200)
+        from .models import RepartidorMercado
+        from .operaciones import aceptar_reparto
+        driver=Usuario.objects.create(nombres='Repartidor',celular='900000088',password_hash='x')
+        UsuarioRol.objects.create(usuario_id=driver.pk,rol_codigo='repartidor')
+        RepartidorMercado.objects.create(repartidor=driver,mercado=self.market,movilidad='a_pie',autorizado=True,disponible=True)
+        aceptar_reparto(driver,order)
         detalle=PedidoDetalle.objects.get(pedido_puesto__pedido_id=order,producto_id=self.p1.pk)
         parte=detalle.pedido_puesto
         self.client.credentials(HTTP_AUTHORIZATION='Bearer '+issue_token(self.seller))

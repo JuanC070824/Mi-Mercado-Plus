@@ -56,7 +56,7 @@ class _EntregaPagoScreenState extends State<EntregaPagoScreen> {
   Future<void> _confirmar() async {
     final dir = _direccion;
     if (dir == null) return;
-    if (_metodo == MetodoPago.yape) {
+    if (_metodo == MetodoPago.yape && !ApiConfig.configurada) {
       context.push('/canasta/yape', extra: dir); // C4b: guía y pago con Yape
       return;
     }

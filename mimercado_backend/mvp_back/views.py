@@ -522,6 +522,9 @@ class VendedorPedidoAccionView(APIView):
     @transaction.atomic
     def patch(self,request,pedido_puesto_id):
         puesto=puesto_vendedor_actual(request.user)
+        parte_inicial=PedidoPuesto.objects.filter(pk=pedido_puesto_id,puesto_id=puesto.pk).first()
+        if parte_inicial is None: raise NotFound('Pedido no encontrado para tu puesto.')
+        Pedido.objects.select_for_update().get(pk=parte_inicial.pedido_id)
         parte=PedidoPuesto.objects.select_for_update().filter(
             pk=pedido_puesto_id,puesto_id=puesto.pk).first()
         if parte is None:raise NotFound('Pedido no encontrado para tu puesto.')
@@ -548,7 +551,17 @@ class VendedorPedidoAccionView(APIView):
         pedido=parte.pedido
         if not activas.exists():pedido.estado='cancelado'
         elif accion=='listo' and not activas.exclude(estado='listo').exists():pedido.estado='listo_para_recojo'
-        elif accion=='entregar' and not activas.exclude(estado='recogido').exists():pedido.estado='en_camino'
+        elif accion=='entregar':
+            from .models import Entrega
+            entrega=Entrega.objects.filter(pedido_id=parte.pedido_id,estado__in=['aceptada','en_recojo']).first()
+            if entrega is None: raise ValidationError('Espera a que un repartidor del mercado acepte el pedido.')
+            parada=EntregaParada.objects.filter(entrega_id=entrega.pk,pedido_puesto_id=parte.pk).first()
+            if parada is None: raise ValidationError('Tu puesto todavía no figura en la ruta del repartidor.')
+            if EntregaParada.objects.filter(entrega_id=entrega.pk,orden__lt=parada.orden,recogido_en__isnull=True).exists():
+                raise ValidationError('El repartidor debe recoger primero en los puestos anteriores.')
+            if parada.recogido_en is None:
+                parada.recogido_en=timezone.now();parada.save(update_fields=['recogido_en'])
+            pedido.estado='en_recojo'
         pedido.save(update_fields=['estado'])
         return Response({'id':parte.pk,'estado':parte.estado})
 
@@ -574,6 +587,9 @@ class VendedorCotizacionView(APIView):
     @transaction.atomic
     def post(self,request,pedido_puesto_id):
         puesto=puesto_vendedor_actual(request.user)
+        parte_inicial=PedidoPuesto.objects.filter(pk=pedido_puesto_id,puesto_id=puesto.pk).first()
+        if parte_inicial is None: raise NotFound('Pedido no encontrado para tu puesto.')
+        Pedido.objects.select_for_update().get(pk=parte_inicial.pedido_id)
         parte=PedidoPuesto.objects.select_for_update().filter(
             pk=pedido_puesto_id,puesto_id=puesto.pk).first()
         if parte is None:raise NotFound('Pedido no encontrado para tu puesto.')
@@ -600,7 +616,7 @@ class VendedorCotizacionView(APIView):
             version=(Cotizacion.objects.filter(pedido_id=parte.pedido_id).aggregate(
                 mayor=Max('version'))['mayor'] or 0)+1
             quote=Cotizacion.objects.create(pedido_id=parte.pedido_id,version=version,
-                                             estado='borrador',costo_envio=5)
+                                             estado='borrador',costo_envio=5,ganancia_repartidor=5)
         grupo,_=CotizacionPuesto.objects.get_or_create(
             cotizacion_id=quote.pk,pedido_id=parte.pedido_id,pedido_puesto_id=parte.pk)
         CotizacionDetalle.objects.filter(cotizacion_puesto_id=grupo.pk).delete()
