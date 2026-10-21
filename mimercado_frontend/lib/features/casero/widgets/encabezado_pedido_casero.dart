@@ -10,10 +10,12 @@ class EncabezadoPedidoCasero extends StatelessWidget {
     super.key,
     required this.titulo,
     this.subtitulo,
+    this.habilitado = true,
   });
 
   final String titulo;
   final String? subtitulo;
+  final bool habilitado;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -38,9 +40,11 @@ class EncabezadoPedidoCasero extends StatelessWidget {
                     minWidth: 48,
                     minHeight: 48,
                   ),
-                  onPressed: () => context.canPop()
-                      ? context.pop()
-                      : context.go('/casero/inicio'),
+                  onPressed: !habilitado
+                      ? null
+                      : () => context.canPop()
+                            ? context.pop()
+                            : context.go('/casero/inicio'),
                   icon: const Icon(Icons.arrow_back, color: AppColors.blanco),
                 ),
                 TextButton.icon(

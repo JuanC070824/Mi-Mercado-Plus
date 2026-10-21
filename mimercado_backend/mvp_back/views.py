@@ -480,10 +480,11 @@ def pedido_payload(pedido):
     quote=Cotizacion.objects.filter(pedido_id=pedido.pk).order_by('-version').first()
     if quote:
         cot_puestos=[]
-        for grupo in CotizacionPuesto.objects.filter(cotizacion_id=quote.pk).order_by('id'):
+        for grupo in CotizacionPuesto.objects.filter(cotizacion_id=quote.pk).select_related('pedido_puesto').order_by('id'):
             cot_puestos.append({
                 'pedido_puesto_id':grupo.pedido_puesto_id,
                 'tasa_comision':str(grupo.tasa_comision),
+                'nota':grupo.pedido_puesto.nota,
                 'detalles':[{
                     'pedido_detalle_id':d.pedido_detalle_id,'nombre_final':d.nombre_final,
                     'cantidad_real':str(d.cantidad_real),'precio_unitario_centavos':cents(d.precio_unitario),
@@ -577,11 +578,18 @@ class VendedorCotizacionView(APIView):
         data=validated(s.CotizacionVendedorSerializer,request.data)
         detalles={d.pk:d for d in PedidoDetalle.objects.filter(pedido_puesto_id=parte.pk)}
         recibidos={fila['pedido_detalle_id'] for fila in data['detalles']}
+        if len(recibidos)!=len(data['detalles']):
+            raise ValidationError('No repitas productos en la cotización.')
         esperados={d.pk for d in detalles.values() if d.disponibilidad!='sin_stock'}
         if recibidos!=esperados:
             raise ValidationError('Incluye exactamente todos los productos que sí entregarás.')
         if any(detalles[i].disponibilidad=='pendiente' for i in recibidos):
             raise ValidationError('Revisa la disponibilidad de todos los productos.')
+        unidades_enteras=set(UnidadMedida.objects.filter(permite_fraccion=False).values_list('codigo',flat=True))
+        for fila in data['detalles']:
+            if (detalles[fila['pedido_detalle_id']].unidad_codigo in unidades_enteras
+                    and fila['cantidad_real']!=fila['cantidad_real'].to_integral_value()):
+                raise ValidationError('Usa cantidades enteras para unidades y atados.')
         quote=Cotizacion.objects.select_for_update().filter(
             pedido_id=parte.pedido_id,estado='borrador').order_by('-version').first()
         if quote is None:
@@ -600,7 +608,9 @@ class VendedorCotizacionView(APIView):
                 producto_final_id=detalle.producto_id,puesto_id=puesto.pk,
                 unidad_codigo=detalle.unidad_codigo,cantidad_real=fila['cantidad_real'],
                 precio_unitario=fila['precio_unitario'])
-        parte.estado='pesado';parte.save(update_fields=['estado'])
+        parte.estado='pesado'
+        parte.nota=data.get('nota','').strip() or None
+        parte.save(update_fields=['estado','nota'])
         activas=PedidoPuesto.objects.filter(pedido_id=parte.pedido_id).exclude(
             estado__in=['rechazado','cancelado'])
         cotizadas=set(CotizacionPuesto.objects.filter(cotizacion_id=quote.pk).values_list(

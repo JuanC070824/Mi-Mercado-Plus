@@ -179,6 +179,7 @@ class PedidosVendedorApiRepository {
         CotizacionPuesto(
           pedidoPuestoId: (g['pedido_puesto_id'] as num).toInt(),
           tasaComision: double.parse(g['tasa_comision'].toString()),
+          nota: g['nota']?.toString(),
           detalles: detalles,
         ),
       );

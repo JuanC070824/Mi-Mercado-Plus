@@ -358,3 +358,52 @@ class ApiTests(TestCase):
                 self.assertEqual(post.call_args_list[1].kwargs['json']['amount'],2400)
         with override_settings(PAYMENT_MODE='culqi_sandbox',CULQI_PUBLIC_KEY='pk_live_X',CULQI_SECRET_KEY='sk_live_X'):
             with self.assertRaises(RejectedPayment):provider_charge('900000001','123456',2400,'maria@example.test')
+
+    def preparar_pesaje(self):
+        order=self.order()
+        detalle=PedidoDetalle.objects.get(pedido_puesto__pedido_id=order,producto_id=self.p1.pk)
+        self.client.credentials(HTTP_AUTHORIZATION='Bearer '+issue_token(self.seller))
+        r=self.client.patch(f'/api/vendedor/pedidos/{detalle.pedido_puesto_id}/accion/',{'accion':'aceptar'},format='json')
+        self.assertEqual(r.status_code,200,r.data)
+        r=self.client.patch(f'/api/vendedor/detalles/{detalle.pk}/',{'disponibilidad':'disponible'},format='json')
+        self.assertEqual(r.status_code,200,r.data)
+        return order,detalle
+
+    def test_pesaje_guarda_precio_cantidad_y_nota(self):
+        order,d=self.preparar_pesaje()
+        fila={'pedido_detalle_id':d.pk,'nombre_final':'Tomate','cantidad_real':'1.250','precio_unitario':'5.00'}
+        r=self.post(f'/api/vendedor/pedidos/{d.pedido_puesto_id}/cotizacion/',{'detalles':[fila],'nota':'  Tomates maduros  '})
+        self.assertEqual(r.status_code,201,r.data)
+        parte=d.pedido_puesto
+        parte.refresh_from_db()
+        self.assertEqual(parte.nota,'Tomates maduros')
+        self.assertEqual(parte.estado,'pesado')
+        response=self.client.get('/api/vendedor/pedidos/')
+        pedido=next(p for p in response.data if p['id']==order)
+        grupo=pedido['cotizacion']['puestos'][0]
+        self.assertEqual(grupo['nota'],'Tomates maduros')
+        self.assertEqual(Decimal(grupo['detalles'][0]['cantidad_real']),Decimal('1.250'))
+        self.assertEqual(grupo['detalles'][0]['precio_unitario_centavos'],500)
+        # Falta el otro puesto: no se publica una cotización incompleta.
+        self.assertEqual(pedido['cotizacion']['estado'],'borrador')
+
+    def test_pesaje_no_admite_productos_duplicados(self):
+        order,d=self.preparar_pesaje()
+        fila={'pedido_detalle_id':d.pk,'nombre_final':'Tomate','cantidad_real':'1.000','precio_unitario':'4.00'}
+        r=self.post(f'/api/vendedor/pedidos/{d.pedido_puesto_id}/cotizacion/',{'detalles':[fila,fila],'nota':'No guardar'})
+        self.assertEqual(r.status_code,400,r.data)
+        self.assertFalse(Cotizacion.objects.filter(pedido_id=order).exists())
+        d.pedido_puesto.refresh_from_db()
+        self.assertIsNone(d.pedido_puesto.nota)
+
+    def test_pesaje_no_admite_fracciones_de_unidades(self):
+        self.p1.unidad_codigo='unidad'
+        self.p1.save(update_fields=['unidad_codigo'])
+        order,d=self.preparar_pesaje()
+        fila={'pedido_detalle_id':d.pk,'nombre_final':'Tomate','cantidad_real':'1.500','precio_unitario':'4.00'}
+        r=self.post(f'/api/vendedor/pedidos/{d.pedido_puesto_id}/cotizacion/',{'detalles':[fila]})
+        self.assertEqual(r.status_code,400,r.data)
+        self.assertFalse(Cotizacion.objects.filter(pedido_id=order).exists())
+        fila['cantidad_real']='2.000'
+        r=self.post(f'/api/vendedor/pedidos/{d.pedido_puesto_id}/cotizacion/',{'detalles':[fila]})
+        self.assertEqual(r.status_code,201,r.data)
