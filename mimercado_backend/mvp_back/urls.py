@@ -1,7 +1,16 @@
 from django.urls import path
 from . import views as v
+from . import operaciones_views as o
 
 urlpatterns=[
+    path('repartidor/inicio/',o.RepartidorInicioView.as_view()),
+    path('repartidor/mercado/',o.RepartidorMercadoView.as_view()),
+    path('repartidor/pedidos/<int:order_id>/aceptar/',o.RepartidorAceptarView.as_view()),
+    path('repartidor/pedidos/<int:order_id>/accion/',o.RepartidorAccionView.as_view()),
+    path('repartidor/pedidos/<int:order_id>/entregar/',o.RepartidorCompletarView.as_view()),
+    path('comprador/pedidos/',o.CompradorPedidosView.as_view()),
+    path('comprador/pedidos/<int:order_id>/calificar/',o.CompradorCalificarView.as_view()),
+    path('pagos/configuracion/',o.PagoConfiguracionView.as_view()),
     path('auth/dni/',v.DniView.as_view()),
     path('auth/registro/',v.RegistroView.as_view()),
     path('auth/login/',v.LoginView.as_view()),

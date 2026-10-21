@@ -51,7 +51,9 @@ class _RutaScreenState extends State<RutaScreen> {
     setState(() => _ocupado = pp.id);
     try {
       await _repo.marcarRecogido(pp.id);
-      if (mounted) avisar(context, 'Recogiste la bolsa ${pp.codigoBolsa}.');
+      if (mounted) {
+        avisar(context, 'Recogiste la bolsa de ${pp.puesto.nombre}.');
+      }
     } on PedidoException catch (e) {
       if (mounted) avisar(context, e.mensaje);
     } finally {
@@ -79,7 +81,7 @@ class _RutaScreenState extends State<RutaScreen> {
           EncabezadoSimple(
             titulo: _pedido == null
                 ? 'Mi ruta'
-                : 'Ruta del pedido #${_pedido!.codigoCorto}',
+                : 'Ruta para ${_pedido!.clienteNombre}',
             mostrarAtras: false,
           ),
           Expanded(child: _cuerpo()),
@@ -258,7 +260,7 @@ class _Parada extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  'Bolsa #${parte.codigoBolsa} · ${parte.puesto.casero}',
+                  'Atiende: ${parte.puesto.casero}',
                   style: const TextStyle(
                     fontSize: 17,
                     color: AppColors.textoSecundario,

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../../../data/repositories/pedidos_api_repository.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/botones_app.dart';
 import '../../../core/widgets/componentes_app.dart';
@@ -39,7 +41,7 @@ class _HojaPrecioState extends State<_HojaPrecio> {
   Future<void> _aceptar() async {
     setState(() => _aceptando = true);
     try {
-      await PedidoRepositoryMock.instancia.aceptarCotizacion(widget.pedido.id);
+      await pedidosApp.aceptarCotizacion(widget.pedido.id);
       if (mounted) Navigator.of(context).pop(true);
     } on PedidoException catch (e) {
       if (!mounted) return;
@@ -71,7 +73,13 @@ class _HojaPrecioState extends State<_HojaPrecio> {
       ),
     );
     if (mensaje != null && mounted) {
-      avisar(context, 'Enviamos tu mensaje a los caseros: "$mensaje"');
+      await Clipboard.setData(ClipboardData(text: mensaje));
+      if (mounted) {
+        avisar(
+          context,
+          'Mensaje copiado. Envíalo a tus caseros desde tu aplicación de mensajes.',
+        );
+      }
     }
   }
 

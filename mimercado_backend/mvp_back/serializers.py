@@ -80,6 +80,7 @@ class PuestoVendedorSerializer(serializers.Serializer):
     referencia = serializers.CharField(required=False, allow_blank=True, max_length=300)
 
 class PerfilActualizarSerializer(serializers.Serializer):
+    letra_grande = serializers.BooleanField(required=False)
     celular = PhoneField(required=False)
     correo = serializers.EmailField(max_length=254, required=False, allow_blank=True)
     password_actual = serializers.CharField(

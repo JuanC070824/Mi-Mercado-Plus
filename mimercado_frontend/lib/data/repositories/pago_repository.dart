@@ -10,7 +10,7 @@ class ResultadoPago {
 }
 
 abstract class PagoRepository {
-  /// Cobra con Yape (en producción: Culqi en modo sandbox, desde el backend).
+  /// Simula la aprobación; no se conecta con Yape ni procesa dinero.
   Future<ResultadoPago> pagarConYape({
     required String celular,
     required String codigo,

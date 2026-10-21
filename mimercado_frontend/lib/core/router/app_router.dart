@@ -21,26 +21,37 @@ import '../../features/casero/screens/casero_pedido_screen.dart';
 import '../../features/casero/screens/pesar_screen.dart';
 import '../../features/mercado/screens/inicio_screen.dart';
 import '../../features/mercado/screens/principal_shell.dart';
-import '../../features/mercado/screens/seccion_proxima_screen.dart';
 import '../../features/pedido/screens/historial_screen.dart';
 import '../../features/pedido/screens/mi_pedido_screen.dart';
 import '../../features/perfil/screens/perfil_screen.dart';
-import '../../features/repartidor/screens/entrega_screen.dart';
-import '../../features/repartidor/screens/repartidor_inicio_screen.dart';
-import '../../features/repartidor/screens/ruta_screen.dart';
 import '../widgets/barra_navegacion_app.dart';
 import '../state/sesion_state.dart';
+import '../state/preferencias_vendedor_state.dart';
+import '../../data/repositories/pedidos_api_repository.dart';
+import '../../features/repartidor/screens/repartidor_operaciones_screen.dart';
 
 // ESTO ME SIRVE COMO LISTA DE RUTAS
 // Por ejemplo, /cliente/login lleva a la pantalla de login
 
 // Recuerda al usuario que entró, porque al cambiar de pestaña el "extra" ya no viaja.
 Usuario? _usuarioActual;
+Usuario? _ultimoUsuarioExtra;
 
 /// Guarda al usuario que llega al iniciar sesión y lo devuelve.
 Usuario _usuarioDe(GoRouterState state) {
   final extra = state.extra;
-  if (extra is Usuario) _usuarioActual = extra;
+  if (extra is Usuario && !identical(extra, _ultimoUsuarioExtra)) {
+    _ultimoUsuarioExtra = extra;
+    _usuarioActual = extra;
+    if (extra.rol == Rol.comerciante || extra.rol == Rol.repartidor) {
+      // El cambio de escala reconstruye un ancestro del router.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (identical(extra, _ultimoUsuarioExtra)) {
+          PreferenciasVendedorState.aplicar(_usuarioActual!);
+        }
+      });
+    }
+  }
   return _usuarioActual!;
 }
 
@@ -54,11 +65,15 @@ String? _exigirRol(GoRouterState state, Rol rol) {
 /// Perfil con cerrar sesión. Lo usan el repartidor y, por ahora, "Mi puesto" del casero.
 Widget _perfil(GoRouterState state) => PerfilScreen(
   usuario: _usuarioDe(state),
+  mostrarDireccion: _usuarioDe(state).rol == Rol.cliente,
   onUsuarioActualizado: (u) => _usuarioActual = u,
   onSesionCerrada: _cerrarSesion,
 );
 
 void _cerrarSesion() {
+  PedidosApiRepository.instancia.limpiar();
+  _ultimoUsuarioExtra = null;
+  PreferenciasVendedorState.limpiar();
   _usuarioActual = null;
   SesionState.cerrar();
   canastaApp.vaciar(); // la canasta no pasa al siguiente usuario
@@ -250,6 +265,14 @@ final appRouter = GoRouter(
               redirect: (context, state) => _exigirRol(state, Rol.comerciante),
               builder: (context, state) => MiPuestoScreen(
                 usuario: _usuarioDe(state),
+                onUsuarioActualizado: (u) {
+                  _usuarioActual = _usuarioActual!.copyWith(
+                    letraGrande: u.letraGrande,
+                    sonido: u.sonido,
+                    vibracion: u.vibracion,
+                  );
+                  PreferenciasVendedorState.aplicar(_usuarioActual!);
+                },
                 onPuestoGuardado: (puesto) {
                   _usuarioActual = _usuarioActual!.copyWith(
                     puestoId: puesto.id,
@@ -298,7 +321,7 @@ final appRouter = GoRouter(
               path: '/repartidor/inicio',
               redirect: (context, state) => _exigirRol(state, Rol.repartidor),
               builder: (context, state) =>
-                  RepartidorInicioScreen(usuario: _usuarioDe(state)),
+                  RepartidorOperacionesScreen(usuario: _usuarioDe(state)),
             ),
           ],
         ),
@@ -307,14 +330,18 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/repartidor/ruta',
               redirect: (context, state) => _exigirRol(state, Rol.repartidor),
-              builder: (context, state) =>
-                  RutaScreen(usuario: _usuarioDe(state)),
+              builder: (context, state) => RepartidorOperacionesScreen(
+                usuario: _usuarioDe(state),
+                vista: 'ruta',
+              ),
               routes: [
                 // R3 · Entrega y cobro
                 GoRoute(
                   path: 'entrega',
-                  builder: (context, state) =>
-                      EntregaScreen(usuario: _usuarioDe(state)),
+                  builder: (context, state) => RepartidorOperacionesScreen(
+                    usuario: _usuarioDe(state),
+                    vista: 'entrega',
+                  ),
                 ),
               ],
             ),
@@ -325,9 +352,9 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/repartidor/ganancias',
               redirect: (context, state) => _exigirRol(state, Rol.repartidor),
-              builder: (context, state) => const SeccionProximaScreen(
-                titulo: 'Ganancias',
-                icono: Icons.payments_rounded,
+              builder: (context, state) => RepartidorOperacionesScreen(
+                usuario: _usuarioDe(state),
+                vista: 'ganancias',
               ),
             ),
           ],

@@ -5,7 +5,7 @@ import '../../../core/widgets/componentes_app.dart';
 import '../../../core/widgets/encabezado_simple.dart';
 import '../../../data/models/pedido.dart';
 import '../../../data/models/usuario.dart';
-import '../../../data/repositories/pedido_repository.dart';
+import '../../../data/repositories/pedidos_api_repository.dart';
 
 /// C9 · Mis pedidos (historial).
 class HistorialScreen extends StatefulWidget {
@@ -17,8 +17,9 @@ class HistorialScreen extends StatefulWidget {
 }
 
 class _HistorialScreenState extends State<HistorialScreen> {
-  late Future<List<Pedido>> _pedidos = PedidoRepositoryMock.instancia
-      .pedidosCliente(widget.usuario.celular);
+  late Future<List<Pedido>> _pedidos = pedidosApp.pedidosCliente(
+    widget.usuario.celular,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +41,7 @@ class _HistorialScreenState extends State<HistorialScreen> {
                     esError: true,
                     textoBoton: 'Reintentar',
                     alTocar: () => setState(() {
-                      _pedidos = PedidoRepositoryMock.instancia.pedidosCliente(
+                      _pedidos = pedidosApp.pedidosCliente(
                         widget.usuario.celular,
                       );
                     }),
@@ -86,7 +87,7 @@ class _TarjetaHistorial extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    '#${p.codigoCorto}',
+                    'Mi pedido',
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w800,

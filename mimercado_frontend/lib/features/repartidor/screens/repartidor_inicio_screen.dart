@@ -75,7 +75,7 @@ class _RepartidorInicioScreenState extends State<RepartidorInicioScreen> {
     try {
       await _repo.aceptarEntrega(p.id, widget.usuario.celular);
       if (!mounted) return;
-      avisar(context, 'Tomaste el pedido #${p.codigoCorto}. ¡A recoger!');
+      avisar(context, 'Tomaste el pedido de ${p.clienteNombre}. ¡A recoger!');
       context.go('/repartidor/ruta');
     } on PedidoException catch (e) {
       if (mounted) avisar(context, e.mensaje);
@@ -111,6 +111,26 @@ class _RepartidorInicioScreenState extends State<RepartidorInicioScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       children: [
+        TarjetaApp(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Mercado de demostración',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+              ),
+              Text(
+                _mercado ?? 'Mercado no disponible',
+                style: const TextStyle(fontSize: 21),
+              ),
+              const Text(
+                'Estás usando la demostración local. Esta vista no verifica la afiliación real de tu cuenta.',
+                style: TextStyle(fontSize: 18),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
         TarjetaApp(
           color: _disponible ? AppColors.exitoFondo : AppColors.fondo,
           colorBorde: _disponible ? AppColors.exitoTexto : AppColors.borde,
@@ -217,7 +237,7 @@ class _RepartidorInicioScreenState extends State<RepartidorInicioScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Tienes la entrega #${_enCurso!.codigoCorto} en curso',
+                  'Tienes una entrega para ${_enCurso!.clienteNombre}',
                   style: const TextStyle(
                     fontSize: 19,
                     fontWeight: FontWeight.w800,
@@ -312,7 +332,7 @@ class _TarjetaPedido extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '#${pedido.codigoCorto} · recojo en ${puestos.length} '
+            '${pedido.clienteNombre} · recojo en ${puestos.length} '
             '${puestos.length == 1 ? 'puesto' : 'puestos'}',
             style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
           ),

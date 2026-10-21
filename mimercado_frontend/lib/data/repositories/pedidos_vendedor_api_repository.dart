@@ -29,7 +29,7 @@ class PedidosVendedorApiRepository {
     }
     return [
       for (final raw in data)
-        if (raw is Map<String, dynamic>) _pedido(raw),
+        if (raw is Map<String, dynamic>) pedidoDesdeJson(raw),
     ];
   }
 
@@ -82,7 +82,7 @@ class PedidosVendedorApiRepository {
 
   void _notificar() => _cambios.value++;
 
-  Pedido _pedido(Map<String, dynamic> j) {
+  Pedido pedidoDesdeJson(Map<String, dynamic> j) {
     final partes = <PedidoPuesto>[];
     for (final raw in (j['puestos'] as List? ?? const [])) {
       if (raw is! Map<String, dynamic>) continue;
@@ -179,6 +179,7 @@ class PedidosVendedorApiRepository {
         CotizacionPuesto(
           pedidoPuestoId: (g['pedido_puesto_id'] as num).toInt(),
           tasaComision: double.parse(g['tasa_comision'].toString()),
+          nota: g['nota']?.toString(),
           detalles: detalles,
         ),
       );

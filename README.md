@@ -4,6 +4,8 @@
 # Mi-Mercado-Plus
 Una aplicación móvil que resuelve el problema de las ventas en línea para los mercados locales
 
+La entrega de repartidor y pago simulado local se describe en [la guía de ejecución y pruebas](docs/avance_repartidor.md). Por acuerdo del equipo, esa entrega no integra Culqi; los requisitos siguientes conservan el planteamiento original del proyecto.
+
 A día de 07/10/2026 presenta las siguientes características o metas:
 ## Requisitos Funcionales
 - RF-01: Gestión de Identidad y Roles
