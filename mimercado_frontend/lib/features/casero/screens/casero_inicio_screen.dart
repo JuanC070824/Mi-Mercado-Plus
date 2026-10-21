@@ -3,18 +3,27 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/componentes_app.dart';
-import '../../../core/widgets/encabezado_simple.dart';
+import '../../../data/models/pedido.dart';
 import '../../../data/models/usuario.dart';
+import '../../../data/repositories/pedido_repository.dart';
+import '../../../data/repositories/pedidos_vendedor_api_repository.dart';
 import '../../../data/repositories/vendedor_inicio_repository.dart';
 import '../../../data/repositories/puesto_vendedor_repository.dart';
 import '../widgets/accesos_inicio_casero.dart';
 import '../widgets/encabezado_inicio_casero.dart';
+import '../widgets/alerta_pedido.dart';
 
 class CaseroInicioScreen extends StatefulWidget {
-  const CaseroInicioScreen({super.key, required this.usuario, this.repository});
+  const CaseroInicioScreen({
+    super.key,
+    required this.usuario,
+    this.repository,
+    this.pedidosRepository,
+  });
 
   final Usuario usuario;
   final VendedorInicioApiRepository? repository;
+  final PedidosVendedorApiRepository? pedidosRepository;
 
   @override
   State<CaseroInicioScreen> createState() => _CaseroInicioScreenState();
@@ -22,6 +31,9 @@ class CaseroInicioScreen extends StatefulWidget {
 
 class _CaseroInicioScreenState extends State<CaseroInicioScreen> {
   late final VendedorInicioApiRepository _repository;
+  late final PedidosVendedorApiRepository _pedidosRepository;
+  final Set<int> _pedidosAvisados = {};
+  bool _alertaAbierta = false;
   VendedorInicio? _inicio;
   bool _cargando = true;
   bool _cambiandoEstado = false;
@@ -31,6 +43,8 @@ class _CaseroInicioScreenState extends State<CaseroInicioScreen> {
   void initState() {
     super.initState();
     _repository = widget.repository ?? VendedorInicioApiRepository.instancia;
+    _pedidosRepository =
+        widget.pedidosRepository ?? PedidosVendedorApiRepository.instancia;
     PuestoVendedorApiRepository.cambios.addListener(_cargar);
     if (widget.usuario.puestoId == null) {
       _inicio = const VendedorInicio.sinPuesto();
@@ -58,6 +72,16 @@ class _CaseroInicioScreenState extends State<CaseroInicioScreen> {
         _inicio = inicio;
         _cargando = false;
       });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _alertaAbierta || !_inicioVisible) return;
+        final nuevo = inicio.pedidos
+            .where(
+              (p) =>
+                  p.estado == 'pendiente' && !_pedidosAvisados.contains(p.id),
+            )
+            .firstOrNull;
+        if (nuevo != null) _mostrarAlerta(nuevo.id);
+      });
     } on VendedorInicioException catch (error) {
       if (!mounted) return;
       setState(() {
@@ -70,6 +94,58 @@ class _CaseroInicioScreenState extends State<CaseroInicioScreen> {
         _error = 'No pudimos leer la información de tu puesto.';
         _cargando = false;
       });
+    }
+  }
+
+  bool get _inicioVisible =>
+      TickerMode.valuesOf(context).enabled &&
+      (ModalRoute.of(context)?.isCurrent ?? false);
+
+  Future<void> _mostrarAlerta(int pedidoId) async {
+    if (_alertaAbierta || !_inicioVisible) return;
+    final puestoId = _inicio?.puesto?.id;
+    if (puestoId == null) return;
+    setState(() => _alertaAbierta = true);
+    try {
+      final lista = await _pedidosRepository.pedidosDePuesto(puestoId);
+      if (!mounted || !_inicioVisible) return;
+      final pedido = lista.where((p) => p.id == pedidoId).firstOrNull;
+      final parte = pedido?.parteDePuesto(puestoId);
+      if (pedido == null ||
+          parte == null ||
+          parte.estado != EstadoPedidoPuesto.pendiente) {
+        _pedidosAvisados.add(pedidoId);
+        avisar(
+          context,
+          'Este pedido ya no está pendiente. Actualiza tu lista.',
+        );
+        return;
+      }
+      _pedidosAvisados.add(pedidoId);
+      final aceptar = await mostrarNuevoPedido(
+        context,
+        pedido: pedido,
+        parte: parte,
+        casero: widget.usuario,
+      );
+      if (!mounted) return;
+      if (aceptar == true) {
+        await _pedidosRepository.aceptarSubpedido(parte.id);
+        if (!mounted) return;
+        await _cargar();
+        if (mounted) context.push('/casero/inicio/pedido/$pedidoId');
+      } else if (aceptar == false) {
+        final rechazado = await rechazarConMotivo(
+          context,
+          parte,
+          repository: _pedidosRepository,
+        );
+        if (rechazado && mounted) await _cargar();
+      }
+    } on PedidoException catch (error) {
+      if (mounted) avisar(context, error.mensaje);
+    } finally {
+      if (mounted) setState(() => _alertaAbierta = false);
     }
   }
 
@@ -110,7 +186,12 @@ class _CaseroInicioScreenState extends State<CaseroInicioScreen> {
     return Scaffold(
       body: Column(
         children: [
-          EncabezadoSimple(titulo: '¡Hola, $nombre!', mostrarAtras: false),
+          EncabezadoInicioCasero(
+            nombre: nombre,
+            puesto: null,
+            guardandoEstado: false,
+            onCambiarEstado: _cambiarAbierto,
+          ),
           Expanded(child: _contenido()),
         ],
       ),
@@ -231,6 +312,16 @@ class _CaseroInicioScreenState extends State<CaseroInicioScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                if (_alertaAbierta) ...[
+                  Semantics(
+                    liveRegion: true,
+                    child: const Text(
+                      'Consultando o actualizando el pedido…',
+                      style: TextStyle(fontSize: 18),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 const TituloSeccion('Requieren atención'),
                 const SizedBox(height: 7),
                 Row(
@@ -275,8 +366,9 @@ class _CaseroInicioScreenState extends State<CaseroInicioScreen> {
                   for (final pedido in inicio.pedidos) ...[
                     _TarjetaPedido(
                       pedido: pedido,
-                      onTap: () =>
-                          context.push('/casero/inicio/pedido/${pedido.id}'),
+                      onTap: () => pedido.estado == 'pendiente'
+                          ? _mostrarAlerta(pedido.id)
+                          : context.push('/casero/inicio/pedido/${pedido.id}'),
                     ),
                     const SizedBox(height: 8),
                   ],
@@ -489,10 +581,12 @@ class _TarjetaPedido extends StatelessWidget {
                   style: const TextStyle(color: AppColors.textoSecundario),
                 ),
                 const SizedBox(height: 9),
-                Row(
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  spacing: 12,
+                  runSpacing: 8,
                   children: [
                     _EtiquetaEstado(estado: pedido.estado),
-                    const Spacer(),
                     Text(
                       nuevo ? 'Revisar pedido' : 'Continuar',
                       style: const TextStyle(
