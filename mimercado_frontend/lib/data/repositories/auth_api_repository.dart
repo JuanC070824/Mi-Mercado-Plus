@@ -171,6 +171,37 @@ class AuthApiRepository implements AuthRepository {
     }
   }
 
+  /// Preferencias del vendedor; conserva los datos y el rol de su sesión.
+  Future<Usuario> preferenciasVendedor(
+    Usuario usuario, {
+    bool guardar = false,
+  }) async {
+    final response = await _autenticada(
+      guardar ? 'PATCH' : 'GET',
+      '/api/auth/me/',
+      body: guardar
+          ? {
+              'letra_grande': usuario.letraGrande,
+              'sonido': usuario.sonido,
+              'vibracion': usuario.vibracion,
+            }
+          : null,
+    );
+    final decoded = jsonDecode(response.body);
+    if (decoded is! Map<String, dynamic> || response.statusCode != 200) {
+      throw StateError(
+        decoded is Map<String, dynamic>
+            ? _mensajeError(decoded)
+            : 'Respuesta inválida.',
+      );
+    }
+    return usuario.copyWith(
+      letraGrande: decoded['letra_grande'] == true,
+      sonido: decoded['sonido'] != false,
+      vibracion: decoded['vibracion'] != false,
+    );
+  }
+
   Future<http.Response> _autenticada(
     String metodo,
     String ruta, {

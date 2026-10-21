@@ -440,7 +440,7 @@ class PedidoRepositoryMock implements PedidoRepository {
     _guardar(
       _conEvento(
         nuevo,
-        'El repartidor recogió la bolsa ${pp.codigoBolsa} de ${pp.puesto.nombre}',
+        'El repartidor recogió la bolsa de ${pp.puesto.nombre}',
       ),
     );
   }
@@ -999,8 +999,9 @@ class PedidoRepositoryMock implements PedidoRepository {
   Future<void> aceptarEntrega(int pedidoId, String celularRepartidor) async {
     await Future.delayed(const Duration(milliseconds: 400));
     final r = _repartidores[celularRepartidor];
-    if (r == null)
+    if (r == null) {
       throw const PedidoException('No estás autorizado en este mercado.');
+    }
     final p = _pedido(pedidoId);
     if (p.mercadoId != r.mercadoId) {
       throw const PedidoException('Este pedido es de otro mercado.');
@@ -1045,8 +1046,9 @@ class PedidoRepositoryMock implements PedidoRepository {
     final faltan = p.puestosActivos.any(
       (pp) => pp.estado != EstadoPedidoPuesto.recogido,
     );
-    if (faltan || p.cotizacion?.estado != EstadoCotizacion.aceptada)
+    if (faltan || p.cotizacion?.estado != EstadoCotizacion.aceptada) {
       return false;
+    }
     _guardar(
       _conEvento(
         p.copyWith(estado: EstadoPedido.enCamino),

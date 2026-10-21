@@ -46,6 +46,11 @@ class PedidoClienteApiRepository {
             }),
           )
           .timeout(const Duration(seconds: 20));
+      if (res.statusCode >= 500) {
+        throw const PedidoException(
+          'El servidor no pudo crear el pedido. Tu canasta se conserva. Inténtalo nuevamente.',
+        );
+      }
       final decoded = jsonDecode(res.body);
       final data = decoded is Map<String, dynamic>
           ? decoded
@@ -78,6 +83,10 @@ class PedidoClienteApiRepository {
     } on TimeoutException {
       throw const PedidoException(
         'El servidor tardó demasiado en crear el pedido.',
+      );
+    } on FormatException {
+      throw const PedidoException(
+        'El servidor devolvió una respuesta inválida al crear el pedido.',
       );
     } catch (_) {
       throw const PedidoException('No pudimos conectarnos con MiMercado+.');

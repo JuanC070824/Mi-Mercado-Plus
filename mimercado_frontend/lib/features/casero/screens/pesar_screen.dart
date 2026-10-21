@@ -1,119 +1,275 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/formato.dart';
-import '../../../core/widgets/botones_app.dart';
 import '../../../core/widgets/componentes_app.dart';
-import '../../../core/widgets/control_cantidad.dart';
-import '../../../core/widgets/encabezado_simple.dart';
 import '../../../core/widgets/mensaje_error.dart';
 import '../../../data/models/cotizacion.dart';
 import '../../../data/models/pedido.dart';
+import '../../../data/models/producto.dart';
 import '../../../data/models/usuario.dart';
 import '../../../data/repositories/pedido_repository.dart';
 import '../../../data/repositories/pedidos_vendedor_api_repository.dart';
 import '../widgets/alerta_pedido.dart';
+import '../widgets/encabezado_pedido_casero.dart';
+import '../widgets/resumen_precio_casero.dart';
 
-/// V3 · Pesar y poner precio: balanza "− kg +" por producto, "Así lo verá"
-/// el cliente y "Enviar precio final" (crea la cotización del puesto).
 class PesarScreen extends StatefulWidget {
-  const PesarScreen({super.key, required this.pedidoId, required this.usuario});
+  const PesarScreen({
+    super.key,
+    required this.pedidoId,
+    required this.usuario,
+    this.repository,
+  });
   final int pedidoId;
   final Usuario usuario;
-
+  final PedidosVendedorApiRepository? repository;
   @override
   State<PesarScreen> createState() => _PesarScreenState();
 }
 
 class _PesarScreenState extends State<PesarScreen> {
-  final PedidosVendedorApiRepository _repo =
-      PedidosVendedorApiRepository.instancia;
+  late final PedidosVendedorApiRepository _repo;
+  final _form = GlobalKey<FormState>();
   final _nota = TextEditingController();
-
+  final _cantidades = <int, TextEditingController>{};
+  final _precios = <int, TextEditingController>{};
+  final _reemplazos = <int, TextEditingController>{};
   Pedido? _pedido;
   PedidoPuesto? _parte;
   bool _cargando = true;
   bool _enviando = false;
+  bool _finalizado = false;
+  String? _errorCarga;
   String? _error;
-
-  /// Peso real de la balanza por detalle (id → cantidad).
-  final Map<int, double> _peso = {};
-
-  /// Nombre del producto que se ofrece en lugar del pedido (solo "Ofrezco otro").
-  final Map<int, TextEditingController> _reemplazos = {};
-
-  int get _puestoId => widget.usuario.puestoId ?? 0;
 
   @override
   void initState() {
     super.initState();
+    _repo = widget.repository ?? PedidosVendedorApiRepository.instancia;
     _cargar();
   }
 
   @override
   void dispose() {
     _nota.dispose();
-    for (final c in _reemplazos.values) {
+    for (final c in [
+      ..._cantidades.values,
+      ..._precios.values,
+      ..._reemplazos.values,
+    ]) {
       c.dispose();
     }
     super.dispose();
   }
 
   Future<void> _cargar() async {
-    final lista = await _repo.pedidosDePuesto(_puestoId);
-    if (!mounted) return;
-    final p = lista.where((x) => x.id == widget.pedidoId).firstOrNull;
-    final parte = p?.parteDePuesto(_puestoId);
     setState(() {
-      _pedido = p;
-      _parte = parte;
-      _cargando = false;
+      _cargando = true;
+      _errorCarga = null;
+    });
+    try {
+      final lista = await _repo.pedidosDePuesto(widget.usuario.puestoId ?? 0);
+      if (!mounted) return;
+      final pedido = lista.where((p) => p.id == widget.pedidoId).firstOrNull;
+      final parte = pedido?.parteDePuesto(widget.usuario.puestoId ?? 0);
       for (final d in parte?.detalles ?? const <PedidoDetalle>[]) {
-        _peso[d.id] = d.cantidadSolicitada;
+        _cantidades.putIfAbsent(
+          d.id,
+          () => TextEditingController(
+            text: _entera(d.unidad)
+                ? d.cantidadSolicitada.toStringAsFixed(0)
+                : d.cantidadSolicitada.toStringAsFixed(3),
+          ),
+        );
+        _precios.putIfAbsent(
+          d.id,
+          () => TextEditingController(
+            text: d.precioEstimadoUnitario.toStringAsFixed(2),
+          ),
+        );
         if (d.disponibilidad == Disponibilidad.reemplazo) {
-          _reemplazos[d.id] = TextEditingController(
-            text: '${d.nombre} (otra variedad)',
-          );
+          _reemplazos.putIfAbsent(d.id, () => TextEditingController());
         }
       }
-    });
+      setState(() {
+        _pedido = pedido;
+        _parte = parte;
+        _cargando = false;
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _cargando = false;
+          _errorCarga = e is PedidoException
+              ? e.mensaje
+              : 'No pudimos cargar el pedido. Inténtalo de nuevo.';
+        });
+      }
+    }
   }
 
-  /// Productos que sí se entregan (sin los "Sin stock").
-  List<PedidoDetalle> get _aPesar => [
-    for (final d in _parte?.detalles ?? const <PedidoDetalle>[])
-      if (d.disponibilidad != Disponibilidad.sinStock) d,
-  ];
+  static bool _entera(UnidadMedida unidad) =>
+      unidad == UnidadMedida.unidad || unidad == UnidadMedida.atado;
+  static double? _numero(String texto) =>
+      double.tryParse(texto.trim().replaceAll(',', '.'));
+  static String? _validarNumero(
+    String? texto, {
+    required bool precio,
+    bool entera = false,
+  }) {
+    final valor = (texto ?? '').trim();
+    final patron = precio
+        ? r'^\d{1,10}([.,]\d{1,2})?$'
+        : entera
+        ? r'^\d{1,9}$'
+        : r'^\d{1,9}([.,]\d{1,3})?$';
+    final numero = _numero(valor);
+    if (!RegExp(patron).hasMatch(valor) || numero == null || !numero.isFinite) {
+      return precio
+          ? 'Escribe un precio con hasta 2 decimales.'
+          : entera
+          ? 'Usa una cantidad entera.'
+          : 'Usa hasta 3 decimales para el peso real.';
+    }
+    if (numero < (precio ? 0.10 : 0.001)) {
+      return precio
+          ? 'El precio mínimo es S/ 0.10.'
+          : 'La cantidad debe ser mayor que cero.';
+    }
+    return null;
+  }
 
+  List<PedidoDetalle> get _aPesar =>
+      _parte?.detalles
+          .where((d) => d.disponibilidad != Disponibilidad.sinStock)
+          .toList() ??
+      [];
+  bool get _valoresValidos => _aPesar.every(
+    (d) =>
+        _validarNumero(
+              _cantidades[d.id]!.text,
+              precio: false,
+              entera: _entera(d.unidad),
+            ) ==
+            null &&
+        _validarNumero(_precios[d.id]!.text, precio: true) == null &&
+        (!_reemplazos.containsKey(d.id) ||
+            (_reemplazos[d.id]!.text.trim().isNotEmpty &&
+                _reemplazos[d.id]!.text.trim().length <= 150)),
+  );
   List<CotizacionDetalle> get _cotizacion => [
     for (final d in _aPesar)
       CotizacionDetalle(
         pedidoDetalleId: d.id,
-        nombreFinal: _reemplazos[d.id]?.text.trim().isNotEmpty == true
-            ? _reemplazos[d.id]!.text.trim()
-            : d.nombre,
-        cantidadReal: _peso[d.id]!,
-        precioUnitario: d.precioEstimadoUnitario,
+        nombreFinal: _reemplazos[d.id]?.text.trim() ?? d.nombre,
+        cantidadReal: _numero(_cantidades[d.id]!.text) ?? 0,
+        precioUnitario: _numero(_precios[d.id]!.text) ?? 0,
       ),
   ];
 
-  double get _totalFinal =>
-      redondear2(_cotizacion.fold(0.0, (s, d) => s + d.subtotal));
+  void _volver() {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/casero/inicio/pedido/${widget.pedidoId}');
+    }
+  }
 
   Future<void> _enviar() async {
-    final parte = _parte!;
+    if (_enviando || _finalizado) return;
+    final formularioValido = _form.currentState?.validate() ?? false;
+    // ListView puede desmontar campos fuera de pantalla: valida también sus datos.
+    if (!formularioValido || !_valoresValidos) {
+      setState(
+        () => _error =
+            'Revisa las cantidades, los precios y los nombres de reemplazo antes de enviar.',
+      );
+      return;
+    }
+    FocusScope.of(context).unfocus();
+    final detalles = List<CotizacionDetalle>.unmodifiable(_cotizacion);
+    final nota = _nota.text.trim();
     setState(() {
       _enviando = true;
       _error = null;
     });
     try {
-      await _repo.enviarPrecioFinal(parte.id, _cotizacion, nota: _nota.text);
-      if (!mounted) return;
-      avisar(
-        context,
-        'Enviaste el precio final. Te avisamos cuando ${_pedido!.clienteNombre} lo acepte.',
+      final confirmar = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => Dialog(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Semantics(
+                  header: true,
+                  child: const Text(
+                    'Confirmar precio final',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                for (final d in detalles)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      '${d.nombreFinal}: ${d.cantidadReal.toStringAsFixed(3).replaceFirst(RegExp(r"\.?0+$"), "")} ${_parte!.detalles.firstWhere((p) => p.id == d.pedidoDetalleId).unidad.simbolo} · ${soles(d.subtotal)}',
+                      style: const TextStyle(fontSize: 18),
+                    ),
+                  ),
+                ResumenPrecioCasero(
+                  estimado: _parte!.subtotalEstimado,
+                  detalles: detalles,
+                ),
+                if (nota.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: Text(
+                      'Nota: $nota',
+                      style: const TextStyle(fontSize: 18),
+                    ),
+                  ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Revisa los datos. El cliente debe aceptar el precio de todo su pedido antes de continuar.',
+                  style: TextStyle(fontSize: 17),
+                ),
+                const SizedBox(height: 16),
+                FilledButton(
+                  style: _estiloEnviar,
+                  onPressed: () => Navigator.of(ctx).pop(true),
+                  child: const Text(
+                    'Confirmar y enviar',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 20),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
+                  onPressed: () => Navigator.of(ctx).pop(false),
+                  child: const Text(
+                    'Volver a corregir',
+                    style: TextStyle(fontSize: 18),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       );
-      context.pop();
+      if (confirmar != true || !mounted) return;
+      await _repo.enviarPrecioFinal(_parte!.id, detalles, nota: nota);
+      if (!mounted) return;
+      avisar(context, 'Guardaste el precio final de tu puesto.');
+      setState(() => _finalizado = true);
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
+      _volver();
     } on PedidoException catch (e) {
       if (mounted) setState(() => _error = e.mensaje);
     } finally {
@@ -121,28 +277,44 @@ class _PesarScreenState extends State<PesarScreen> {
     }
   }
 
+  ButtonStyle get _estiloEnviar => FilledButton.styleFrom(
+    backgroundColor: AppColors.azul,
+    foregroundColor: AppColors.blanco,
+    minimumSize: const Size(48, 56),
+    padding: const EdgeInsets.all(16),
+  );
+
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
+  Widget build(BuildContext context) => PopScope(
+    canPop: !_enviando || _finalizado,
+    child: Scaffold(
       body: Column(
         children: [
-          EncabezadoSimple(
+          EncabezadoPedidoCasero(
             titulo: 'Pesar y poner precio',
-            subtitulo: _pedido == null
-                ? null
-                : 'Pedido de ${_pedido!.clienteNombre}',
+            subtitulo: _pedido?.clienteNombre,
+            habilitado: !_enviando,
           ),
           Expanded(child: _cuerpo()),
         ],
       ),
-    );
-  }
+    ),
+  );
 
   Widget _cuerpo() {
     if (_cargando) return const CargandoApp();
-    final p = _pedido;
+    if (_errorCarga != null) {
+      return AvisoPantalla(
+        icono: Icons.wifi_off_outlined,
+        titulo: 'No pudimos cargar el pesaje',
+        texto: _errorCarga,
+        esError: true,
+        textoBoton: 'Reintentar',
+        alTocar: _cargar,
+      );
+    }
     final parte = _parte;
-    if (p == null || parte == null) {
+    if (_pedido == null || parte == null) {
       return const AvisoPantalla(
         icono: Icons.search_off,
         titulo: 'No encontramos este pedido',
@@ -151,194 +323,233 @@ class _PesarScreenState extends State<PesarScreen> {
     if (parte.estado != EstadoPedidoPuesto.aceptado &&
         parte.estado != EstadoPedidoPuesto.pesando) {
       return AvisoPantalla(
-        icono: Icons.check_circle,
-        titulo: 'Este pedido ya tiene precio final',
+        icono: Icons.info_outline,
+        titulo: 'Este pedido ya no permite pesar',
         textoBoton: 'Volver al pedido',
-        alTocar: () => context.pop(),
+        alTocar: _volver,
+      );
+    }
+    if (parte.detalles.any(
+      (d) => d.disponibilidad == Disponibilidad.pendiente,
+    )) {
+      return AvisoPantalla(
+        icono: Icons.fact_check_outlined,
+        titulo: 'Falta revisar productos',
+        texto: 'Confirma la disponibilidad de cada producto antes de pesar.',
+        textoBoton: 'Volver al pedido',
+        alTocar: _volver,
       );
     }
     if (_aPesar.isEmpty) {
       return AvisoPantalla(
         icono: Icons.remove_shopping_cart_outlined,
-        titulo: 'No tienes ningún producto',
-        texto:
-            'Marcaste todo como "Sin stock". Es mejor rechazar el pedido para que '
-            'el cliente lo pida en otro puesto.',
+        titulo: 'No tienes productos para pesar',
         textoBoton: 'Rechazar pedido',
         alTocar: () async {
           if (await rechazarConMotivo(context, parte, repository: _repo) &&
-              mounted)
-            context.pop();
+              mounted) {
+            _volver();
+          }
         },
       );
     }
-
-    final nombre = p.clienteNombre.split(' ').first;
-    final estimado = parte.subtotalEstimado;
-    final finalTotal = _totalFinal;
     final sinStock = parte.detalles.where(
       (d) => d.disponibilidad == Disponibilidad.sinStock,
     );
+    return Form(
+      key: _form,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          const Text(
+            'Registra la cantidad real y el precio por unidad de cada producto. Puedes usar punto o coma para los decimales.',
+            style: TextStyle(fontSize: 18),
+          ),
+          const SizedBox(height: 12),
+          for (final d in _aPesar) ...[
+            _producto(d),
+            const SizedBox(height: 12),
+          ],
+          if (sinStock.isNotEmpty) ...[
+            EtiquetaEstado(
+              texto: 'No se cobra: ${sinStock.map((d) => d.nombre).join(', ')}',
+              icono: Icons.remove_shopping_cart_outlined,
+              tipo: TipoEstado.error,
+            ),
+            const SizedBox(height: 12),
+          ],
+          TextFormField(
+            controller: _nota,
+            enabled: !_enviando,
+            maxLength: 120,
+            maxLines: 3,
+            style: const TextStyle(fontSize: 18),
+            onChanged: (_) => setState(() {}),
+            decoration: const InputDecoration(
+              labelText: 'Nota para el cliente',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (_valoresValidos)
+            ResumenPrecioCasero(
+              estimado: parte.subtotalEstimado,
+              detalles: _cotizacion,
+            )
+          else
+            const EtiquetaEstado(
+              texto:
+                  'Completa cantidades, precios y reemplazos para ver el resumen.',
+              icono: Icons.info_outline,
+              tipo: TipoEstado.aviso,
+            ),
+          const SizedBox(height: 16),
+          if (_error != null) ...[
+            MensajeError(_error!),
+            const SizedBox(height: 12),
+          ],
+          if (_enviando)
+            Semantics(
+              liveRegion: true,
+              child: const Text(
+                'Confirmando o enviando el precio final…',
+                style: TextStyle(fontSize: 18),
+              ),
+            ),
+          FilledButton(
+            style: _estiloEnviar,
+            onPressed: _enviando ? null : _enviar,
+            child: const Text(
+              'Enviar precio final',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+  Widget _producto(PedidoDetalle d) => TarjetaApp(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          'Pon cada producto en la balanza y ajusta el peso real con − y +.',
-          style: TextStyle(fontSize: 18),
+        Text(
+          d.nombre,
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
         ),
+        Text(
+          'Pidió ${cantidadConUnidad(d.cantidadSolicitada, d.unidad)} · ${soles(d.precioEstimadoUnitario)} / ${d.unidad.simbolo}',
+          style: const TextStyle(
+            fontSize: 16,
+            color: AppColors.textoSecundario,
+          ),
+        ),
+        if (_reemplazos.containsKey(d.id)) ...[
+          const SizedBox(height: 12),
+          TextFormField(
+            key: ValueKey('reemplazo_${d.id}'),
+            controller: _reemplazos[d.id],
+            enabled: !_enviando,
+            maxLength: 150,
+            style: const TextStyle(fontSize: 18),
+            validator: (v) => (v ?? '').trim().isEmpty
+                ? 'Escribe el nombre del reemplazo.'
+                : null,
+            decoration: const InputDecoration(
+              labelText: 'Nombre del reemplazo',
+              border: OutlineInputBorder(),
+            ),
+            onChanged: (_) => setState(() {}),
+          ),
+        ],
         const SizedBox(height: 12),
-        for (final d in _aPesar) ...[
-          TarjetaApp(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  d.nombre,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                Text(
-                  'Pidió ${cantidadConUnidad(d.cantidadSolicitada, d.unidad)} · '
-                  '${soles(d.precioEstimadoUnitario)} / ${d.unidad.simbolo}',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: AppColors.textoSecundario,
-                  ),
-                ),
-                if (_reemplazos.containsKey(d.id)) ...[
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _reemplazos[d.id],
-                    style: const TextStyle(fontSize: 18),
-                    onChanged: (_) => setState(() {}),
-                    decoration: const InputDecoration(
-                      labelText: '¿Qué le ofreces en su lugar?',
-                      prefixIcon: Icon(Icons.swap_horiz),
-                      border: OutlineInputBorder(),
-                      enabledBorder: OutlineInputBorder(
-                        borderSide: BorderSide(
-                          color: AppColors.borde,
-                          width: 1.5,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 8,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    ControlCantidad(
-                      cantidad: _peso[d.id]!,
-                      unidad: d.unidad,
-                      nombre: d.nombre,
-                      onRestar: _peso[d.id]! > d.unidad.paso
-                          ? () => setState(
-                              () => _peso[d.id] = _peso[d.id]! - d.unidad.paso,
-                            )
-                          : null,
-                      onSumar: () => setState(
-                        () => _peso[d.id] = _peso[d.id]! + d.unidad.paso,
-                      ),
-                    ),
-                    Text(
-                      soles(_peso[d.id]! * d.precioEstimadoUnitario),
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+        Text(
+          'Cantidad real (${d.unidad.simbolo})',
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 8),
+        Semantics(
+          label: 'Cantidad real de ${d.nombre} en ${d.unidad.simbolo}',
+          child: TextFormField(
+            key: ValueKey('cantidad_${d.id}'),
+            controller: _cantidades[d.id],
+            enabled: !_enviando,
+            keyboardType: TextInputType.numberWithOptions(
+              decimal: !_entera(d.unidad),
             ),
-          ),
-          const SizedBox(height: 12),
-        ],
-        if (sinStock.isNotEmpty) ...[
-          EtiquetaEstado(
-            texto:
-                'Sin stock (no se cobra): ${sinStock.map((d) => d.nombre).join(', ')}',
-            icono: Icons.remove_shopping_cart_outlined,
-            tipo: TipoEstado.error,
-          ),
-          const SizedBox(height: 12),
-        ],
-        TextField(
-          controller: _nota,
-          maxLength: 120,
-          style: const TextStyle(fontSize: 18),
-          onChanged: (_) => setState(() {}),
-          decoration: const InputDecoration(
-            labelText: 'Nota para el cliente (opcional)',
-            hintText: 'Ej.: el tomate pesó 1.5 kg',
-            border: OutlineInputBorder(),
-            enabledBorder: OutlineInputBorder(
-              borderSide: BorderSide(color: AppColors.borde, width: 1.5),
+            style: const TextStyle(fontSize: 20),
+            autovalidateMode: AutovalidateMode.onUserInteraction,
+            validator: (v) =>
+                _validarNumero(v, precio: false, entera: _entera(d.unidad)),
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              errorMaxLines: 3,
             ),
+            onChanged: (_) => setState(() {}),
           ),
         ),
         const SizedBox(height: 8),
-        // "Así lo verá María"
-        TarjetaApp(
-          color: AppColors.azulClaro,
-          colorBorde: AppColors.azul,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.visibility_outlined, color: AppColors.azul),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      'Así lo verá $nombre',
-                      style: const TextStyle(
-                        fontSize: 19,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              FilaMonto(etiqueta: 'Estimado', monto: estimado),
-              FilaMonto(
-                etiqueta: 'Precio final',
-                monto: finalTotal,
-                destacado: true,
-              ),
-              if (finalTotal != estimado)
-                Text(
-                  finalTotal > estimado
-                      ? 'Sube ${soles(finalTotal - estimado)} por el peso real.'
-                      : 'Baja ${soles(estimado - finalTotal)}.',
-                  style: const TextStyle(fontSize: 16),
-                ),
-              if (_nota.text.trim().isNotEmpty)
-                Text(
-                  'Nota: "${_nota.text.trim()}"',
-                  style: const TextStyle(fontSize: 16),
-                ),
-            ],
+        Wrap(
+          spacing: 12,
+          children: [
+            IconButton.outlined(
+              tooltip:
+                  'Quitar ${cantidadConUnidad(d.unidad.paso, d.unidad)} de ${d.nombre}',
+              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+              onPressed:
+                  _enviando ||
+                      (_numero(_cantidades[d.id]!.text) ?? 0) <= d.unidad.paso
+                  ? null
+                  : () => _ajustar(d, -d.unidad.paso),
+              icon: const Icon(Icons.remove),
+            ),
+            IconButton.filled(
+              tooltip:
+                  'Agregar ${cantidadConUnidad(d.unidad.paso, d.unidad)} de ${d.nombre}',
+              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+              onPressed: _enviando ? null : () => _ajustar(d, d.unidad.paso),
+              icon: const Icon(Icons.add),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'Precio por ${d.unidad.simbolo}',
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 8),
+        Semantics(
+          label: 'Precio por ${d.unidad.simbolo} de ${d.nombre}',
+          child: TextFormField(
+            key: ValueKey('precio_${d.id}'),
+            controller: _precios[d.id],
+            enabled: !_enviando,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            style: const TextStyle(fontSize: 20),
+            autovalidateMode: AutovalidateMode.onUserInteraction,
+            validator: (v) => _validarNumero(v, precio: true),
+            decoration: const InputDecoration(
+              prefixText: 'S/ ',
+              border: OutlineInputBorder(),
+              errorMaxLines: 3,
+            ),
+            onChanged: (_) => setState(() {}),
           ),
         ),
-        const SizedBox(height: 20),
-        if (_error != null) ...[
-          MensajeError(_error!),
-          const SizedBox(height: 12),
-        ],
-        BotonPrincipal(
-          texto: 'Enviar precio final',
-          cargando: _enviando,
-          onPressed: _enviar,
-        ),
       ],
-    );
+    ),
+  );
+
+  void _ajustar(PedidoDetalle d, double paso) {
+    final actual = _numero(_cantidades[d.id]!.text);
+    if (actual == null) return;
+    final valor = actual + paso;
+    final texto = valor.toStringAsFixed(_entera(d.unidad) ? 0 : 3);
+    if (_validarNumero(texto, precio: false, entera: _entera(d.unidad)) !=
+        null) {
+      return;
+    }
+    setState(() => _cantidades[d.id]!.text = texto);
   }
 }

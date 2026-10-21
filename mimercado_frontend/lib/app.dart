@@ -28,8 +28,8 @@ class MiMercadoApp extends StatelessWidget {
             return MediaQuery(
               data: mq.copyWith(
                 textScaler: grande
-                    ? const TextScaler.linear(
-                        AccesibilidadState.factorLetraGrande,
+                    ? mq.textScaler.clamp(
+                        minScaleFactor: AccesibilidadState.factorLetraGrande,
                       )
                     : mq.textScaler,
               ),

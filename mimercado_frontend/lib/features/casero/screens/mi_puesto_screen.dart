@@ -3,10 +3,10 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/validators.dart';
-import '../../../core/widgets/botones_app.dart';
-import '../../../core/widgets/campo_texto_app.dart';
+import '../../../data/repositories/auth_api_repository.dart';
 import '../../../core/widgets/componentes_app.dart';
-import '../../../core/widgets/encabezado_simple.dart';
+import '../widgets/encabezado_pedido_casero.dart';
+import '../widgets/preferencias_vendedor.dart';
 import '../../../core/widgets/mensaje_error.dart';
 import '../../../data/models/usuario.dart';
 import '../../../data/repositories/puesto_vendedor_repository.dart';
@@ -16,17 +16,24 @@ class MiPuestoScreen extends StatefulWidget {
     super.key,
     required this.usuario,
     required this.onPuestoGuardado,
+    this.onUsuarioActualizado,
+    this.repository,
+    this.preferenciasRepository,
   });
 
   final Usuario usuario;
   final ValueChanged<PuestoDelVendedor> onPuestoGuardado;
+  final ValueChanged<Usuario>? onUsuarioActualizado;
+  final PuestoVendedorApiRepository? repository;
+  final AuthApiRepository? preferenciasRepository;
 
   @override
   State<MiPuestoScreen> createState() => _MiPuestoScreenState();
 }
 
 class _MiPuestoScreenState extends State<MiPuestoScreen> {
-  final _repository = PuestoVendedorApiRepository.instancia;
+  late final _repository =
+      widget.repository ?? PuestoVendedorApiRepository.instancia;
   final _formKey = GlobalKey<FormState>();
   final _nombre = TextEditingController();
   final _numero = TextEditingController();
@@ -99,6 +106,7 @@ class _MiPuestoScreenState extends State<MiPuestoScreen> {
   }
 
   Future<void> _guardar() async {
+    if (_guardando) return;
     FocusScope.of(context).unfocus();
     setState(() => _error = null);
     if (!_formKey.currentState!.validate()) return;
@@ -158,7 +166,10 @@ class _MiPuestoScreenState extends State<MiPuestoScreen> {
     return Scaffold(
       body: Column(
         children: [
-          const EncabezadoSimple(titulo: 'Mi puesto', mostrarAtras: false),
+          const EncabezadoPedidoCasero(
+            titulo: 'Mi puesto',
+            mostrarAtras: false,
+          ),
           Expanded(child: _contenido()),
         ],
       ),
@@ -193,6 +204,50 @@ class _MiPuestoScreenState extends State<MiPuestoScreen> {
               const SizedBox(height: 18),
               _BannerVacio(fotoUrl: _datos!.puesto?.fotoUrl),
               const SizedBox(height: 18),
+              PreferenciasVendedor(
+                usuario: widget.usuario,
+                onActualizado: widget.onUsuarioActualizado,
+                repository: widget.preferenciasRepository,
+              ),
+              const SizedBox(height: 18),
+              if (_datos!.puesto case final puesto?) ...[
+                TarjetaApp(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        puesto.nombre,
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      Text(
+                        '${puesto.mercado.nombre} · ${puesto.categoria.nombre}',
+                        style: const TextStyle(fontSize: 18),
+                      ),
+                      if (puesto.numero != null)
+                        Text(
+                          'Puesto ${puesto.numero}',
+                          style: const TextStyle(fontSize: 18),
+                        ),
+                      Text(
+                        puesto.horarios.isEmpty
+                            ? 'Horario sin registrar'
+                            : puesto.horarios.join('\n'),
+                        style: const TextStyle(fontSize: 18),
+                      ),
+                      Text(
+                        puesto.contactoBilletera == null
+                            ? 'Yape / Plin: sin registrar'
+                            : 'Yape / Plin: ${puesto.contactoBilletera}',
+                        style: const TextStyle(fontSize: 18),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+              ],
               Text(
                 editando ? 'Información del puesto' : 'Crea tu puesto',
                 style: const TextStyle(
@@ -212,99 +267,119 @@ class _MiPuestoScreenState extends State<MiPuestoScreen> {
                 ),
               ),
               const SizedBox(height: 18),
-              Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    CampoTextoApp(
-                      etiqueta: 'Nombre del puesto',
-                      hint: 'Ej.: Verdulería Doña Rosa',
-                      controller: _nombre,
-                      maxLongitud: 150,
-                      mostrarContador: true,
-                      icono: Icons.storefront_outlined,
-                      mayusculas: TextCapitalization.words,
-                      validator: (valor) => Validadores.requerido(
-                        valor,
-                        campo: 'El nombre del puesto',
+              AbsorbPointer(
+                absorbing: _guardando,
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _campo(
+                        etiqueta: 'Nombre del puesto',
+                        hint: 'Ej.: Verdulería Doña Rosa',
+                        controller: _nombre,
+                        maxLongitud: 150,
+                        mostrarContador: true,
+                        icono: Icons.storefront_outlined,
+                        mayusculas: TextCapitalization.words,
+                        validator: (valor) => Validadores.requerido(
+                          valor,
+                          campo: 'El nombre del puesto',
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    CampoTextoApp(
-                      etiqueta: 'Número del puesto (opcional)',
-                      hint: 'Ej.: A-12',
-                      controller: _numero,
-                      maxLongitud: 30,
-                      mostrarContador: true,
-                      icono: Icons.tag,
-                    ),
-                    const SizedBox(height: 20),
-                    const _TituloFormulario(
-                      icono: Icons.location_on_outlined,
-                      texto: 'Mercado y dirección',
-                    ),
-                    const SizedBox(height: 10),
-                    CampoTextoApp(
-                      etiqueta: 'Buscar mercado',
-                      hint: 'Escribe el nombre o la dirección',
-                      controller: _busqueda,
-                      icono: Icons.search,
-                    ),
-                    const SizedBox(height: 10),
-                    _ListaMercados(
-                      mercados: _mercadosFiltrados,
-                      seleccionado: _mercado?.id,
-                      onSeleccionar: (mercado) {
-                        setState(() => _mercado = mercado);
-                      },
-                    ),
-                    if (_mercado != null) ...[
-                      const SizedBox(height: 12),
-                      _DireccionSeleccionada(mercado: _mercado!),
-                    ],
-                    const SizedBox(height: 18),
-                    DropdownButtonFormField<int>(
-                      initialValue: _categoriaId,
-                      isExpanded: true,
-                      decoration: _decoracion(
-                        'Categoría principal',
-                        Icons.category_outlined,
-                      ),
-                      items: [
-                        for (final categoria in _datos!.categorias)
-                          DropdownMenuItem(
-                            value: categoria.id,
-                            child: Text(categoria.nombre),
-                          ),
-                      ],
-                      onChanged: (valor) =>
-                          setState(() => _categoriaId = valor),
-                      validator: (valor) => valor == null
-                          ? 'Selecciona la categoría principal.'
-                          : null,
-                    ),
-                    const SizedBox(height: 16),
-                    CampoTextoApp(
-                      etiqueta: 'Referencia para encontrar el puesto',
-                      hint: 'Ej.: Pasillo 2, junto a la entrada',
-                      controller: _referencia,
-                      maxLongitud: 300,
-                      mostrarContador: true,
-                      icono: Icons.assistant_direction_outlined,
-                      accion: TextInputAction.done,
-                    ),
-                    if (_error != null) ...[
                       const SizedBox(height: 16),
-                      MensajeError(_error!),
+                      _campo(
+                        etiqueta: 'Número del puesto (opcional)',
+                        hint: 'Ej.: A-12',
+                        controller: _numero,
+                        maxLongitud: 30,
+                        mostrarContador: true,
+                        icono: Icons.tag,
+                      ),
+                      const SizedBox(height: 20),
+                      const _TituloFormulario(
+                        icono: Icons.location_on_outlined,
+                        texto: 'Mercado y dirección',
+                      ),
+                      const SizedBox(height: 10),
+                      _campo(
+                        etiqueta: 'Buscar mercado',
+                        hint: 'Escribe el nombre o la dirección',
+                        controller: _busqueda,
+                        icono: Icons.search,
+                      ),
+                      const SizedBox(height: 10),
+                      _ListaMercados(
+                        mercados: _mercadosFiltrados,
+                        seleccionado: _mercado?.id,
+                        onSeleccionar: (mercado) {
+                          setState(() => _mercado = mercado);
+                        },
+                      ),
+                      if (_mercado != null) ...[
+                        const SizedBox(height: 12),
+                        _DireccionSeleccionada(mercado: _mercado!),
+                      ],
+                      const SizedBox(height: 18),
+                      const Text(
+                        'Categoría principal',
+                        style: TextStyle(
+                          fontSize: 19,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<int>(
+                        initialValue: _categoriaId,
+                        isExpanded: true,
+                        itemHeight: null,
+                        decoration: _decoracion('', Icons.category_outlined),
+                        items: [
+                          for (final categoria in _datos!.categorias)
+                            DropdownMenuItem(
+                              value: categoria.id,
+                              child: Text(categoria.nombre),
+                            ),
+                        ],
+                        onChanged: (valor) =>
+                            setState(() => _categoriaId = valor),
+                        validator: (valor) => valor == null
+                            ? 'Selecciona la categoría principal.'
+                            : null,
+                      ),
+                      const SizedBox(height: 16),
+                      _campo(
+                        etiqueta: 'Referencia para encontrar el puesto',
+                        hint: 'Ej.: Pasillo 2, junto a la entrada',
+                        controller: _referencia,
+                        maxLongitud: 300,
+                        mostrarContador: true,
+                        icono: Icons.assistant_direction_outlined,
+                        accion: TextInputAction.done,
+                      ),
+                      if (_error != null) ...[
+                        const SizedBox(height: 16),
+                        MensajeError(_error!),
+                      ],
+                      const SizedBox(height: 20),
+                      FilledButton(
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size(48, 56),
+                          padding: const EdgeInsets.all(16),
+                        ),
+                        onPressed: _guardando ? null : _guardar,
+                        child: Text(
+                          _guardando
+                              ? 'Guardando puesto…'
+                              : editando
+                              ? 'Guardar cambios'
+                              : 'Crear mi puesto',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 20),
+                        ),
+                      ),
                     ],
-                    const SizedBox(height: 20),
-                    BotonPrincipal(
-                      texto: editando ? 'Guardar cambios' : 'Crear mi puesto',
-                      cargando: _guardando,
-                      onPressed: _guardar,
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ],
@@ -314,9 +389,45 @@ class _MiPuestoScreenState extends State<MiPuestoScreen> {
     );
   }
 
+  Widget _campo({
+    required String etiqueta,
+    required TextEditingController controller,
+    String? hint,
+    String? Function(String?)? validator,
+    int? maxLongitud,
+    bool mostrarContador = false,
+    IconData? icono,
+    TextCapitalization mayusculas = TextCapitalization.none,
+    TextInputAction accion = TextInputAction.next,
+  }) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Text(
+        etiqueta,
+        style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
+      ),
+      const SizedBox(height: 8),
+      TextFormField(
+        controller: controller,
+        maxLength: maxLongitud,
+        validator: validator,
+        textCapitalization: mayusculas,
+        textInputAction: accion,
+        autovalidateMode: AutovalidateMode.onUserInteraction,
+        style: const TextStyle(fontSize: 19),
+        decoration: InputDecoration(
+          hintText: hint,
+          border: const OutlineInputBorder(),
+          errorMaxLines: 4,
+          counterText: mostrarContador ? null : '',
+        ),
+      ),
+    ],
+  );
+
   InputDecoration _decoracion(String etiqueta, IconData icono) {
     return InputDecoration(
-      labelText: etiqueta,
+      labelText: etiqueta.isEmpty ? null : etiqueta,
       prefixIcon: Icon(icono, color: AppColors.azul),
       filled: true,
       fillColor: AppColors.blanco,
@@ -388,7 +499,7 @@ class _BannerVacio extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 130,
+      constraints: const BoxConstraints(minHeight: 130),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: const Color(0xFFDCE8EF),
@@ -396,29 +507,33 @@ class _BannerVacio extends StatelessWidget {
         border: Border.all(color: AppColors.divisor),
       ),
       child: fotoUrl == null
-          ? const Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.add_photo_alternate_outlined,
-                    size: 38,
-                    color: AppColors.azul,
-                  ),
-                  SizedBox(height: 6),
-                  Text(
-                    'Aquí irá la foto de tu puesto',
-                    style: TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  Text(
-                    'La añadiremos en el paso de imágenes',
-                    style: TextStyle(color: AppColors.textoSecundario),
-                  ),
-                ],
+          ? const Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.add_photo_alternate_outlined,
+                      size: 38,
+                      color: AppColors.azul,
+                    ),
+                    SizedBox(height: 6),
+                    Text(
+                      'Tu puesto en MiMercado+',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    Text(
+                      'Información de tu negocio',
+                      style: TextStyle(color: AppColors.textoSecundario),
+                    ),
+                  ],
+                ),
               ),
             )
           : Image.network(
               fotoUrl!,
+              height: 130,
               fit: BoxFit.cover,
               errorBuilder: (_, _, _) => const Center(
                 child: Icon(
@@ -443,9 +558,11 @@ class _TituloFormulario extends StatelessWidget {
       children: [
         Icon(icono, color: AppColors.azul),
         const SizedBox(width: 8),
-        Text(
-          texto,
-          style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
+        Expanded(
+          child: Text(
+            texto,
+            style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
+          ),
         ),
       ],
     );

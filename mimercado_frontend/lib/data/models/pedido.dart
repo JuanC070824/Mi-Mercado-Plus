@@ -25,7 +25,7 @@ enum EstadoPedidoPuesto {
   pendiente('Nuevo pedido', 'pendiente'),
   aceptado('Aceptado', 'aceptado'),
   pesando('Pesando…', 'pesando'),
-  pesado('Ya pesó', 'pesado'),
+  pesado('Precio enviado', 'pesado'),
   enPreparacion('Empaquetando', 'en_preparacion'),
   listo('Listo para recoger', 'listo'),
   recogido('Recogido', 'recogido'),

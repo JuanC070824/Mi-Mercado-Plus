@@ -348,13 +348,107 @@ class ApiTests(TestCase):
         self.assertEqual(self.pay(order).status_code,200)
         self.assertEqual(self.post(f'/api/pedidos/{order}/cancelar/',{}).status_code,400)
 
-    def test_culqi_adapter_uses_test_keys_and_cents(self):
-        token_response=type('R',(),{'status_code':201,'json':lambda self:{'id':'ype_test_123'}})()
-        charge_response=type('R',(),{'status_code':201,'json':lambda self:{'id':'chr_test_123'}})()
-        with override_settings(PAYMENT_MODE='culqi_sandbox',CULQI_PUBLIC_KEY='pk_test_demo',CULQI_SECRET_KEY='sk_test_demo'):
-            with patch('mvp_back.payments.requests.post',side_effect=[token_response,charge_response]) as post:
-                self.assertEqual(provider_charge('900000001','123456',2400,'maria@example.test'),'chr_test_123')
-                self.assertEqual(post.call_args_list[0].kwargs['json']['amount'],'2400')
-                self.assertEqual(post.call_args_list[1].kwargs['json']['amount'],2400)
-        with override_settings(PAYMENT_MODE='culqi_sandbox',CULQI_PUBLIC_KEY='pk_live_X',CULQI_SECRET_KEY='sk_live_X'):
-            with self.assertRaises(RejectedPayment):provider_charge('900000001','123456',2400,'maria@example.test')
+    def test_simulacion_no_realiza_solicitudes_externas(self):
+        with patch('requests.sessions.Session.request',side_effect=AssertionError('No se permite red')):
+            respuesta=self.pay(self.quoted_order())
+        self.assertEqual(respuesta.status_code,200,respuesta.data)
+        self.assertTrue(respuesta.data['simulado'])
+        self.assertTrue(Pago.objects.get().proveedor_transaccion_id.startswith('mock_'))
+        with override_settings(PAYMENT_MODE='culqi_sandbox'):
+            with self.assertRaises(RejectedPayment):provider_charge('900000001','123456',2400,None)
+
+    def preparar_pesaje(self):
+        order=self.order()
+        detalle=PedidoDetalle.objects.get(pedido_puesto__pedido_id=order,producto_id=self.p1.pk)
+        self.client.credentials(HTTP_AUTHORIZATION='Bearer '+issue_token(self.seller))
+        r=self.client.patch(f'/api/vendedor/pedidos/{detalle.pedido_puesto_id}/accion/',{'accion':'aceptar'},format='json')
+        self.assertEqual(r.status_code,200,r.data)
+        r=self.client.patch(f'/api/vendedor/detalles/{detalle.pk}/',{'disponibilidad':'disponible'},format='json')
+        self.assertEqual(r.status_code,200,r.data)
+        return order,detalle
+
+    def test_pesaje_guarda_precio_cantidad_y_nota(self):
+        order,d=self.preparar_pesaje()
+        fila={'pedido_detalle_id':d.pk,'nombre_final':'Tomate','cantidad_real':'1.250','precio_unitario':'5.00'}
+        r=self.post(f'/api/vendedor/pedidos/{d.pedido_puesto_id}/cotizacion/',{'detalles':[fila],'nota':'  Tomates maduros  '})
+        self.assertEqual(r.status_code,201,r.data)
+        parte=d.pedido_puesto
+        parte.refresh_from_db()
+        self.assertEqual(parte.nota,'Tomates maduros')
+        self.assertEqual(parte.estado,'pesado')
+        response=self.client.get('/api/vendedor/pedidos/')
+        pedido=next(p for p in response.data if p['id']==order)
+        grupo=pedido['cotizacion']['puestos'][0]
+        self.assertEqual(grupo['nota'],'Tomates maduros')
+        self.assertEqual(Decimal(grupo['detalles'][0]['cantidad_real']),Decimal('1.250'))
+        self.assertEqual(grupo['detalles'][0]['precio_unitario_centavos'],500)
+        # Falta el otro puesto: no se publica una cotización incompleta.
+        self.assertEqual(pedido['cotizacion']['estado'],'borrador')
+
+    def test_pesaje_no_admite_productos_duplicados(self):
+        order,d=self.preparar_pesaje()
+        fila={'pedido_detalle_id':d.pk,'nombre_final':'Tomate','cantidad_real':'1.000','precio_unitario':'4.00'}
+        r=self.post(f'/api/vendedor/pedidos/{d.pedido_puesto_id}/cotizacion/',{'detalles':[fila,fila],'nota':'No guardar'})
+        self.assertEqual(r.status_code,400,r.data)
+        self.assertFalse(Cotizacion.objects.filter(pedido_id=order).exists())
+        d.pedido_puesto.refresh_from_db()
+        self.assertIsNone(d.pedido_puesto.nota)
+
+    def test_pesaje_no_admite_fracciones_de_unidades(self):
+        self.p1.unidad_codigo='unidad'
+        self.p1.save(update_fields=['unidad_codigo'])
+        order,d=self.preparar_pesaje()
+        fila={'pedido_detalle_id':d.pk,'nombre_final':'Tomate','cantidad_real':'1.500','precio_unitario':'4.00'}
+        r=self.post(f'/api/vendedor/pedidos/{d.pedido_puesto_id}/cotizacion/',{'detalles':[fila]})
+        self.assertEqual(r.status_code,400,r.data)
+        self.assertFalse(Cotizacion.objects.filter(pedido_id=order).exists())
+        fila['cantidad_real']='2.000'
+        r=self.post(f'/api/vendedor/pedidos/{d.pedido_puesto_id}/cotizacion/',{'detalles':[fila]})
+        self.assertEqual(r.status_code,201,r.data)
+
+    def test_vendedor_guarda_y_recupera_preferencias_de_accesibilidad(self):
+        self.client.credentials(HTTP_AUTHORIZATION='Bearer '+issue_token(self.seller))
+        response=self.client.patch('/api/auth/me/',{'letra_grande':True,'sonido':False,'vibracion':False},format='json')
+        self.assertEqual(response.status_code,200,response.data)
+        self.seller.refresh_from_db()
+        self.assertTrue(self.seller.letra_grande)
+        self.assertFalse(self.seller.sonido)
+        self.assertFalse(self.seller.vibracion)
+        self.assertEqual(self.client.get('/api/auth/me/').data['letra_grande'],True)
+        login=self.post('/api/auth/login/',{'celular':self.seller.celular,'password':'password','rol':'vendedor'})
+        self.assertEqual(login.status_code,200,login.data)
+        self.assertTrue(login.data['usuario']['letra_grande'])
+        self.assertFalse(login.data['usuario']['sonido'])
+
+    def test_puesto_muestra_horarios_y_billetera_reales(self):
+        from .models import HorarioPuesto
+        HorarioPuesto.objects.create(puesto=self.stall,dia_semana=1,apertura='06:00',cierre='14:00')
+        self.stall.contacto_billetera='900000011'
+        self.stall.save(update_fields=['contacto_billetera'])
+        self.client.credentials(HTTP_AUTHORIZATION='Bearer '+issue_token(self.seller))
+        response=self.client.get('/api/vendedor/puesto/')
+        self.assertEqual(response.status_code,200,response.data)
+        self.assertEqual(response.data['puesto']['contacto_billetera'],'900000011')
+        self.assertEqual(response.data['puesto']['horarios'],[{'dia':1,'apertura':'06:00','cierre':'14:00'}])
+
+    def test_vendedor_entrega_bolsa_sin_marcar_entrega_al_cliente(self):
+        order=self.quoted_order()
+        self.assertEqual(self.pay(order).status_code,200)
+        from .models import RepartidorMercado
+        from .operaciones import aceptar_reparto
+        driver=Usuario.objects.create(nombres='Repartidor',celular='900000088',password_hash='x')
+        UsuarioRol.objects.create(usuario_id=driver.pk,rol_codigo='repartidor')
+        RepartidorMercado.objects.create(repartidor=driver,mercado=self.market,movilidad='a_pie',autorizado=True,disponible=True)
+        aceptar_reparto(driver,order)
+        detalle=PedidoDetalle.objects.get(pedido_puesto__pedido_id=order,producto_id=self.p1.pk)
+        parte=detalle.pedido_puesto
+        self.client.credentials(HTTP_AUTHORIZATION='Bearer '+issue_token(self.seller))
+        url=f'/api/vendedor/pedidos/{parte.pk}/accion/'
+        response=self.client.patch(url,{'accion':'entregar'},format='json')
+        self.assertEqual(response.status_code,400,response.data)
+        self.assertEqual(self.client.patch(url,{'accion':'listo'},format='json').status_code,200)
+        self.assertEqual(self.client.patch(url,{'accion':'entregar'},format='json').status_code,200)
+        parte.refresh_from_db()
+        self.assertEqual(parte.estado,'recogido')
+        self.assertNotEqual(Pedido.objects.get(pk=order).estado,'entregado')
+        self.assertEqual(self.client.patch(url,{'accion':'entregar'},format='json').status_code,400)

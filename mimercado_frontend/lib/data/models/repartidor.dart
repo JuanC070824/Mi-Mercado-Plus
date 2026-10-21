@@ -1,13 +1,17 @@
 /// repartidor_mercados.movilidad
 enum Movilidad {
-  aPie('A pie'),
+  aPie('Estibador a pie'),
   carretilla('Carretilla'),
   bicicleta('Bicicleta'),
   moto('Moto'),
-  mototaxi('Mototaxi');
+  mototaxi('Mototaxi'),
+  otro('Otra movilidad');
 
   const Movilidad(this.etiqueta);
   final String etiqueta;
+  String get codigo => this == Movilidad.aPie ? 'a_pie' : name;
+  static Movilidad desdeCodigo(String? valor) =>
+      values.firstWhere((m) => m.codigo == valor, orElse: () => Movilidad.otro);
 }
 
 /// Repartidor (estibador) autorizado en un mercado.

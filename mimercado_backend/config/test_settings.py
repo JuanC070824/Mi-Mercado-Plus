@@ -9,3 +9,4 @@ PASSWORD_HASHERS=['django.contrib.auth.hashers.MD5PasswordHasher']  # solo tests
 TEST_RUNNER='mvp_back.test_runner.MvpTestRunner'
 REST_FRAMEWORK={**REST_FRAMEWORK,'DEFAULT_THROTTLE_RATES':{'login':'10000/min','registro':'10000/min','dni':'10000/min','pago':'10000/min'}}
 ALLOWED_HOSTS=['testserver','localhost','127.0.0.1']
+REST_FRAMEWORK['DEFAULT_THROTTLE_RATES']['entrega']='10000/min'

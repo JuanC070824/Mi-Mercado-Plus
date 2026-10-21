@@ -12,7 +12,7 @@ from . import serializers as s
 from .models import (Usuario, UsuarioRol, Producto, Mercado, Puesto, Direccion,
                      Pedido, PedidoPuesto, PedidoDetalle, Cotizacion,
                      CotizacionPuesto, CotizacionDetalle, RepartidorMercado,
-                     Categoria, UnidadMedida, HistorialEstado, EntregaParada)
+                     Categoria, UnidadMedida, HistorialEstado, EntregaParada, HorarioPuesto)
 from .authentication import issue_token
 from .services import put_item, cart_payload, change_item, checkout, require_buyer, accept_quote, quote_total, lock_user
 from .payments import pay_order
@@ -160,7 +160,7 @@ class PerfilView(APIView):
         request.user.celular=celular
         request.user.correo=correo
         campos=['celular','correo']
-        for campo in ['sonido','vibracion']:
+        for campo in ['letra_grande','sonido','vibracion']:
             if campo in data:
                 setattr(request.user,campo,data[campo])
                 campos.append(campo)
@@ -217,6 +217,10 @@ class VendedorPuestoView(APIView):
         return {
             'id':puesto.pk,'nombre':puesto.nombre,'numero':puesto.numero,
             'referencia':puesto.descripcion,'foto_url':puesto.foto_url,
+            'contacto_billetera':puesto.contacto_billetera,
+            'horarios':[{'dia':h.dia_semana,'apertura':h.apertura.strftime('%H:%M'),
+                         'cierre':h.cierre.strftime('%H:%M')}
+                        for h in HorarioPuesto.objects.filter(puesto_id=puesto.pk).order_by('dia_semana','apertura')],
             'abierto':puesto.abierto,
             'mercado':{
                 'id':puesto.mercado_id,'nombre':puesto.mercado.nombre,
@@ -480,10 +484,11 @@ def pedido_payload(pedido):
     quote=Cotizacion.objects.filter(pedido_id=pedido.pk).order_by('-version').first()
     if quote:
         cot_puestos=[]
-        for grupo in CotizacionPuesto.objects.filter(cotizacion_id=quote.pk).order_by('id'):
+        for grupo in CotizacionPuesto.objects.filter(cotizacion_id=quote.pk).select_related('pedido_puesto').order_by('id'):
             cot_puestos.append({
                 'pedido_puesto_id':grupo.pedido_puesto_id,
                 'tasa_comision':str(grupo.tasa_comision),
+                'nota':grupo.pedido_puesto.nota,
                 'detalles':[{
                     'pedido_detalle_id':d.pedido_detalle_id,'nombre_final':d.nombre_final,
                     'cantidad_real':str(d.cantidad_real),'precio_unitario_centavos':cents(d.precio_unitario),
@@ -517,6 +522,9 @@ class VendedorPedidoAccionView(APIView):
     @transaction.atomic
     def patch(self,request,pedido_puesto_id):
         puesto=puesto_vendedor_actual(request.user)
+        parte_inicial=PedidoPuesto.objects.filter(pk=pedido_puesto_id,puesto_id=puesto.pk).first()
+        if parte_inicial is None: raise NotFound('Pedido no encontrado para tu puesto.')
+        Pedido.objects.select_for_update().get(pk=parte_inicial.pedido_id)
         parte=PedidoPuesto.objects.select_for_update().filter(
             pk=pedido_puesto_id,puesto_id=puesto.pk).first()
         if parte is None:raise NotFound('Pedido no encontrado para tu puesto.')
@@ -543,7 +551,17 @@ class VendedorPedidoAccionView(APIView):
         pedido=parte.pedido
         if not activas.exists():pedido.estado='cancelado'
         elif accion=='listo' and not activas.exclude(estado='listo').exists():pedido.estado='listo_para_recojo'
-        elif accion=='entregar' and not activas.exclude(estado='recogido').exists():pedido.estado='en_camino'
+        elif accion=='entregar':
+            from .models import Entrega
+            entrega=Entrega.objects.filter(pedido_id=parte.pedido_id,estado__in=['aceptada','en_recojo']).first()
+            if entrega is None: raise ValidationError('Espera a que un repartidor del mercado acepte el pedido.')
+            parada=EntregaParada.objects.filter(entrega_id=entrega.pk,pedido_puesto_id=parte.pk).first()
+            if parada is None: raise ValidationError('Tu puesto todavía no figura en la ruta del repartidor.')
+            if EntregaParada.objects.filter(entrega_id=entrega.pk,orden__lt=parada.orden,recogido_en__isnull=True).exists():
+                raise ValidationError('El repartidor debe recoger primero en los puestos anteriores.')
+            if parada.recogido_en is None:
+                parada.recogido_en=timezone.now();parada.save(update_fields=['recogido_en'])
+            pedido.estado='en_recojo'
         pedido.save(update_fields=['estado'])
         return Response({'id':parte.pk,'estado':parte.estado})
 
@@ -569,6 +587,9 @@ class VendedorCotizacionView(APIView):
     @transaction.atomic
     def post(self,request,pedido_puesto_id):
         puesto=puesto_vendedor_actual(request.user)
+        parte_inicial=PedidoPuesto.objects.filter(pk=pedido_puesto_id,puesto_id=puesto.pk).first()
+        if parte_inicial is None: raise NotFound('Pedido no encontrado para tu puesto.')
+        Pedido.objects.select_for_update().get(pk=parte_inicial.pedido_id)
         parte=PedidoPuesto.objects.select_for_update().filter(
             pk=pedido_puesto_id,puesto_id=puesto.pk).first()
         if parte is None:raise NotFound('Pedido no encontrado para tu puesto.')
@@ -577,18 +598,25 @@ class VendedorCotizacionView(APIView):
         data=validated(s.CotizacionVendedorSerializer,request.data)
         detalles={d.pk:d for d in PedidoDetalle.objects.filter(pedido_puesto_id=parte.pk)}
         recibidos={fila['pedido_detalle_id'] for fila in data['detalles']}
+        if len(recibidos)!=len(data['detalles']):
+            raise ValidationError('No repitas productos en la cotización.')
         esperados={d.pk for d in detalles.values() if d.disponibilidad!='sin_stock'}
         if recibidos!=esperados:
             raise ValidationError('Incluye exactamente todos los productos que sí entregarás.')
         if any(detalles[i].disponibilidad=='pendiente' for i in recibidos):
             raise ValidationError('Revisa la disponibilidad de todos los productos.')
+        unidades_enteras=set(UnidadMedida.objects.filter(permite_fraccion=False).values_list('codigo',flat=True))
+        for fila in data['detalles']:
+            if (detalles[fila['pedido_detalle_id']].unidad_codigo in unidades_enteras
+                    and fila['cantidad_real']!=fila['cantidad_real'].to_integral_value()):
+                raise ValidationError('Usa cantidades enteras para unidades y atados.')
         quote=Cotizacion.objects.select_for_update().filter(
             pedido_id=parte.pedido_id,estado='borrador').order_by('-version').first()
         if quote is None:
             version=(Cotizacion.objects.filter(pedido_id=parte.pedido_id).aggregate(
                 mayor=Max('version'))['mayor'] or 0)+1
             quote=Cotizacion.objects.create(pedido_id=parte.pedido_id,version=version,
-                                             estado='borrador',costo_envio=5)
+                                             estado='borrador',costo_envio=5,ganancia_repartidor=5)
         grupo,_=CotizacionPuesto.objects.get_or_create(
             cotizacion_id=quote.pk,pedido_id=parte.pedido_id,pedido_puesto_id=parte.pk)
         CotizacionDetalle.objects.filter(cotizacion_puesto_id=grupo.pk).delete()
@@ -600,7 +628,9 @@ class VendedorCotizacionView(APIView):
                 producto_final_id=detalle.producto_id,puesto_id=puesto.pk,
                 unidad_codigo=detalle.unidad_codigo,cantidad_real=fila['cantidad_real'],
                 precio_unitario=fila['precio_unitario'])
-        parte.estado='pesado';parte.save(update_fields=['estado'])
+        parte.estado='pesado'
+        parte.nota=data.get('nota','').strip() or None
+        parte.save(update_fields=['estado','nota'])
         activas=PedidoPuesto.objects.filter(pedido_id=parte.pedido_id).exclude(
             estado__in=['rechazado','cancelado'])
         cotizadas=set(CotizacionPuesto.objects.filter(cotizacion_id=quote.pk).values_list(

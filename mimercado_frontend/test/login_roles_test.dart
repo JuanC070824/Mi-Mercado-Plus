@@ -24,35 +24,45 @@ Future<void> _ingresar(
 void main() {
   setUp(() {
     // Pantalla de celular para que la bienvenida no desborde.
-    final vista = TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+    final vista =
+        TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
     vista.physicalSize = const Size(1080, 2400);
     vista.devicePixelRatio = 3;
   });
 
   Widget app() => MaterialApp.router(routerConfig: appRouter);
 
-  testWidgets('la casera Rosa entra a su menú: Inicio · Pedidos · Catálogo · Mi puesto',
-      (tester) async {
-    await tester.pumpWidget(app());
-    await _ingresar(tester, perfil: 'Comerciante', celular: '912345678');
+  testWidgets(
+    'la casera Rosa entra a su menú: Inicio · Pedidos · Catálogo · Mi puesto',
+    (tester) async {
+      await tester.pumpWidget(app());
+      await _ingresar(tester, perfil: 'Comerciante', celular: '912345678');
 
-    expect(find.text('¡Hola, Rosa!'), findsOneWidget);
-    for (final t in ['Pedidos', 'Catálogo', 'Mi puesto']) {
-      expect(find.text(t), findsOneWidget);
-    }
-    expect(find.text('Canasta'), findsNothing);
-  });
+      expect(find.text('¡Hola, Rosa!'), findsOneWidget);
+      for (final t in ['Pedidos', 'Catálogo', 'Mi puesto']) {
+        expect(find.text(t), findsOneWidget);
+      }
+      expect(find.text('Canasta'), findsNothing);
+    },
+  );
 
-  testWidgets('el repartidor Ernesto entra a su menú: Inicio · Ruta · Ganancias · Perfil',
-      (tester) async {
-    await tester.pumpWidget(app());
-    await _ingresar(tester, perfil: 'Repartidor', celular: '923456789');
+  testWidgets(
+    'repartidor sin conexión configurada no entra al prototipo con pedidos inventados',
+    (tester) async {
+      await tester.pumpWidget(app());
+      await _ingresar(tester, perfil: 'Repartidor', celular: '923456789');
 
-    expect(find.text('¡Hola, Ernesto!'), findsOneWidget);
-    for (final t in ['Ruta', 'Ganancias', 'Perfil']) {
-      expect(find.text(t), findsOneWidget);
-    }
-  });
+      expect(
+        find.textContaining(
+          'No está configurada la conexión al servicio de repartidores',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('¡Hola, Ernesto!'), findsNothing);
+      expect(find.textContaining('Surquillo'), findsNothing);
+      expect(find.textContaining('#344-B'), findsNothing);
+    },
+  );
 
   testWidgets('el celular de un cliente no entra como casero', (tester) async {
     await tester.pumpWidget(app());
