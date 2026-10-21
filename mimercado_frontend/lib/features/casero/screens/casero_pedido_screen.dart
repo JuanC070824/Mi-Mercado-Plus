@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/formato.dart';
 import '../../../core/widgets/botones_app.dart';
 import '../../../core/widgets/componentes_app.dart';
 import '../../../core/widgets/deslizar_confirmar.dart';
-import '../../../core/widgets/encabezado_simple.dart';
 import '../../../data/models/cotizacion.dart';
 import '../../../data/models/pedido.dart';
 import '../../../data/models/producto.dart';
@@ -14,6 +14,8 @@ import '../../../data/repositories/pedido_repository.dart';
 import '../../../data/repositories/pedidos_vendedor_api_repository.dart';
 import '../widgets/alerta_pedido.dart';
 import '../widgets/llamar_dialog.dart';
+import '../widgets/encabezado_pedido_casero.dart';
+import '../widgets/revision_producto_casero.dart';
 
 /// Detalle de un pedido para el casero. Muestra lo que toca hacer según el
 /// estado de SU parte: aceptar/rechazar (V1b/V1c), revisar (V2), pesar (V3),
@@ -23,52 +25,80 @@ class CaseroPedidoScreen extends StatefulWidget {
     super.key,
     required this.pedidoId,
     required this.usuario,
+    this.repository,
   });
   final int pedidoId;
   final Usuario usuario;
+  final PedidosVendedorApiRepository? repository;
 
   @override
   State<CaseroPedidoScreen> createState() => _CaseroPedidoScreenState();
 }
 
 class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
-  final PedidosVendedorApiRepository _repo =
-      PedidosVendedorApiRepository.instancia;
+  late final PedidosVendedorApiRepository _repo;
 
   Pedido? _pedido;
   bool _cargando = true;
   bool _ocupado = false;
+  bool _actualizando = false;
+  int _consultaId = 0;
+  String? _errorCarga;
 
   int get _puestoId => widget.usuario.puestoId ?? 0;
 
   @override
   void initState() {
     super.initState();
-    _repo.cambios.addListener(_cargar);
+    _repo = widget.repository ?? PedidosVendedorApiRepository.instancia;
+    _repo.cambios.addListener(_alCambiarPedidos);
     _cargar();
   }
 
   @override
   void dispose() {
-    _repo.cambios.removeListener(_cargar);
+    _repo.cambios.removeListener(_alCambiarPedidos);
     super.dispose();
   }
 
   Future<void> _cargar() async {
-    final lista = await _repo.pedidosDePuesto(_puestoId);
-    if (!mounted) return;
+    final consulta = ++_consultaId;
     setState(() {
-      _pedido = lista.where((p) => p.id == widget.pedidoId).firstOrNull;
-      _cargando = false;
+      _actualizando = true;
+      _errorCarga = null;
     });
+    try {
+      final lista = await _repo.pedidosDePuesto(_puestoId);
+      if (!mounted || consulta != _consultaId) return;
+      setState(() {
+        _pedido = lista.where((p) => p.id == widget.pedidoId).firstOrNull;
+        _cargando = false;
+        _actualizando = false;
+      });
+    } catch (error) {
+      if (!mounted || consulta != _consultaId) return;
+      setState(() {
+        _cargando = false;
+        _actualizando = false;
+        _errorCarga = error is PedidoException
+            ? error.mensaje
+            : 'No pudimos cargar el pedido. Inténtalo de nuevo.';
+      });
+    }
+  }
+
+  void _alCambiarPedidos() {
+    if (!_ocupado) _cargar();
   }
 
   /// Ejecuta una acción del repositorio mostrando el error si falla.
   Future<void> _hacer(Future<void> Function() accion, {String? exito}) async {
-    if (_ocupado) return;
+    if (_ocupado || _actualizando) return;
     setState(() => _ocupado = true);
     try {
       await accion();
+      if (!mounted) return;
+      await _cargar();
       if (mounted && exito != null) avisar(context, exito);
     } on PedidoException catch (e) {
       if (mounted) avisar(context, e.mensaje);
@@ -83,9 +113,7 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
     return Scaffold(
       body: Column(
         children: [
-          EncabezadoSimple(
-            titulo: p == null ? 'Pedido' : 'Pedido de ${p.clienteNombre}',
-          ),
+          EncabezadoPedidoCasero(titulo: 'Pedido', subtitulo: p?.codigo),
           Expanded(child: _cuerpo()),
         ],
       ),
@@ -94,6 +122,16 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
 
   Widget _cuerpo() {
     if (_cargando) return const CargandoApp();
+    if (_errorCarga != null) {
+      return AvisoPantalla(
+        icono: Icons.wifi_off_outlined,
+        titulo: 'No pudimos actualizar el pedido',
+        texto: _errorCarga,
+        esError: true,
+        textoBoton: 'Reintentar',
+        alTocar: _cargar,
+      );
+    }
     final p = _pedido;
     final parte = p?.parteDePuesto(_puestoId);
     if (p == null || parte == null) {
@@ -235,13 +273,14 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
 
   // ------------------------------------------------------------ V2 Revisar
 
-  /// Lo tengo → Sin stock → Ofrezco otro → Lo tengo…
-  static Disponibilidad _siguiente(Disponibilidad d) => switch (d) {
-    Disponibilidad.pendiente => Disponibilidad.disponible,
-    Disponibilidad.disponible => Disponibilidad.sinStock,
-    Disponibilidad.sinStock => Disponibilidad.reemplazo,
-    Disponibilidad.reemplazo => Disponibilidad.disponible,
-  };
+  Future<void> _elegirDisponibilidad(PedidoDetalle detalle) async {
+    if (_ocupado || _actualizando) return;
+    final elegida = await elegirDisponibilidadProducto(context, detalle);
+    if (!mounted || elegida == null || elegida == detalle.disponibilidad) {
+      return;
+    }
+    await _hacer(() => _repo.marcarDisponibilidad(detalle.id, elegida));
+  }
 
   List<Widget> _revisar(Pedido p, PedidoPuesto parte) {
     final revisados = parte.detalles
@@ -255,23 +294,30 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
       const TituloSeccion('Revisa cada producto'),
       const SizedBox(height: 4),
       Text(
-        'Toca un producto para cambiar: Lo tengo → Sin stock → Ofrezco otro. '
+        'Elige la disponibilidad y confirma antes de guardar. '
         'Revisados: $revisados de ${parte.detalles.length}.',
         style: const TextStyle(fontSize: 17, color: AppColors.textoSecundario),
       ),
       const SizedBox(height: 12),
-      for (final d in parte.detalles) ...[
-        _FilaRevisar(
-          detalle: d,
-          habilitado: !_ocupado,
-          onTap: () => _hacer(
-            () =>
-                _repo.marcarDisponibilidad(d.id, _siguiente(d.disponibilidad)),
+      if (_ocupado || _actualizando) ...[
+        Semantics(
+          liveRegion: true,
+          child: const Text(
+            'Guardando y comprobando la disponibilidad…',
+            style: TextStyle(fontSize: 18),
           ),
+        ),
+        const SizedBox(height: 12),
+      ],
+      for (final d in parte.detalles) ...[
+        RevisionProductoCasero(
+          detalle: d,
+          habilitado: !_ocupado && !_actualizando,
+          onTap: () => _elegirDisponibilidad(d),
         ),
         const SizedBox(height: 8),
       ],
-      if (parte.listaMandado != null) ...[
+      if ((parte.listaMandado ?? '').trim().isNotEmpty) ...[
         const SizedBox(height: 8),
         TarjetaApp(
           color: AppColors.avisoFondo,
@@ -286,7 +332,7 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
                 ),
                 Text(parte.listaMandado!, style: const TextStyle(fontSize: 18)),
                 const Text(
-                  'Agrégalo al pesar como producto extra.',
+                  'Revisa también esta lista antes de enviar el precio final.',
                   style: TextStyle(
                     fontSize: 16,
                     color: AppColors.textoSecundario,
@@ -298,7 +344,11 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
         ),
       ],
       const SizedBox(height: 16),
-      const TituloSeccion('Mensajes rápidos al cliente'),
+      const TituloSeccion('Mensajes para copiar'),
+      const Text(
+        'Copia un mensaje para enviarlo desde tu aplicación de mensajes.',
+        style: TextStyle(fontSize: 16, color: AppColors.textoSecundario),
+      ),
       const SizedBox(height: 8),
       Wrap(
         spacing: 8,
@@ -309,19 +359,30 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
             'No tengo un producto, ¿te ofrezco otro?',
             'Tu pedido sale en 10 minutos',
           ])
-            ActionChip(
-              avatar: const Icon(Icons.chat_bubble_outline, size: 20),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.copy, size: 20),
               label: Text(m, style: const TextStyle(fontSize: 16)),
-              materialTapTargetSize: MaterialTapTargetSize.padded,
-              onPressed: () =>
-                  avisar(context, 'Le enviamos a ${p.clienteNombre}: "$m"'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(48, 48),
+                padding: const EdgeInsets.all(12),
+              ),
+              onPressed: () async {
+                await Clipboard.setData(ClipboardData(text: m));
+                if (mounted) {
+                  avisar(
+                    context,
+                    'Mensaje copiado. Envíalo al cliente desde tu aplicación de mensajes.',
+                  );
+                }
+              },
             ),
         ],
       ),
       ..._despuesDeRevisar(
         p,
         parte,
-        todosRevisados: revisados == parte.detalles.length,
+        todosRevisados:
+            revisados == parte.detalles.length && parte.detalles.isNotEmpty,
       ),
     ];
   }
@@ -331,23 +392,55 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
     Pedido p,
     PedidoPuesto parte, {
     required bool todosRevisados,
-  }) => [
-    const SizedBox(height: 20),
-    EtiquetaEstado(
-      texto: todosRevisados
-          ? 'Listo para pesar'
-          : 'Revisa todos los productos para poder pesar',
-      icono: todosRevisados ? Icons.check_circle : Icons.info_outline,
-      tipo: todosRevisados ? TipoEstado.exito : TipoEstado.info,
-    ),
-    const SizedBox(height: 12),
-    BotonPrincipal(
-      texto: 'Pesar y poner precio',
-      onPressed: todosRevisados
-          ? () => context.push('/casero/inicio/pedido/${p.id}/pesar')
-          : null,
-    ),
-  ];
+  }) {
+    final conProductos = parte.detalles.any(
+      (d) => d.disponibilidad != Disponibilidad.sinStock,
+    );
+    final listo = todosRevisados && conProductos && !_ocupado && !_actualizando;
+    return [
+      const SizedBox(height: 20),
+      EtiquetaEstado(
+        texto: todosRevisados && !conProductos
+            ? 'No hay productos disponibles. Revisa las opciones o rechaza el pedido.'
+            : todosRevisados
+            ? 'Listo para pesar'
+            : 'Revisa todos los productos para poder pesar',
+        icono: todosRevisados && conProductos
+            ? Icons.check_circle
+            : Icons.info_outline,
+        tipo: todosRevisados && conProductos
+            ? TipoEstado.exito
+            : TipoEstado.info,
+      ),
+      const SizedBox(height: 12),
+      FilledButton(
+        style: FilledButton.styleFrom(
+          backgroundColor: AppColors.azul,
+          foregroundColor: AppColors.blanco,
+          minimumSize: const Size(48, 56),
+          padding: const EdgeInsets.all(16),
+        ),
+        onPressed: listo
+            ? () => context.push('/casero/inicio/pedido/${p.id}/pesar')
+            : null,
+        child: const Text(
+          'Pesar y poner precio',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+        ),
+      ),
+      if (todosRevisados && !conProductos) ...[
+        const SizedBox(height: 12),
+        OutlinedButton(
+          style: OutlinedButton.styleFrom(minimumSize: const Size(48, 48)),
+          onPressed: _ocupado || _actualizando
+              ? null
+              : () => rechazarConMotivo(context, parte, repository: _repo),
+          child: const Text('Rechazar pedido', style: TextStyle(fontSize: 18)),
+        ),
+      ],
+    ];
+  }
 
   // ------------------------------------------------------ V4 Empaquetar
 
@@ -577,84 +670,6 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
                 ),
               ),
         ],
-      ),
-    );
-  }
-}
-
-class _FilaRevisar extends StatelessWidget {
-  const _FilaRevisar({
-    required this.detalle,
-    required this.habilitado,
-    required this.onTap,
-  });
-
-  final PedidoDetalle detalle;
-  final bool habilitado;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final d = detalle.disponibilidad;
-    final (icono, tipo) = switch (d) {
-      Disponibilidad.pendiente => (Icons.help_outline, TipoEstado.neutro),
-      Disponibilidad.disponible => (Icons.check_circle, TipoEstado.exito),
-      Disponibilidad.sinStock => (
-        Icons.remove_shopping_cart_outlined,
-        TipoEstado.error,
-      ),
-      Disponibilidad.reemplazo => (Icons.swap_horiz, TipoEstado.aviso),
-    };
-    return Semantics(
-      button: true,
-      label:
-          '${detalle.nombre}, '
-          '${cantidadConUnidad(detalle.cantidadSolicitada, detalle.unidad)}: ${d.etiqueta}. '
-          'Toca para cambiar',
-      excludeSemantics: true,
-      child: InkWell(
-        onTap: habilitado ? onTap : null,
-        borderRadius: BorderRadius.circular(18),
-        child: TarjetaApp(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      detalle.nombre,
-                      style: const TextStyle(
-                        fontSize: 19,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    Text(
-                      cantidadConUnidad(
-                        detalle.cantidadSolicitada,
-                        detalle.unidad,
-                      ),
-                      style: const TextStyle(
-                        fontSize: 17,
-                        color: AppColors.textoSecundario,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Flexible(
-                child: EtiquetaEstado(
-                  texto: d.etiqueta,
-                  icono: icono,
-                  tipo: tipo,
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
