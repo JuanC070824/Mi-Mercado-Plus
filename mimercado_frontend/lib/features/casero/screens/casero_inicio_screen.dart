@@ -9,6 +9,7 @@ import '../../../data/models/pedido.dart';
 import '../../../data/models/usuario.dart';
 import '../../../data/repositories/vendedor_inicio_repository.dart';
 import '../../../data/repositories/puesto_vendedor_repository.dart';
+import '../widgets/accesos_inicio_casero.dart';
 
 class CaseroInicioScreen extends StatefulWidget {
   const CaseroInicioScreen({super.key, required this.usuario, this.repository});
@@ -253,6 +254,11 @@ class _CaseroInicioScreenState extends State<CaseroInicioScreen> {
               const SizedBox(height: 8),
             ],
           const SizedBox(height: 6),
+          AccesosInicioCasero(
+            onVerPedidos: () => context.go('/casero/pedidos'),
+            onVerCatalogo: () => context.go('/casero/catalogo'),
+          ),
+          const SizedBox(height: 18),
           const TituloSeccion('Resumen de hoy'),
           const SizedBox(height: 7),
           _Resumen(resumen: resumen),
@@ -469,21 +475,33 @@ class _SinPedidos extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppColors.blanco,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.divisor),
       ),
-      child: const Row(
+      child: const Column(
         children: [
-          Icon(Icons.inbox_outlined, size: 32, color: AppColors.azul),
-          SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'No tienes pedidos activos por ahora.',
-              style: TextStyle(fontSize: 16),
+          ExcludeSemantics(
+            child: Icon(Icons.inbox_outlined, size: 48, color: AppColors.azul),
+          ),
+          SizedBox(height: 12),
+          Text(
+            'Todavía no hay pedidos',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: AppColors.azul,
             ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Aquí aparecerán los pedidos de tus clientes. '
+            'Mientras tanto, puedes revisar tus productos en Mi catálogo.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 16, color: AppColors.textoSecundario),
           ),
         ],
       ),
