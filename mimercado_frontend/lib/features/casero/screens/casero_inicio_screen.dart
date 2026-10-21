@@ -139,7 +139,6 @@ class _CaseroInicioScreenState extends State<CaseroInicioScreen> {
         const SizedBox(height: 14),
         Semantics(
           container: true,
-          label: 'Aún no tienes un puesto creado',
           child: Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
@@ -147,28 +146,49 @@ class _CaseroInicioScreenState extends State<CaseroInicioScreen> {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: AppColors.azul, width: 1.5),
             ),
-            child: const Column(
+            child: Column(
               children: [
-                Icon(
-                  Icons.storefront_outlined,
-                  size: 48,
-                  color: AppColors.azul,
+                const ExcludeSemantics(
+                  child: Icon(
+                    Icons.storefront_outlined,
+                    size: 48,
+                    color: AppColors.azul,
+                  ),
                 ),
-                SizedBox(height: 8),
-                Text(
-                  'Aún no tienes un puesto',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800),
+                const SizedBox(height: 8),
+                Semantics(
+                  header: true,
+                  child: const Text(
+                    'Aún no tienes un puesto',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800),
+                  ),
                 ),
-                SizedBox(height: 6),
-                Text(
-                  'Cuando crees tu puesto y elijas un mercado, aquí verás tus pedidos y el resumen de tus ventas.',
+                const SizedBox(height: 6),
+                const Text(
+                  'Elige tu mercado y registra tu puesto. Después podrás agregar productos y recibir pedidos.',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 16, height: 1.35),
                 ),
               ],
             ),
           ),
+        ),
+        const SizedBox(height: 12),
+        FilledButton.icon(
+          onPressed: () => context.go('/casero/puesto'),
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColors.azul,
+            foregroundColor: AppColors.blanco,
+            minimumSize: const Size(48, 56),
+            padding: const EdgeInsets.all(16),
+            textStyle: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          icon: const Icon(Icons.add_business_outlined),
+          label: const Text('Crear mi puesto', textAlign: TextAlign.center),
         ),
         const SizedBox(height: 18),
         const TituloSeccion('¿Qué aparecerá aquí?'),
