@@ -10,6 +10,7 @@ import '../../../data/models/usuario.dart';
 import '../../../data/repositories/vendedor_inicio_repository.dart';
 import '../../../data/repositories/puesto_vendedor_repository.dart';
 import '../widgets/accesos_inicio_casero.dart';
+import '../widgets/encabezado_inicio_casero.dart';
 
 class CaseroInicioScreen extends StatefulWidget {
   const CaseroInicioScreen({super.key, required this.usuario, this.repository});
@@ -105,6 +106,9 @@ class _CaseroInicioScreenState extends State<CaseroInicioScreen> {
   @override
   Widget build(BuildContext context) {
     final nombre = widget.usuario.nombres.trim().split(RegExp(r'\s+')).first;
+    if (!_cargando && _error == null && (_inicio?.tienePuesto ?? false)) {
+      return Scaffold(body: _conPuesto(_inicio!));
+    }
     return Scaffold(
       body: Column(
         children: [
@@ -215,73 +219,81 @@ class _CaseroInicioScreenState extends State<CaseroInicioScreen> {
     return RefreshIndicator(
       onRefresh: _cargar,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(14, 0, 14, 24),
+        padding: EdgeInsets.zero,
+        physics: const AlwaysScrollableScrollPhysics(),
         children: [
-          _BannerPuesto(puesto: puesto),
-          const SizedBox(height: 10),
-          _EstadoPuesto(
-            abierto: puesto.abierto,
-            habilitado: !_cambiandoEstado,
-            onChanged: _cambiarAbierto,
+          EncabezadoInicioCasero(
+            nombre: widget.usuario.nombres.trim().split(RegExp(r'\s+')).first,
+            puesto: puesto,
+            guardandoEstado: _cambiandoEstado,
+            onCambiarEstado: _cambiarAbierto,
           ),
-          const SizedBox(height: 12),
-          const TituloSeccion('Requieren atención'),
-          const SizedBox(height: 7),
-          Row(
-            children: [
-              Expanded(
-                child: _Conteo(
-                  icono: Icons.inbox_rounded,
-                  valor: atencion.nuevos,
-                  etiqueta: 'Nuevos',
-                  color: AppColors.azul,
-                  fondo: const Color(0xFFEAF5FD),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const TituloSeccion('Requieren atención'),
+                const SizedBox(height: 7),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _Conteo(
+                        icono: Icons.inbox_rounded,
+                        valor: atencion.nuevos,
+                        etiqueta: 'Nuevos',
+                        color: AppColors.azul,
+                        fondo: const Color(0xFFEAF5FD),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _Conteo(
+                        icono: Icons.schedule_rounded,
+                        valor: atencion.preparando,
+                        etiqueta: 'Preparando',
+                        color: AppColors.azul,
+                        fondo: AppColors.blanco,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _Conteo(
+                        icono: Icons.check_circle_rounded,
+                        valor: atencion.listos,
+                        etiqueta: 'Listos',
+                        color: AppColors.exito,
+                        fondo: AppColors.exitoFondo,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _Conteo(
-                  icono: Icons.schedule_rounded,
-                  valor: atencion.preparando,
-                  etiqueta: 'Preparando',
-                  color: AppColors.azul,
-                  fondo: AppColors.blanco,
+                const SizedBox(height: 14),
+                const TituloSeccion('Pedidos activos'),
+                const SizedBox(height: 7),
+                if (inicio.pedidos.isEmpty)
+                  const _SinPedidos()
+                else
+                  for (final pedido in inicio.pedidos) ...[
+                    _TarjetaPedido(
+                      pedido: pedido,
+                      onTap: () =>
+                          context.push('/casero/inicio/pedido/${pedido.id}'),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                const SizedBox(height: 6),
+                AccesosInicioCasero(
+                  onVerPedidos: () => context.go('/casero/pedidos'),
+                  onVerCatalogo: () => context.go('/casero/catalogo'),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _Conteo(
-                  icono: Icons.check_circle_rounded,
-                  valor: atencion.listos,
-                  etiqueta: 'Listos',
-                  color: AppColors.exito,
-                  fondo: AppColors.exitoFondo,
-                ),
-              ),
-            ],
+                const SizedBox(height: 18),
+                const TituloSeccion('Resumen de hoy'),
+                const SizedBox(height: 7),
+                _Resumen(resumen: resumen),
+              ],
+            ),
           ),
-          const SizedBox(height: 14),
-          const TituloSeccion('Pedidos activos'),
-          const SizedBox(height: 7),
-          if (inicio.pedidos.isEmpty)
-            const _SinPedidos()
-          else
-            for (final pedido in inicio.pedidos) ...[
-              _TarjetaPedido(
-                pedido: pedido,
-                onTap: () => context.push('/casero/inicio/pedido/${pedido.id}'),
-              ),
-              const SizedBox(height: 8),
-            ],
-          const SizedBox(height: 6),
-          AccesosInicioCasero(
-            onVerPedidos: () => context.go('/casero/pedidos'),
-            onVerCatalogo: () => context.go('/casero/catalogo'),
-          ),
-          const SizedBox(height: 18),
-          const TituloSeccion('Resumen de hoy'),
-          const SizedBox(height: 7),
-          _Resumen(resumen: resumen),
         ],
       ),
     );
@@ -289,19 +301,15 @@ class _CaseroInicioScreenState extends State<CaseroInicioScreen> {
 }
 
 class _BannerPuesto extends StatelessWidget {
-  const _BannerPuesto({this.puesto});
-  final PuestoVendedor? puesto;
+  const _BannerPuesto();
 
   @override
   Widget build(BuildContext context) {
-    final foto = puesto?.fotoUrl;
     return Semantics(
-      image: foto != null,
-      label: puesto == null
-          ? 'Espacio para la futura foto del puesto'
-          : 'Presentación de ${puesto!.nombre}',
+      label: 'Espacio para la futura foto del puesto',
       child: Container(
-        height: 114,
+        constraints: const BoxConstraints(minHeight: 114),
+        padding: const EdgeInsets.all(12),
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           color: const Color(0xFFDCE8EF),
@@ -310,59 +318,7 @@ class _BannerPuesto extends StatelessWidget {
           ),
           border: Border.all(color: AppColors.divisor),
         ),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            if (foto != null)
-              Image.network(
-                foto,
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => const _ImagenPendiente(),
-              )
-            else
-              const _ImagenPendiente(),
-            if (puesto != null)
-              Align(
-                alignment: Alignment.bottomCenter,
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(12, 22, 12, 8),
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [Colors.transparent, Color(0xD9000000)],
-                    ),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        puesto!.nombre,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      Text(
-                        '${puesto!.mercado}${puesto!.numero == null ? '' : ' · Puesto ${puesto!.numero}'} · ${puesto!.categoria}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-          ],
-        ),
+        child: const _ImagenPendiente(),
       ),
     );
   }
@@ -393,48 +349,6 @@ class _ImagenPendiente extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _EstadoPuesto extends StatelessWidget {
-  const _EstadoPuesto({
-    required this.abierto,
-    required this.habilitado,
-    required this.onChanged,
-  });
-  final bool abierto;
-  final bool habilitado;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: abierto ? AppColors.exitoFondo : AppColors.errorFondo,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: abierto ? AppColors.exitoTexto : AppColors.error,
-        ),
-      ),
-      child: SwitchListTile(
-        value: abierto,
-        onChanged: habilitado ? onChanged : null,
-        secondary: Icon(
-          abierto ? Icons.storefront_rounded : Icons.storefront_outlined,
-          color: abierto ? AppColors.exitoTexto : AppColors.error,
-          size: 30,
-        ),
-        title: Text(
-          abierto ? 'Puesto abierto' : 'Puesto cerrado',
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-        ),
-        subtitle: Text(
-          abierto
-              ? 'Los clientes pueden pedirte'
-              : 'No recibirás nuevos pedidos',
         ),
       ),
     );
