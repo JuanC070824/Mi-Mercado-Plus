@@ -407,3 +407,43 @@ class ApiTests(TestCase):
         fila['cantidad_real']='2.000'
         r=self.post(f'/api/vendedor/pedidos/{d.pedido_puesto_id}/cotizacion/',{'detalles':[fila]})
         self.assertEqual(r.status_code,201,r.data)
+
+    def test_vendedor_guarda_y_recupera_preferencias_de_accesibilidad(self):
+        self.client.credentials(HTTP_AUTHORIZATION='Bearer '+issue_token(self.seller))
+        response=self.client.patch('/api/auth/me/',{'letra_grande':True,'sonido':False,'vibracion':False},format='json')
+        self.assertEqual(response.status_code,200,response.data)
+        self.seller.refresh_from_db()
+        self.assertTrue(self.seller.letra_grande)
+        self.assertFalse(self.seller.sonido)
+        self.assertFalse(self.seller.vibracion)
+        self.assertEqual(self.client.get('/api/auth/me/').data['letra_grande'],True)
+        login=self.post('/api/auth/login/',{'celular':self.seller.celular,'password':'password','rol':'vendedor'})
+        self.assertEqual(login.status_code,200,login.data)
+        self.assertTrue(login.data['usuario']['letra_grande'])
+        self.assertFalse(login.data['usuario']['sonido'])
+
+    def test_puesto_muestra_horarios_y_billetera_reales(self):
+        from .models import HorarioPuesto
+        HorarioPuesto.objects.create(puesto=self.stall,dia_semana=1,apertura='06:00',cierre='14:00')
+        self.stall.contacto_billetera='900000011'
+        self.stall.save(update_fields=['contacto_billetera'])
+        self.client.credentials(HTTP_AUTHORIZATION='Bearer '+issue_token(self.seller))
+        response=self.client.get('/api/vendedor/puesto/')
+        self.assertEqual(response.status_code,200,response.data)
+        self.assertEqual(response.data['puesto']['contacto_billetera'],'900000011')
+        self.assertEqual(response.data['puesto']['horarios'],[{'dia':1,'apertura':'06:00','cierre':'14:00'}])
+
+    def test_vendedor_entrega_bolsa_sin_marcar_entrega_al_cliente(self):
+        order=self.quoted_order()
+        detalle=PedidoDetalle.objects.get(pedido_puesto__pedido_id=order,producto_id=self.p1.pk)
+        parte=detalle.pedido_puesto
+        self.client.credentials(HTTP_AUTHORIZATION='Bearer '+issue_token(self.seller))
+        url=f'/api/vendedor/pedidos/{parte.pk}/accion/'
+        response=self.client.patch(url,{'accion':'entregar'},format='json')
+        self.assertEqual(response.status_code,400,response.data)
+        self.assertEqual(self.client.patch(url,{'accion':'listo'},format='json').status_code,200)
+        self.assertEqual(self.client.patch(url,{'accion':'entregar'},format='json').status_code,200)
+        parte.refresh_from_db()
+        self.assertEqual(parte.estado,'recogido')
+        self.assertNotEqual(Pedido.objects.get(pk=order).estado,'entregado')
+        self.assertEqual(self.client.patch(url,{'accion':'entregar'},format='json').status_code,400)

@@ -42,6 +42,8 @@ class PuestoDelVendedor {
     this.numero,
     this.referencia,
     this.fotoUrl,
+    this.contactoBilletera,
+    this.horarios = const [],
   });
 
   final int id;
@@ -52,6 +54,8 @@ class PuestoDelVendedor {
   final String? numero;
   final String? referencia;
   final String? fotoUrl;
+  final String? contactoBilletera;
+  final List<String> horarios;
 }
 
 class DatosPuestoVendedor {
@@ -195,17 +199,23 @@ class PuestoVendedorApiRepository {
     }
   }
 
-  static PuestoDelVendedor _puesto(Map<String, dynamic> data) =>
-      PuestoDelVendedor(
-        id: _entero(data['id']),
-        nombre: _texto(data['nombre']),
-        numero: _opcional(data['numero']),
-        referencia: _opcional(data['referencia']),
-        fotoUrl: _opcional(data['foto_url']),
-        abierto: data['abierto'] == true,
-        mercado: _mercado(_mapa(data['mercado'])),
-        categoria: _categoria(_mapa(data['categoria'])),
-      );
+  static PuestoDelVendedor _puesto(
+    Map<String, dynamic> data,
+  ) => PuestoDelVendedor(
+    id: _entero(data['id']),
+    nombre: _texto(data['nombre']),
+    numero: _opcional(data['numero']),
+    referencia: _opcional(data['referencia']),
+    fotoUrl: _opcional(data['foto_url']),
+    contactoBilletera: _opcional(data['contacto_billetera']),
+    horarios: [
+      for (final h in data['horarios'] as List? ?? const [])
+        '${const ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'][((h['dia'] as num).toInt() - 1).clamp(0, 6)]}: ${h['apertura']}–${h['cierre']}',
+    ],
+    abierto: data['abierto'] == true,
+    mercado: _mercado(_mapa(data['mercado'])),
+    categoria: _categoria(_mapa(data['categoria'])),
+  );
 
   static MercadoParaPuesto _mercado(Map<String, dynamic> data) =>
       MercadoParaPuesto(

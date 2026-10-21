@@ -235,7 +235,7 @@ class _PesarScreenState extends State<PesarScreen> {
                   ),
                 const SizedBox(height: 12),
                 const Text(
-                  'Revisa los datos. El cliente debe aceptar la cotización completa antes de continuar.',
+                  'Revisa los datos. El cliente debe aceptar el precio de todo su pedido antes de continuar.',
                   style: TextStyle(fontSize: 17),
                 ),
                 const SizedBox(height: 16),
@@ -292,7 +292,7 @@ class _PesarScreenState extends State<PesarScreen> {
         children: [
           EncabezadoPedidoCasero(
             titulo: 'Pesar y poner precio',
-            subtitulo: _pedido?.codigo,
+            subtitulo: _pedido?.clienteNombre,
             habilitado: !_enviando,
           ),
           Expanded(child: _cuerpo()),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/state/preferencias_vendedor_state.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
@@ -126,7 +127,7 @@ class _CaseroInicioScreenState extends State<CaseroInicioScreen> {
         context,
         pedido: pedido,
         parte: parte,
-        casero: widget.usuario,
+        casero: PreferenciasVendedorState.de(widget.usuario),
       );
       if (!mounted) return;
       if (aceptar == true) {

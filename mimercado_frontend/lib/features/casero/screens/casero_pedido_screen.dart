@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -5,10 +6,8 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/formato.dart';
 import '../../../core/widgets/botones_app.dart';
 import '../../../core/widgets/componentes_app.dart';
-import '../../../core/widgets/deslizar_confirmar.dart';
 import '../../../data/models/cotizacion.dart';
 import '../../../data/models/pedido.dart';
-import '../../../data/models/producto.dart';
 import '../../../data/models/usuario.dart';
 import '../../../data/repositories/pedido_repository.dart';
 import '../../../data/repositories/pedidos_vendedor_api_repository.dart';
@@ -16,6 +15,7 @@ import '../widgets/alerta_pedido.dart';
 import '../widgets/llamar_dialog.dart';
 import '../widgets/encabezado_pedido_casero.dart';
 import '../widgets/revision_producto_casero.dart';
+import '../widgets/cotizacion_casero.dart';
 
 /// Detalle de un pedido para el casero. Muestra lo que toca hacer según el
 /// estado de SU parte: aceptar/rechazar (V1b/V1c), revisar (V2), pesar (V3),
@@ -35,8 +35,10 @@ class CaseroPedidoScreen extends StatefulWidget {
   State<CaseroPedidoScreen> createState() => _CaseroPedidoScreenState();
 }
 
-class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
+class _CaseroPedidoScreenState extends State<CaseroPedidoScreen>
+    with WidgetsBindingObserver {
   late final PedidosVendedorApiRepository _repo;
+  final _desplazamiento = ScrollController();
 
   Pedido? _pedido;
   bool _cargando = true;
@@ -44,6 +46,15 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
   bool _actualizando = false;
   int _consultaId = 0;
   String? _errorCarga;
+  String? _errorAccion;
+  bool _confirmando = false;
+  Timer? _refresco;
+  bool get _visible =>
+      mounted &&
+      TickerMode.valuesOf(context).enabled &&
+      (ModalRoute.of(context)?.isCurrent ?? false) &&
+      (WidgetsBinding.instance.lifecycleState == null ||
+          WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed);
 
   int get _puestoId => widget.usuario.puestoId ?? 0;
 
@@ -52,12 +63,29 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
     super.initState();
     _repo = widget.repository ?? PedidosVendedorApiRepository.instancia;
     _repo.cambios.addListener(_alCambiarPedidos);
+    WidgetsBinding.instance.addObserver(this);
+    _refresco = Timer.periodic(const Duration(seconds: 15), (_) {
+      final estado = _pedido?.parteDePuesto(_puestoId)?.estado;
+      if (_visible &&
+          !_ocupado &&
+          !_actualizando &&
+          !_confirmando &&
+          _errorCarga == null &&
+          estado != null &&
+          !estado.descartado &&
+          estado != EstadoPedidoPuesto.recogido) {
+        _cargar();
+      }
+    });
     _cargar();
   }
 
   @override
   void dispose() {
+    _refresco?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     _repo.cambios.removeListener(_alCambiarPedidos);
+    _desplazamiento.dispose();
     super.dispose();
   }
 
@@ -88,20 +116,37 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
   }
 
   void _alCambiarPedidos() {
-    if (!_ocupado) _cargar();
+    if (!_ocupado && !_confirmando) _cargar();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed &&
+        _visible &&
+        !_ocupado &&
+        !_actualizando &&
+        !_confirmando) {
+      _cargar();
+    }
   }
 
   /// Ejecuta una acción del repositorio mostrando el error si falla.
   Future<void> _hacer(Future<void> Function() accion, {String? exito}) async {
     if (_ocupado || _actualizando) return;
-    setState(() => _ocupado = true);
+    setState(() {
+      _ocupado = true;
+      _errorAccion = null;
+    });
     try {
       await accion();
       if (!mounted) return;
       await _cargar();
       if (mounted && exito != null) avisar(context, exito);
     } on PedidoException catch (e) {
-      if (mounted) avisar(context, e.mensaje);
+      if (mounted) {
+        setState(() => _errorAccion = e.mensaje);
+        if (_desplazamiento.hasClients) _desplazamiento.jumpTo(0);
+      }
     } finally {
       if (mounted) setState(() => _ocupado = false);
     }
@@ -109,11 +154,10 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final p = _pedido;
     return Scaffold(
       body: Column(
         children: [
-          EncabezadoPedidoCasero(titulo: 'Pedido', subtitulo: p?.codigo),
+          const EncabezadoPedidoCasero(titulo: 'Detalle del pedido'),
           Expanded(child: _cuerpo()),
         ],
       ),
@@ -142,8 +186,34 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
       );
     }
     return ListView(
+      controller: _desplazamiento,
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       children: [
+        if (_errorAccion != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Semantics(
+              liveRegion: true,
+              child: Text(
+                _errorAccion!,
+                style: const TextStyle(fontSize: 18, color: AppColors.error),
+              ),
+            ),
+          ),
+        OutlinedButton.icon(
+          onPressed: _ocupado || _actualizando || _confirmando ? null : _cargar,
+          icon: const Icon(Icons.refresh),
+          style: OutlinedButton.styleFrom(minimumSize: const Size(48, 48)),
+          label: Text(
+            _actualizando ? 'Actualizando…' : 'Actualizar pedido',
+            style: const TextStyle(fontSize: 18),
+          ),
+        ),
+        const Text(
+          'Se actualiza cada 15 segundos mientras esta pantalla está visible.',
+          style: TextStyle(fontSize: 16),
+        ),
+        const SizedBox(height: 12),
         _cliente(p, parte),
         const SizedBox(height: 16),
         ..._segunEstado(p, parte),
@@ -183,7 +253,7 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
             ],
           ),
           Text(
-            '${fechaCorta(p.creadoEn)} · Bolsa ${parte.codigoBolsa}',
+            fechaCorta(p.creadoEn.toLocal()),
             style: const TextStyle(
               fontSize: 16,
               color: AppColors.textoSecundario,
@@ -442,202 +512,212 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen> {
     ];
   }
 
-  // ------------------------------------------------------ V4 Empaquetar
-
   List<Widget> _empaquetar(Pedido p, PedidoPuesto parte) => [
-    TarjetaApp(
-      color: AppColors.exitoFondo,
-      colorBorde: AppColors.exitoTexto,
-      child: Row(
-        children: [
-          const Icon(Icons.check_circle, color: AppColors.exitoTexto, size: 32),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              '${p.clienteNombre.split(' ').first} aceptó el precio final. '
-              '¡Ya puedes empaquetar!',
-              style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
-            ),
-          ),
-        ],
-      ),
+    const EtiquetaEstado(
+      texto: 'El cliente aceptó el precio final. Ya puedes preparar la bolsa.',
+      icono: Icons.check_circle,
+      tipo: TipoEstado.exito,
     ),
+    const SizedBox(height: 12),
+    SeguimientoPuestoCasero(estado: parte.estado),
+    if (p.cotizacion?.dePuesto(parte.id) case final cp?) ...[
+      const SizedBox(height: 12),
+      CotizacionCasero(parte: parte, cotizacion: cp),
+    ],
     if (p.puestos.length > 1) ...[
-      const SizedBox(height: 16),
+      const SizedBox(height: 12),
       _compartido(p, parte),
     ],
     const SizedBox(height: 16),
-    const TituloSeccion('Paso a paso'),
-    const SizedBox(height: 8),
-    LineaTiempo(eventos: p.historial),
-    const SizedBox(height: 12),
     Text(
-      'Pon en la bolsa ${parte.codigoBolsa} todo lo que pesaste.',
-      style: const TextStyle(fontSize: 18),
+      'Empaqueta los productos y etiqueta la bolsa con el nombre de ${p.clienteNombre} y de tu puesto.',
+      style: const TextStyle(fontSize: 19),
     ),
     const SizedBox(height: 12),
-    DeslizarConfirmar(
-      texto: 'Desliza: ya empaqueté',
-      textoToque: 'O toca aquí: ya empaqueté',
-      habilitado: !_ocupado,
-      onConfirmar: () => _hacer(
-        () => _repo.marcarListo(parte.id),
-        exito: 'Bolsa lista. Espera al repartidor.',
+    FilledButton.icon(
+      style: _estiloAccion,
+      onPressed: _ocupado || _actualizando || _confirmando
+          ? null
+          : () => _confirmarAccion(parte, entregar: false),
+      icon: const Icon(Icons.inventory_2_outlined),
+      label: const Text(
+        'Ya empaqueté: marcar listo',
+        textAlign: TextAlign.center,
+        style: TextStyle(fontSize: 20),
       ),
     ),
   ];
 
-  // --------------------------------------------- V5 Entregar al repartidor
-
-  /// Lo que el casero ya marcó como "va en la bolsa" (checklist).
   final Set<int> _enBolsa = {};
+  ButtonStyle get _estiloAccion => FilledButton.styleFrom(
+    minimumSize: const Size(48, 56),
+    padding: const EdgeInsets.all(16),
+    backgroundColor: AppColors.azul,
+    foregroundColor: AppColors.blanco,
+  );
+
+  Future<void> _confirmarAccion(
+    PedidoPuesto parte, {
+    required bool entregar,
+  }) async {
+    if (_ocupado || _actualizando || _confirmando) return;
+    setState(() => _confirmando = true);
+    bool? confirmado;
+    try {
+      confirmado = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => Dialog(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  entregar
+                      ? 'Confirmar entrega de la bolsa'
+                      : 'Confirmar bolsa lista',
+                  style: const TextStyle(
+                    fontSize: 23,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SelectableText(
+                  'Pedido de ${_pedido!.clienteNombre}\n${parte.puesto.nombre}',
+                  style: const TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.azul,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  entregar
+                      ? 'Confirma únicamente después de entregar esta bolsa al repartidor. La entrega al cliente la registra el repartidor.'
+                      : 'Verifica que todos los productos estén empaquetados y que la bolsa tenga el nombre del cliente y de tu puesto.',
+                  style: const TextStyle(fontSize: 18),
+                ),
+                const SizedBox(height: 16),
+                FilledButton(
+                  style: _estiloAccion,
+                  onPressed: () => Navigator.of(ctx).pop(true),
+                  child: Text(
+                    entregar ? 'Sí, entregué la bolsa' : 'Sí, está lista',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 20),
+                  ),
+                ),
+                TextButton(
+                  style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
+                  onPressed: () => Navigator.of(ctx).pop(false),
+                  child: const Text(
+                    'Volver a revisar',
+                    style: TextStyle(fontSize: 18),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _confirmando = false);
+    }
+    if (!mounted || confirmado != true) return;
+    await _hacer(
+      () => entregar
+          ? _repo.entregarARepartidor(parte.id)
+          : _repo.marcarListo(parte.id),
+      exito: entregar
+          ? 'Bolsa entregada al repartidor.'
+          : 'Bolsa lista. Espera al repartidor.',
+    );
+  }
 
   List<Widget> _entregar(Pedido p, PedidoPuesto parte) {
     final cp = p.cotizacion?.dePuesto(parte.id);
-    final items = [
-      for (final d in cp?.detalles ?? const <CotizacionDetalle>[])
-        (
-          d.pedidoDetalleId,
-          '${d.nombreFinal} · ${cantidadConUnidad(d.cantidadReal, _unidadDe(parte, d.pedidoDetalleId))}',
-        ),
-    ];
-    final completo = items.every((i) => _enBolsa.contains(i.$1));
-    final n = p.puestosActivos.length;
+    final items = cp?.detalles ?? const <CotizacionDetalle>[];
+    final completo =
+        items.isNotEmpty &&
+        items.every((i) => _enBolsa.contains(i.pedidoDetalleId));
+    final bloqueado = _ocupado || _actualizando || _confirmando;
     return [
-      const TarjetaApp(
-        color: AppColors.azulClaro,
-        colorBorde: AppColors.azul,
-        child: Row(
-          children: [
-            Icon(Icons.delivery_dining, color: AppColors.azul, size: 32),
-            SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Cuando llegue el repartidor, dile el código y entrégale la bolsa.',
-                style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
-              ),
-            ),
-          ],
-        ),
+      const EtiquetaEstado(
+        texto:
+            'Espera al repartidor y comprueba que la bolsa sea para este cliente antes de entregarla.',
+        icono: Icons.delivery_dining,
       ),
+      const SizedBox(height: 12),
+      SeguimientoPuestoCasero(estado: parte.estado),
       const SizedBox(height: 16),
-      Center(
-        child: Semantics(
-          label:
-              'Código de bolsa ${parte.codigoBolsa}, bolsa ${parte.parada} de $n',
-          excludeSemantics: true,
-          child: Column(
-            children: [
-              const Text('Código de bolsa', style: TextStyle(fontSize: 18)),
-              Text(
-                'Bolsa del pedido',
-                style: const TextStyle(
-                  fontSize: 40,
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.azul,
-                  letterSpacing: 2,
-                ),
-              ),
-              Text(
-                'Bolsa ${parte.parada} de $n',
-                style: const TextStyle(
-                  fontSize: 18,
-                  color: AppColors.textoSecundario,
-                ),
-              ),
-            ],
-          ),
+      const Text('Bolsa para entregar', style: TextStyle(fontSize: 18)),
+      SelectableText(
+        '${p.clienteNombre}\n${parte.puesto.nombre}',
+        style: const TextStyle(
+          fontSize: 30,
+          fontWeight: FontWeight.w900,
+          color: AppColors.azul,
         ),
       ),
       const SizedBox(height: 16),
       const TituloSeccion('Revisa la bolsa'),
-      for (final (id, texto) in items)
+      for (final d in items)
         CheckboxListTile(
-          value: _enBolsa.contains(id),
-          onChanged: (v) => setState(
-            () => v == true ? _enBolsa.add(id) : _enBolsa.remove(id),
+          value: _enBolsa.contains(d.pedidoDetalleId),
+          onChanged: bloqueado
+              ? null
+              : (v) => setState(
+                  () => v == true
+                      ? _enBolsa.add(d.pedidoDetalleId)
+                      : _enBolsa.remove(d.pedidoDetalleId),
+                ),
+          title: Text(
+            '${d.nombreFinal} · ${cantidadExactaCasero(d.cantidadReal, parte.detalles.where((i) => i.id == d.pedidoDetalleId).firstOrNull?.unidad.simbolo ?? '')}',
+            style: const TextStyle(fontSize: 18),
           ),
-          title: Text(texto, style: const TextStyle(fontSize: 18)),
           controlAffinity: ListTileControlAffinity.leading,
           contentPadding: EdgeInsets.zero,
         ),
-      const SizedBox(height: 12),
-      BotonPrincipal(
-        texto: 'Ya se lo entregué',
-        cargando: _ocupado,
-        onPressed: completo
-            ? () => _hacer(
-                () => _repo.entregarARepartidor(parte.id),
-                exito: '¡Listo! Entregaste la bolsa ${parte.codigoBolsa}.',
-              )
-            : null,
-      ),
       if (!completo)
-        const Padding(
-          padding: EdgeInsets.only(top: 8),
-          child: Text(
-            'Marca cada producto de la bolsa para poder entregarla.',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 16, color: AppColors.textoSecundario),
-          ),
+        const Text(
+          'Marca todos los productos para poder entregar la bolsa. Si no aparece la lista, actualiza el pedido.',
+          style: TextStyle(fontSize: 17),
         ),
+      const SizedBox(height: 16),
+      FilledButton(
+        style: _estiloAccion,
+        onPressed: completo && !bloqueado
+            ? () => _confirmarAccion(parte, entregar: true)
+            : null,
+        child: Text(
+          _ocupado ? 'Guardando entrega…' : 'Ya se lo entregué',
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 20),
+        ),
+      ),
     ];
   }
 
-  /// Ya pesó: espera que el cliente acepte el precio final.
   List<Widget> _esperandoCliente(Pedido p, PedidoPuesto parte) {
     final cp = p.cotizacion?.dePuesto(parte.id);
+    final borrador = p.cotizacion?.estado == EstadoCotizacion.borrador;
     return [
-      TarjetaApp(
-        color: AppColors.avisoFondo,
-        colorBorde: AppColors.aviso,
-        child: Row(
-          children: [
-            const Icon(Icons.hourglass_top, color: AppColors.aviso, size: 30),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Enviaste el precio final. Esperamos que ${p.clienteNombre} lo acepte '
-                'para que empaquetes.',
-                style: const TextStyle(fontSize: 18),
-              ),
-            ),
-          ],
-        ),
+      EtiquetaEstado(
+        texto: borrador
+            ? 'Tu precio está guardado. Esperamos que los otros puestos envíen sus precios.'
+            : 'Precio enviado. Esperamos que el cliente acepte el precio de todo su pedido antes de preparar la bolsa.',
+        icono: Icons.hourglass_top,
+        tipo: TipoEstado.aviso,
       ),
+      const SizedBox(height: 12),
+      SeguimientoPuestoCasero(estado: parte.estado),
       if (cp != null) ...[
-        const SizedBox(height: 16),
-        const TituloSeccion('Lo que pesaste'),
-        const SizedBox(height: 8),
-        TarjetaApp(
-          child: Column(
-            children: [
-              for (final d in cp.detalles)
-                FilaMonto(
-                  etiqueta:
-                      '${d.nombreFinal} · ${cantidadConUnidad(d.cantidadReal, _unidadDe(parte, d.pedidoDetalleId))}',
-                  monto: d.subtotal,
-                ),
-              const Divider(color: AppColors.divisor),
-              FilaMonto(
-                etiqueta: 'Precio final',
-                monto: cp.bruto,
-                destacado: true,
-              ),
-              FilaMonto(
-                etiqueta: 'Comisión MiMercado+ (5 %)',
-                monto: cp.comision,
-              ),
-              FilaMonto(etiqueta: 'Recibes', monto: cp.neto),
-            ],
-          ),
-        ),
+        const SizedBox(height: 12),
+        CotizacionCasero(parte: parte, cotizacion: cp),
       ],
     ];
   }
-
-  static UnidadMedida _unidadDe(PedidoPuesto parte, int detalleId) =>
-      parte.detalles.firstWhere((d) => d.id == detalleId).unidad;
 
   /// Tarjeta del pedido compartido con el estado de los otros puestos.
   Widget _compartido(Pedido p, PedidoPuesto parte) {

@@ -125,7 +125,7 @@ Future<bool?> mostrarNuevoPedido(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Pedido ${pedido.codigo}',
+                    fechaCorta(pedido.creadoEn.toLocal()),
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,

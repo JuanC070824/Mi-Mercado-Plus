@@ -30,17 +30,30 @@ import '../../features/repartidor/screens/repartidor_inicio_screen.dart';
 import '../../features/repartidor/screens/ruta_screen.dart';
 import '../widgets/barra_navegacion_app.dart';
 import '../state/sesion_state.dart';
+import '../state/preferencias_vendedor_state.dart';
 
 // ESTO ME SIRVE COMO LISTA DE RUTAS
 // Por ejemplo, /cliente/login lleva a la pantalla de login
 
 // Recuerda al usuario que entró, porque al cambiar de pestaña el "extra" ya no viaja.
 Usuario? _usuarioActual;
+Usuario? _ultimoUsuarioExtra;
 
 /// Guarda al usuario que llega al iniciar sesión y lo devuelve.
 Usuario _usuarioDe(GoRouterState state) {
   final extra = state.extra;
-  if (extra is Usuario) _usuarioActual = extra;
+  if (extra is Usuario && !identical(extra, _ultimoUsuarioExtra)) {
+    _ultimoUsuarioExtra = extra;
+    _usuarioActual = extra;
+    if (extra.rol == Rol.comerciante) {
+      // El cambio de escala reconstruye un ancestro del router.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (identical(extra, _ultimoUsuarioExtra)) {
+          PreferenciasVendedorState.aplicar(_usuarioActual!);
+        }
+      });
+    }
+  }
   return _usuarioActual!;
 }
 
@@ -59,6 +72,8 @@ Widget _perfil(GoRouterState state) => PerfilScreen(
 );
 
 void _cerrarSesion() {
+  _ultimoUsuarioExtra = null;
+  PreferenciasVendedorState.limpiar();
   _usuarioActual = null;
   SesionState.cerrar();
   canastaApp.vaciar(); // la canasta no pasa al siguiente usuario
@@ -250,6 +265,14 @@ final appRouter = GoRouter(
               redirect: (context, state) => _exigirRol(state, Rol.comerciante),
               builder: (context, state) => MiPuestoScreen(
                 usuario: _usuarioDe(state),
+                onUsuarioActualizado: (u) {
+                  _usuarioActual = _usuarioActual!.copyWith(
+                    letraGrande: u.letraGrande,
+                    sonido: u.sonido,
+                    vibracion: u.vibracion,
+                  );
+                  PreferenciasVendedorState.aplicar(_usuarioActual!);
+                },
                 onPuestoGuardado: (puesto) {
                   _usuarioActual = _usuarioActual!.copyWith(
                     puestoId: puesto.id,

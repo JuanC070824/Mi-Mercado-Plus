@@ -111,6 +111,13 @@ def change_item(user, item_id, quantity=None):
     return cart_payload(user)
 
 
+def _productos_para_checkout(ids):
+    # FOR UPDATE OF no admite los nombres con esquema usados por estos modelos.
+    # Bloquear solo productos y cargar puestos/mercados en consultas aparte.
+    return Producto.objects.select_for_update().filter(pk__in=ids).prefetch_related(
+        'puesto__mercado').order_by('id')
+
+
 @transaction.atomic
 def checkout(user, address_id, method):
     require_buyer(user)
@@ -126,8 +133,7 @@ def checkout(user, address_id, method):
     if not items:
         raise ValidationError('La canasta está vacía.')
     # Bloqueos en orden estable para evitar sobreventa entre compradores.
-    products = {p.pk: p for p in Producto.objects.select_for_update(of=('self',)).filter(
-        pk__in=[i.producto_id for i in items]).select_related('puesto__mercado').order_by('id')}
+    products = {p.pk: p for p in _productos_para_checkout([i.producto_id for i in items])}
     for item in items:
         product = products.get(item.producto_id)
         if not product:

@@ -52,7 +52,7 @@ class TarjetaPedidoCasero extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  'Pedido ${pedido.codigo}',
+                  'Ver pedido',
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,

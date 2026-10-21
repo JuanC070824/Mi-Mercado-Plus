@@ -12,7 +12,7 @@ from . import serializers as s
 from .models import (Usuario, UsuarioRol, Producto, Mercado, Puesto, Direccion,
                      Pedido, PedidoPuesto, PedidoDetalle, Cotizacion,
                      CotizacionPuesto, CotizacionDetalle, RepartidorMercado,
-                     Categoria, UnidadMedida, HistorialEstado, EntregaParada)
+                     Categoria, UnidadMedida, HistorialEstado, EntregaParada, HorarioPuesto)
 from .authentication import issue_token
 from .services import put_item, cart_payload, change_item, checkout, require_buyer, accept_quote, quote_total, lock_user
 from .payments import pay_order
@@ -160,7 +160,7 @@ class PerfilView(APIView):
         request.user.celular=celular
         request.user.correo=correo
         campos=['celular','correo']
-        for campo in ['sonido','vibracion']:
+        for campo in ['letra_grande','sonido','vibracion']:
             if campo in data:
                 setattr(request.user,campo,data[campo])
                 campos.append(campo)
@@ -217,6 +217,10 @@ class VendedorPuestoView(APIView):
         return {
             'id':puesto.pk,'nombre':puesto.nombre,'numero':puesto.numero,
             'referencia':puesto.descripcion,'foto_url':puesto.foto_url,
+            'contacto_billetera':puesto.contacto_billetera,
+            'horarios':[{'dia':h.dia_semana,'apertura':h.apertura.strftime('%H:%M'),
+                         'cierre':h.cierre.strftime('%H:%M')}
+                        for h in HorarioPuesto.objects.filter(puesto_id=puesto.pk).order_by('dia_semana','apertura')],
             'abierto':puesto.abierto,
             'mercado':{
                 'id':puesto.mercado_id,'nombre':puesto.mercado.nombre,

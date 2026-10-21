@@ -11,11 +11,13 @@ class EncabezadoPedidoCasero extends StatelessWidget {
     required this.titulo,
     this.subtitulo,
     this.habilitado = true,
+    this.mostrarAtras = true,
   });
 
   final String titulo;
   final String? subtitulo;
   final bool habilitado;
+  final bool mostrarAtras;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -34,19 +36,20 @@ class EncabezadoPedidoCasero extends StatelessWidget {
               spacing: 8,
               runSpacing: 8,
               children: [
-                IconButton(
-                  tooltip: 'Volver',
-                  constraints: const BoxConstraints(
-                    minWidth: 48,
-                    minHeight: 48,
+                if (mostrarAtras)
+                  IconButton(
+                    tooltip: 'Volver',
+                    constraints: const BoxConstraints(
+                      minWidth: 48,
+                      minHeight: 48,
+                    ),
+                    onPressed: !habilitado
+                        ? null
+                        : () => context.canPop()
+                              ? context.pop()
+                              : context.go('/casero/inicio'),
+                    icon: const Icon(Icons.arrow_back, color: AppColors.blanco),
                   ),
-                  onPressed: !habilitado
-                      ? null
-                      : () => context.canPop()
-                            ? context.pop()
-                            : context.go('/casero/inicio'),
-                  icon: const Icon(Icons.arrow_back, color: AppColors.blanco),
-                ),
                 TextButton.icon(
                   onPressed: () => mostrarSoporte(context),
                   style: TextButton.styleFrom(
