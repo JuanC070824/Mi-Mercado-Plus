@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../../core/utils/formato.dart';
 import '../../../core/widgets/componentes_app.dart';
 import '../../../core/widgets/encabezado_simple.dart';
-import '../../../data/models/pedido.dart';
 import '../../../data/models/usuario.dart';
 import '../../../data/repositories/vendedor_inicio_repository.dart';
 import '../../../data/repositories/puesto_vendedor_repository.dart';
@@ -704,75 +702,5 @@ String _estadoLegible(String estado) {
       return 'Listo';
     default:
       return 'En proceso';
-  }
-}
-
-/// Tarjeta compartida por la lista histórica de pedidos del vendedor.
-/// El identificador interno del pedido no se muestra al usuario.
-class TarjetaPedidoCasero extends StatelessWidget {
-  const TarjetaPedidoCasero({
-    super.key,
-    required this.pedido,
-    required this.parte,
-    required this.onTap,
-  });
-
-  final Pedido pedido;
-  final PedidoPuesto parte;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final cantidad = parte.detalles.length;
-    return Semantics(
-      button: true,
-      label:
-          'Pedido de ${pedido.clienteNombre}, $cantidad ${cantidad == 1 ? 'producto' : 'productos'}',
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(18),
-          child: TarjetaApp(
-            colorBorde: parte.estado == EstadoPedidoPuesto.pendiente
-                ? AppColors.azul
-                : AppColors.borde,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Pedido de ${pedido.clienteNombre}',
-                        style: const TextStyle(
-                          fontSize: 19,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                    const Icon(
-                      Icons.chevron_right,
-                      color: AppColors.azul,
-                      size: 30,
-                    ),
-                  ],
-                ),
-                Text(
-                  '$cantidad ${cantidad == 1 ? 'producto' : 'productos'} · ${fechaCorta(pedido.creadoEn)}'
-                  '${parte.listaMandado != null ? ' · con lista de mandado' : ''}',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: AppColors.textoSecundario,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                etiquetaDePuesto(parte.estado),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
   }
 }
