@@ -1,22 +1,20 @@
 import 'package:flutter/material.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/componentes_app.dart';
 import '../../../data/models/pedido.dart';
 import '../widgets/piezas_repartidor.dart';
-import '../widgets/tarjeta_oferta_repartidor.dart';
 
-/// Recojo de las bolsas en el orden de las paradas.
+/// Recojo por paradas: solo la parada que toca tiene botón.
 class RepartidorRutaView extends StatelessWidget {
   const RepartidorRutaView({
     super.key,
     required this.pedido,
-    required this.datos,
     required this.ocupado,
     required this.alRecoger,
     required this.alAvisar,
     required this.alSalir,
   });
   final Pedido pedido;
-  final Map<String, dynamic> datos;
   final bool ocupado;
   final ValueChanged<PedidoPuesto> alRecoger;
   final VoidCallback alAvisar;
@@ -33,83 +31,143 @@ class RepartidorRutaView extends StatelessWidget {
         .where((x) => x.estado != EstadoPedidoPuesto.recogido)
         .firstOrNull
         ?.id;
-    final listo = partes.isNotEmpty && recogidos == partes.length;
+    final faltan = partes.length - recogidos;
+    final listo = partes.isNotEmpty && faltan == 0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        TarjetaOfertaRepartidor(pedido: pedido, datos: datos),
+        Text(
+          'Pedido de ${pedido.clienteNombre}',
+          style: const TextStyle(
+            fontSize: 17,
+            color: AppColors.textoSecundario,
+          ),
+        ),
         TituloRepartidor('Recogidos $recogidos de ${partes.length} puestos'),
         LinearProgressIndicator(
           value: partes.isEmpty ? 0 : recogidos / partes.length,
           minHeight: 10,
+          borderRadius: BorderRadius.circular(5),
           semanticsLabel: 'Avance del recojo: $recogidos de ${partes.length}',
         ),
-        const SizedBox(height: 12),
-        const Text(
-          'Sigue el orden de las paradas. Confirma el recojo cuando tengas la bolsa en la mano.',
-          style: TextStyle(fontSize: 18),
-        ),
-        for (final pp in partes)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: TarjetaApp(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    '${pp.parada}. ${pp.puesto.nombre}',
-                    style: const TextStyle(
-                      fontSize: 21,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  Text(
-                    'Atiende: ${pp.puesto.casero}',
-                    style: const TextStyle(fontSize: 17),
-                  ),
-                  etiquetaDePuesto(pp.estado),
-                  if (pp.estado != EstadoPedidoPuesto.recogido)
-                    AccionRepartidor(
-                      'Recogí la bolsa',
-                      pp.id == siguiente &&
-                              pp.estado == EstadoPedidoPuesto.listo
-                          ? () => alRecoger(pp)
-                          : null,
-                      ocupado: ocupado,
-                    ),
-                  if (pp.estado == EstadoPedidoPuesto.enPreparacion)
-                    const Text(
-                      'El vendedor está preparando esta bolsa.',
-                      style: TextStyle(fontSize: 17),
-                    ),
-                ],
+        if (!listo)
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TextButton.icon(
+              style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
+              onPressed: ocupado ? null : alAvisar,
+              icon: const Icon(Icons.notifications_active_outlined),
+              label: const Text(
+                'Avisar: estoy recogiendo',
+                style: TextStyle(fontSize: 17),
               ),
             ),
           ),
-        OutlinedButton.icon(
-          onPressed: ocupado ? null : alAvisar,
-          style: OutlinedButton.styleFrom(
-            minimumSize: const Size(48, 48),
-            padding: const EdgeInsets.all(12),
+        for (final pp in partes)
+          _Parada(
+            parte: pp,
+            habilitada: pp.id == siguiente,
+            ocupado: ocupado,
+            alRecoger: () => alRecoger(pp),
           ),
-          icon: const Icon(Icons.message_outlined),
-          label: const Text(
-            'Avisar: estoy recogiendo',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 18),
-          ),
-        ),
+        const SizedBox(height: 8),
         if (!listo)
-          const Text(
-            'Recoge en todos los puestos para poder ir a entregar.',
-            style: TextStyle(fontSize: 18),
+          Text(
+            faltan == 1 ? 'Falta 1 bolsa.' : 'Faltan $faltan bolsas.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 17,
+              color: AppColors.textoSecundario,
+            ),
           ),
         AccionRepartidor(
-          'Ya recogí todo · Ir a entregar',
+          'Ir a entregar',
           listo ? alSalir : null,
           ocupado: ocupado,
         ),
       ],
+    );
+  }
+}
+
+class _Parada extends StatelessWidget {
+  const _Parada({
+    required this.parte,
+    required this.habilitada,
+    required this.ocupado,
+    required this.alRecoger,
+  });
+  final PedidoPuesto parte;
+  final bool habilitada;
+  final bool ocupado;
+  final VoidCallback alRecoger;
+
+  @override
+  Widget build(BuildContext context) {
+    final recogida = parte.estado == EstadoPedidoPuesto.recogido;
+    final lista = parte.estado == EstadoPedidoPuesto.listo;
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: TarjetaApp(
+        color: recogida ? AppColors.fondo : AppColors.blanco,
+        colorBorde: habilitada ? AppColors.azul : AppColors.borde,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            MergeSemantics(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    '${parte.parada}. ${parte.puesto.nombre}',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  Text(
+                    'Atiende: ${parte.puesto.casero}',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: AppColors.textoSecundario,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: recogida
+                        ? const EtiquetaEstado(
+                            texto: 'Recogida',
+                            icono: Icons.done_all,
+                            tipo: TipoEstado.exito,
+                          )
+                        : lista
+                        ? const EtiquetaEstado(
+                            texto: 'Lista para recoger',
+                            icono: Icons.shopping_bag_outlined,
+                            tipo: TipoEstado.exito,
+                          )
+                        : const EtiquetaEstado(
+                            texto: 'Preparando',
+                            icono: Icons.hourglass_top,
+                          ),
+                  ),
+                ],
+              ),
+            ),
+            if (habilitada && lista)
+              AccionRepartidor('Recogí la bolsa', alRecoger, ocupado: ocupado)
+            else if (habilitada)
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Text(
+                  'Espera a que el casero la tenga lista.',
+                  style: TextStyle(fontSize: 17),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

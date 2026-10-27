@@ -51,6 +51,9 @@ class _RepartidorOperacionesScreenState
   bool _enPrimerPlano = true;
   String? _error;
   final _avisados = <int>{};
+  // Pedidos con el aviso de llegada enviado en esta sesión (paso 2 de entrega).
+  final _llegados = <int>{};
+  bool _verLlegada = false;
   bool get _visible =>
       mounted &&
       _enPrimerPlano &&
@@ -245,28 +248,51 @@ class _RepartidorOperacionesScreenState
     if (mounted) context.go('/repartidor/inicio');
   }
 
+  /// El aviso de llegada queda en el historial del pedido en el servidor.
+  bool _yaLlegue(Pedido p) =>
+      _llegados.contains(p.id) ||
+      p.historial.any((e) => e.texto.contains('llegó a tu dirección'));
+
+  Future<void> _llegar(Pedido p) async {
+    await _hacer(() async {
+      await _repo.avisarLlegada(p.id);
+      _llegados.add(p.id);
+      _verLlegada = false;
+    }, mensaje: 'El cliente puede ver que llegaste.');
+  }
+
   Widget _vista() {
     final inicio = _inicio;
     if (inicio == null) {
-      return const Text(
-        'Revisa tu conexión y vuelve a actualizar.',
-        style: TextStyle(fontSize: 18),
+      return AvisoPantalla(
+        icono: Icons.wifi_off,
+        titulo: 'No pudimos cargar tus pedidos',
+        texto: 'Revisa tu conexión.',
+        textoBoton: 'Reintentar',
+        alTocar: _ocupado || _leyendo ? null : _cargar,
       );
     }
     if (inicio['autorizado'] != true) {
-      return RepartidorSinMercadoView(
-        inicio: inicio,
-        ocupado: _ocupado,
-        alSolicitar: (mercado, movilidad, placa, descripcion) => _hacer(
-          () => _repo.solicitarMercado(
-            mercado,
-            movilidad,
-            placa,
-            descripcion: descripcion,
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TarjetaApp(child: MercadoRepartidor(datos: inicio)),
+          const SizedBox(height: 8),
+          RepartidorSinMercadoView(
+            inicio: inicio,
+            ocupado: _ocupado,
+            alSolicitar: (mercado, movilidad, placa, descripcion) => _hacer(
+              () => _repo.solicitarMercado(
+                mercado,
+                movilidad,
+                placa,
+                descripcion: descripcion,
+              ),
+              mensaje:
+                  'Solicitud registrada. Espera la autorización de tu mercado.',
+            ),
           ),
-          mensaje:
-              'Solicitud registrada. Espera la autorización de tu mercado.',
-        ),
+        ],
       );
     }
     if (widget.vista == 'ganancias') {
@@ -311,19 +337,17 @@ class _RepartidorOperacionesScreenState
         pedido: actual,
         datos: _repo.datosDe(actual.id),
         ocupado: _ocupado,
+        llegue: _yaLlegue(actual) && !_verLlegada,
         efectivo: _efectivo,
         codigo: _codigo,
         alCambiarEfectivo: (v) => setState(() => _efectivo = v),
-        alLlegar: () => _hacer(
-          () => _repo.avisarLlegada(actual.id),
-          mensaje: 'El cliente puede ver que llegaste.',
-        ),
+        alLlegar: () => _llegar(actual),
+        alVolverALlegada: () => setState(() => _verLlegada = true),
         alConfirmar: () => _completar(actual),
       );
     }
     return RepartidorRutaView(
       pedido: actual,
-      datos: _repo.datosDe(actual.id),
       ocupado: _ocupado,
       alRecoger: (pp) => _confirmarRecojo(actual, pp),
       alAvisar: () => _hacer(
@@ -360,10 +384,13 @@ class _RepartidorOperacionesScreenState
                       padding: const EdgeInsets.all(16),
                       physics: const AlwaysScrollableScrollPhysics(),
                       children: [
-                        if (widget.vista == 'inicio' && _inicio != null) ...[
-                          TarjetaApp(child: MercadoRepartidor(datos: _inicio!)),
-                          const SizedBox(height: 16),
-                        ],
+                        if (_ocupado)
+                          const Padding(
+                            padding: EdgeInsets.only(bottom: 12),
+                            child: LinearProgressIndicator(
+                              semanticsLabel: 'Guardando y comprobando…',
+                            ),
+                          ),
                         if (_error != null) ...[
                           Semantics(
                             liveRegion: true,
@@ -377,25 +404,6 @@ class _RepartidorOperacionesScreenState
                           ),
                           const SizedBox(height: 12),
                         ],
-                        OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
-                            minimumSize: const Size(48, 48),
-                          ),
-                          onPressed: _ocupado || _leyendo ? null : _cargar,
-                          icon: const Icon(Icons.refresh),
-                          label: const Text(
-                            'Actualizar',
-                            style: TextStyle(fontSize: 18),
-                          ),
-                        ),
-                        if (_ocupado)
-                          Semantics(
-                            liveRegion: true,
-                            child: const Text(
-                              'Guardando y comprobando…',
-                              style: TextStyle(fontSize: 18),
-                            ),
-                          ),
                         _vista(),
                       ],
                     ),

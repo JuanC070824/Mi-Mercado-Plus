@@ -15,7 +15,7 @@ import 'helpers/reparto_fixture.dart';
 class _Repo extends PedidosApiRepository {
   _Repo(this.inicio);
   Map<String, dynamic> inicio;
-  int recojos = 0, entregas = 0, pagos = 0, solicitudes = 0;
+  int recojos = 0, entregas = 0, pagos = 0, solicitudes = 0, llegadas = 0;
   bool fallo = false;
   String? guardada;
   @override
@@ -29,6 +29,9 @@ class _Repo extends PedidosApiRepository {
       )['estado'] = 'recogido';
     }
   }
+
+  @override
+  Future<void> avisarLlegada(int id) async => llegadas++;
 
   @override
   Future<void> entregar(int id, String codigo, {bool efectivo = false}) async {
@@ -197,6 +200,9 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(Dialog), findsNothing);
       expect(repo.inicio['en_curso'], isNull);
+      expect(find.text('Actualizar'), findsNothing);
+      expect(find.text('Tu trabajo de hoy'), findsNothing);
+      expect(find.text('Ver y aceptar'), findsOneWidget);
       final semantica = tester.ensureSemantics();
       await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
       semantica.dispose();
@@ -220,6 +226,8 @@ void main() {
           find.widgetWithText(FilledButton, 'Recogí la bolsa'),
         )
         .toList();
+    // Solo la parada que toca tiene botón.
+    expect(botones, hasLength(1));
     expect(botones.first.onPressed, isNotNull);
     await tester.tap(find.text('Recogí la bolsa').first);
     await tester.pumpAndSettle();
@@ -227,8 +235,10 @@ void main() {
     await tester.tap(find.text('Sí, confirmar'));
     await tester.pumpAndSettle();
     expect(repo.recojos, 1);
-    await _ver(tester, find.text('Ya recogí todo · Ir a entregar'));
-    expect(_boton(tester, 'Ya recogí todo · Ir a entregar').onPressed, isNull);
+    expect(find.text('Recogida'), findsOneWidget);
+    expect(find.text('Espera a que el casero la tenga lista.'), findsOneWidget);
+    await _ver(tester, find.text('Ir a entregar'));
+    expect(_boton(tester, 'Ir a entregar').onPressed, isNull);
     expect(find.textContaining('MM-interno'), findsNothing);
   });
   testWidgets(
@@ -251,6 +261,14 @@ void main() {
           repository: repo,
         ),
       );
+      // Paso 1: llegada. El código y el cobro aún no se muestran.
+      expect(find.byKey(const ValueKey('codigo_entrega')), findsNothing);
+      await _ver(tester, find.text('Llegué a la dirección'));
+      await tester.tap(find.text('Llegué a la dirección'));
+      await tester.pumpAndSettle();
+      expect(repo.llegadas, 1);
+      // Paso 2: cobro y código.
+      expect(find.textContaining('Cobra S/'), findsOneWidget);
       await _ver(tester, find.text('Confirmar entrega'));
       expect(_boton(tester, 'Confirmar entrega').onPressed, isNull);
       await tester.ensureVisible(find.byType(CheckboxListTile));
@@ -284,10 +302,10 @@ void main() {
       ),
       escala: 2,
     );
-    await _ver(tester, find.text('Ya recogí todo · Ir a entregar'));
+    await _ver(tester, find.text('Ir a entregar'));
     expect(tester.takeException(), isNull);
     final size = tester.getSize(
-      find.widgetWithText(FilledButton, 'Ya recogí todo · Ir a entregar'),
+      find.widgetWithText(FilledButton, 'Ir a entregar'),
     );
     expect(size.height, greaterThanOrEqualTo(48));
     expect(size.width, greaterThanOrEqualTo(48));
