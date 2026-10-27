@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -51,33 +52,68 @@ class _RepartidorOperacionesScreenState
   bool _enPrimerPlano = true;
   String? _error;
   final _avisados = <int>{};
+  // Pedidos con el aviso de llegada enviado en esta sesión (paso 2 de entrega).
+  final _llegados = <int>{};
+  bool _verLlegada = false;
+  // Pestaña activa en el menú inferior (las otras quedan vivas pero ocultas).
+  bool? _activa;
+  // Última respuesta del servidor, para no redibujar si nada cambió.
+  String? _firma;
+  Pedido? _actual;
+  List<Pedido> _ofertas = const [];
   bool get _visible =>
       mounted &&
       _enPrimerPlano &&
       TickerMode.valuesOf(context).enabled &&
       (ModalRoute.of(context)?.isCurrent ?? false);
-  Pedido? get _actual => _inicio?['en_curso'] is Map
-      ? _repo.leer(Map<String, dynamic>.from(_inicio!['en_curso']))
-      : null;
-  List<Pedido> get _ofertas => [
-    for (final j in _inicio?['ofertas'] as List? ?? [])
-      _repo.leer(Map<String, dynamic>.from(j)),
-  ];
+
+  /// Ruta y entrega cambian rápido; inicio y ganancias pueden esperar.
+  Duration get _intervalo => switch (widget.vista) {
+    'ruta' || 'entrega' => const Duration(seconds: 10),
+    'ganancias' => const Duration(seconds: 30),
+    _ => const Duration(seconds: 20),
+  };
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _repo.cambios.addListener(_cambio);
-    _timer = Timer.periodic(const Duration(seconds: 10), (_) {
-      if (_visible && !_ocupado && !_dialogo) _cargar();
-    });
     _cargar();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final activa = TickerMode.valuesOf(context).enabled;
+    if (activa == _activa) return;
+    final primeraVez = _activa == null;
+    _activa = activa;
+    if (!activa) return _detener();
+    _programar();
+    // Al volver a esta pestaña, trae lo que cambió mientras estaba oculta.
+    if (!primeraVez && !_ocupado && !_dialogo) _cargar();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _enPrimerPlano = state == AppLifecycleState.resumed;
-    if (_enPrimerPlano && _visible && !_ocupado && !_dialogo) _cargar();
+    if (!_enPrimerPlano) return _detener();
+    if (_activa == true) _programar();
+    if (_visible && !_ocupado && !_dialogo) _cargar();
+  }
+
+  /// Sin temporizador en segundo plano ni en pestañas ocultas.
+  void _programar() {
+    _timer?.cancel();
+    _timer = Timer.periodic(_intervalo, (_) {
+      if (_visible && !_ocupado && !_dialogo) _cargar();
+    });
+  }
+
+  void _detener() {
+    _timer?.cancel();
+    _timer = null;
   }
 
   void _cambio() {
@@ -100,11 +136,22 @@ class _RepartidorOperacionesScreenState
     try {
       final data = await _repo.inicioRepartidor();
       if (!mounted) return;
-      setState(() {
-        _inicio = data;
-        _cargando = false;
-        _error = null;
-      });
+      final firma = jsonEncode(data);
+      if (firma != _firma || _cargando || _error != null) {
+        _firma = firma;
+        setState(() {
+          _inicio = data;
+          _actual = data['en_curso'] is Map
+              ? _repo.leer(Map<String, dynamic>.from(data['en_curso']))
+              : null;
+          _ofertas = [
+            for (final j in data['ofertas'] as List? ?? [])
+              _repo.leer(Map<String, dynamic>.from(j)),
+          ];
+          _cargando = false;
+          _error = null;
+        });
+      }
       if (widget.vista == 'inicio' &&
           _visible &&
           !_ocupado &&
@@ -245,28 +292,51 @@ class _RepartidorOperacionesScreenState
     if (mounted) context.go('/repartidor/inicio');
   }
 
+  /// El aviso de llegada queda en el historial del pedido en el servidor.
+  bool _yaLlegue(Pedido p) =>
+      _llegados.contains(p.id) ||
+      p.historial.any((e) => e.texto.contains('llegó a tu dirección'));
+
+  Future<void> _llegar(Pedido p) async {
+    await _hacer(() async {
+      await _repo.avisarLlegada(p.id);
+      _llegados.add(p.id);
+      _verLlegada = false;
+    }, mensaje: 'El cliente puede ver que llegaste.');
+  }
+
   Widget _vista() {
     final inicio = _inicio;
     if (inicio == null) {
-      return const Text(
-        'Revisa tu conexión y vuelve a actualizar.',
-        style: TextStyle(fontSize: 18),
+      return AvisoPantalla(
+        icono: Icons.wifi_off,
+        titulo: 'No pudimos cargar tus pedidos',
+        texto: 'Revisa tu conexión.',
+        textoBoton: 'Reintentar',
+        alTocar: _ocupado || _leyendo ? null : _cargar,
       );
     }
     if (inicio['autorizado'] != true) {
-      return RepartidorSinMercadoView(
-        inicio: inicio,
-        ocupado: _ocupado,
-        alSolicitar: (mercado, movilidad, placa, descripcion) => _hacer(
-          () => _repo.solicitarMercado(
-            mercado,
-            movilidad,
-            placa,
-            descripcion: descripcion,
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TarjetaApp(child: MercadoRepartidor(datos: inicio)),
+          const SizedBox(height: 8),
+          RepartidorSinMercadoView(
+            inicio: inicio,
+            ocupado: _ocupado,
+            alSolicitar: (mercado, movilidad, placa, descripcion) => _hacer(
+              () => _repo.solicitarMercado(
+                mercado,
+                movilidad,
+                placa,
+                descripcion: descripcion,
+              ),
+              mensaje:
+                  'Solicitud registrada. Espera la autorización de tu mercado.',
+            ),
           ),
-          mensaje:
-              'Solicitud registrada. Espera la autorización de tu mercado.',
-        ),
+        ],
       );
     }
     if (widget.vista == 'ganancias') {
@@ -311,19 +381,17 @@ class _RepartidorOperacionesScreenState
         pedido: actual,
         datos: _repo.datosDe(actual.id),
         ocupado: _ocupado,
+        llegue: _yaLlegue(actual) && !_verLlegada,
         efectivo: _efectivo,
         codigo: _codigo,
         alCambiarEfectivo: (v) => setState(() => _efectivo = v),
-        alLlegar: () => _hacer(
-          () => _repo.avisarLlegada(actual.id),
-          mensaje: 'El cliente puede ver que llegaste.',
-        ),
+        alLlegar: () => _llegar(actual),
+        alVolverALlegada: () => setState(() => _verLlegada = true),
         alConfirmar: () => _completar(actual),
       );
     }
     return RepartidorRutaView(
       pedido: actual,
-      datos: _repo.datosDe(actual.id),
       ocupado: _ocupado,
       alRecoger: (pp) => _confirmarRecojo(actual, pp),
       alAvisar: () => _hacer(
@@ -360,10 +428,13 @@ class _RepartidorOperacionesScreenState
                       padding: const EdgeInsets.all(16),
                       physics: const AlwaysScrollableScrollPhysics(),
                       children: [
-                        if (widget.vista == 'inicio' && _inicio != null) ...[
-                          TarjetaApp(child: MercadoRepartidor(datos: _inicio!)),
-                          const SizedBox(height: 16),
-                        ],
+                        if (_ocupado)
+                          const Padding(
+                            padding: EdgeInsets.only(bottom: 12),
+                            child: LinearProgressIndicator(
+                              semanticsLabel: 'Guardando y comprobando…',
+                            ),
+                          ),
                         if (_error != null) ...[
                           Semantics(
                             liveRegion: true,
@@ -377,25 +448,6 @@ class _RepartidorOperacionesScreenState
                           ),
                           const SizedBox(height: 12),
                         ],
-                        OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
-                            minimumSize: const Size(48, 48),
-                          ),
-                          onPressed: _ocupado || _leyendo ? null : _cargar,
-                          icon: const Icon(Icons.refresh),
-                          label: const Text(
-                            'Actualizar',
-                            style: TextStyle(fontSize: 18),
-                          ),
-                        ),
-                        if (_ocupado)
-                          Semantics(
-                            liveRegion: true,
-                            child: const Text(
-                              'Guardando y comprobando…',
-                              style: TextStyle(fontSize: 18),
-                            ),
-                          ),
                         _vista(),
                       ],
                     ),
