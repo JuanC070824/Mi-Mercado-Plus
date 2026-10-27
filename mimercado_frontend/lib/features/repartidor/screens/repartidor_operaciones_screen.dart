@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -54,33 +55,65 @@ class _RepartidorOperacionesScreenState
   // Pedidos con el aviso de llegada enviado en esta sesión (paso 2 de entrega).
   final _llegados = <int>{};
   bool _verLlegada = false;
+  // Pestaña activa en el menú inferior (las otras quedan vivas pero ocultas).
+  bool? _activa;
+  // Última respuesta del servidor, para no redibujar si nada cambió.
+  String? _firma;
+  Pedido? _actual;
+  List<Pedido> _ofertas = const [];
   bool get _visible =>
       mounted &&
       _enPrimerPlano &&
       TickerMode.valuesOf(context).enabled &&
       (ModalRoute.of(context)?.isCurrent ?? false);
-  Pedido? get _actual => _inicio?['en_curso'] is Map
-      ? _repo.leer(Map<String, dynamic>.from(_inicio!['en_curso']))
-      : null;
-  List<Pedido> get _ofertas => [
-    for (final j in _inicio?['ofertas'] as List? ?? [])
-      _repo.leer(Map<String, dynamic>.from(j)),
-  ];
+
+  /// Ruta y entrega cambian rápido; inicio y ganancias pueden esperar.
+  Duration get _intervalo => switch (widget.vista) {
+    'ruta' || 'entrega' => const Duration(seconds: 10),
+    'ganancias' => const Duration(seconds: 30),
+    _ => const Duration(seconds: 20),
+  };
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _repo.cambios.addListener(_cambio);
-    _timer = Timer.periodic(const Duration(seconds: 10), (_) {
-      if (_visible && !_ocupado && !_dialogo) _cargar();
-    });
     _cargar();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final activa = TickerMode.valuesOf(context).enabled;
+    if (activa == _activa) return;
+    final primeraVez = _activa == null;
+    _activa = activa;
+    if (!activa) return _detener();
+    _programar();
+    // Al volver a esta pestaña, trae lo que cambió mientras estaba oculta.
+    if (!primeraVez && !_ocupado && !_dialogo) _cargar();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _enPrimerPlano = state == AppLifecycleState.resumed;
-    if (_enPrimerPlano && _visible && !_ocupado && !_dialogo) _cargar();
+    if (!_enPrimerPlano) return _detener();
+    if (_activa == true) _programar();
+    if (_visible && !_ocupado && !_dialogo) _cargar();
+  }
+
+  /// Sin temporizador en segundo plano ni en pestañas ocultas.
+  void _programar() {
+    _timer?.cancel();
+    _timer = Timer.periodic(_intervalo, (_) {
+      if (_visible && !_ocupado && !_dialogo) _cargar();
+    });
+  }
+
+  void _detener() {
+    _timer?.cancel();
+    _timer = null;
   }
 
   void _cambio() {
@@ -103,11 +136,22 @@ class _RepartidorOperacionesScreenState
     try {
       final data = await _repo.inicioRepartidor();
       if (!mounted) return;
-      setState(() {
-        _inicio = data;
-        _cargando = false;
-        _error = null;
-      });
+      final firma = jsonEncode(data);
+      if (firma != _firma || _cargando || _error != null) {
+        _firma = firma;
+        setState(() {
+          _inicio = data;
+          _actual = data['en_curso'] is Map
+              ? _repo.leer(Map<String, dynamic>.from(data['en_curso']))
+              : null;
+          _ofertas = [
+            for (final j in data['ofertas'] as List? ?? [])
+              _repo.leer(Map<String, dynamic>.from(j)),
+          ];
+          _cargando = false;
+          _error = null;
+        });
+      }
       if (widget.vista == 'inicio' &&
           _visible &&
           !_ocupado &&

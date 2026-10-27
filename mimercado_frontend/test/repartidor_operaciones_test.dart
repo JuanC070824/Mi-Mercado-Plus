@@ -18,8 +18,13 @@ class _Repo extends PedidosApiRepository {
   int recojos = 0, entregas = 0, pagos = 0, solicitudes = 0, llegadas = 0;
   bool fallo = false;
   String? guardada;
+  int cargas = 0;
   @override
-  Future<Map<String, dynamic>> inicioRepartidor() async => inicio;
+  Future<Map<String, dynamic>> inicioRepartidor() async {
+    cargas++;
+    return inicio;
+  }
+
   @override
   Future<void> accionRepartidor(int id, String accion, {int? parte}) async {
     if (accion == 'recoger') {
@@ -309,6 +314,27 @@ void main() {
     );
     expect(size.height, greaterThanOrEqualTo(48));
     expect(size.width, greaterThanOrEqualTo(48));
+  });
+  testWidgets('inicio consulta cada 20 s y se detiene en segundo plano', (
+    tester,
+  ) async {
+    final repo = _Repo(inicioRepartoJson());
+    await _abrir(
+      tester,
+      RepartidorOperacionesScreen(usuario: _usuario, repository: repo),
+    );
+    final inicial = repo.cargas;
+    await tester.pump(const Duration(seconds: 10));
+    expect(repo.cargas, inicial);
+    await tester.pump(const Duration(seconds: 10));
+    expect(repo.cargas, inicial + 1);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump(const Duration(seconds: 60));
+    expect(repo.cargas, inicial + 1);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    expect(repo.cargas, inicial + 2);
+    await tester.pumpWidget(const SizedBox());
   });
   testWidgets('sin autorización permite solicitar mercado y elegir movilidad', (
     tester,
