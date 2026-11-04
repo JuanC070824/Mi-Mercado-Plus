@@ -61,6 +61,12 @@ String gananciaDe(Map<String, dynamic> datos) => soles(
   ((datos['ganancia_repartidor_centavos'] as num?) ?? 0).toDouble() / 100,
 );
 
+/// "1.2 km", o null si el servidor no envió la distancia.
+String? distanciaCortaDe(Map<String, dynamic> datos) {
+  final d = datos['distancia_km'];
+  return d is num ? '${d.toStringAsFixed(1)} km' : null;
+}
+
 String distanciaDe(Map<String, dynamic> datos) {
   final d = datos['distancia_km'];
   return d is num
