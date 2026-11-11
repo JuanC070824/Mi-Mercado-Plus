@@ -23,8 +23,10 @@ class ClienteLoginScreen extends StatefulWidget {
     Rol.cliente: '/inicio',
     Rol.comerciante: '/casero/inicio',
     Rol.repartidor: '/repartidor/inicio',
+    Rol.administrador: '/admin/inicio',
   };
 
+  /// El administrador no se registra en la app: su rol se asigna en el servidor.
   static const registroPorRol = {
     Rol.cliente: '/cliente/registro',
     Rol.comerciante: '/casero/registro',
@@ -47,7 +49,10 @@ class _ClienteLoginScreenState extends State<ClienteLoginScreen> {
   @override
   void initState() {
     super.initState();
-    _repo = ApiConfig.configurada || widget.rol == Rol.repartidor
+    _repo =
+        ApiConfig.configurada ||
+            widget.rol == Rol.repartidor ||
+            widget.rol == Rol.administrador
         ? AuthApiRepository.instancia
         : AuthRepositoryMock.instancia;
   }
@@ -63,7 +68,8 @@ class _ClienteLoginScreenState extends State<ClienteLoginScreen> {
     setState(() => _error = null);
     if (!_formKey.currentState!.validate()) return;
 
-    if (widget.rol == Rol.repartidor && !ApiConfig.configurada) {
+    if ((widget.rol == Rol.repartidor || widget.rol == Rol.administrador) &&
+        !ApiConfig.configurada) {
       setState(
         () => _error =
             'No está configurada la conexión al servicio de repartidores. Solicita al responsable iniciar la versión conectada al servidor.',
@@ -163,15 +169,18 @@ class _ClienteLoginScreenState extends State<ClienteLoginScreen> {
                             cargando: _cargando,
                             onPressed: _ingresar,
                           ),
-                          const SizedBox(height: 24),
-                          const _SeparadorTexto('¿Primera vez en MiMercado+?'),
-                          const SizedBox(height: 16),
-                          BotonSecundario(
-                            texto: 'Crear mi cuenta',
-                            onPressed: () => context.push(
-                              ClienteLoginScreen.registroPorRol[widget.rol]!,
+                          if (ClienteLoginScreen.registroPorRol[widget.rol]
+                              case final registro?) ...[
+                            const SizedBox(height: 24),
+                            const _SeparadorTexto(
+                              '¿Primera vez en MiMercado+?',
                             ),
-                          ),
+                            const SizedBox(height: 16),
+                            BotonSecundario(
+                              texto: 'Crear mi cuenta',
+                              onPressed: () => context.push(registro),
+                            ),
+                          ],
                           const SizedBox(height: 12),
                           TextButton(
                             onPressed: () => context.go('/'),
@@ -212,6 +221,7 @@ class _InsigniaPerfil extends StatelessWidget {
     Rol.cliente: Icons.shopping_basket_outlined,
     Rol.comerciante: Icons.storefront_outlined,
     Rol.repartidor: Icons.delivery_dining_outlined,
+    Rol.administrador: Icons.admin_panel_settings_outlined,
   };
 
   @override

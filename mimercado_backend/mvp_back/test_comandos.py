@@ -8,7 +8,7 @@ class ComandosDatosTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         # Lo mismo que inserta el script SQL de la base.
-        for code in ['comprador','vendedor','repartidor']:Rol.objects.create(codigo=code,nombre=code)
+        for code in ['comprador','vendedor','repartidor','administrador']:Rol.objects.create(codigo=code,nombre=code)
         for code,frac in [('kg',True),('unidad',False),('atado',False),('litro',True)]:
             UnidadMedida.objects.create(codigo=code,nombre=code,permite_fraccion=frac)
         for nombre in ['Verduras y frutas','Carnes y aves','Abarrotes','Pescados y mariscos']:Categoria.objects.create(nombre=nombre)
