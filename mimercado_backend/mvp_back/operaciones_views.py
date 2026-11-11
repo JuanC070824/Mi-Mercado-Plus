@@ -44,7 +44,7 @@ class RepartidorInicioView(APIView):
         if rm.disponible and activa is None:
             candidatos=Pedido.objects.filter(mercado_id=rm.mercado_id,estado__in=['en_preparacion','listo_para_recojo','en_recojo']).order_by('creado_en','id')
             asignados=Entrega.objects.exclude(estado__in=['rechazada','cancelada']).values('pedido_id')
-            aptos=[p for p in candidatos.exclude(id__in=asignados)[:100] if op.apto_para_reparto(p)]
+            aptos=op.aptos_para_reparto(candidatos.exclude(id__in=asignados)[:100])
         # Un solo armado por lotes para ofertas, entrega en curso e historial.
         hechos=[e.pedido for e in entregas.select_related('pedido').order_by('-entregada_en')[:100]]
         actual=[activa.pedido] if activa else []
