@@ -8,6 +8,14 @@ services:
     # Lo más cercano a la base en Supabase (Canadá): menos espera por cada consulta.
     region: virginia
     rootDir: mimercado_backend
+    branch: develop
+    # Despliega cada commit de develop, pero solo si pasan las pruebas
+    # de GitHub Actions (.github/workflows/backend.yml).
+    autoDeployTrigger: checksPass
+    # Los cambios solo del frontend no redespliegan el backend.
+    buildFilter:
+      paths:
+        - mimercado_backend/**
     buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
     startCommand: gunicorn config.wsgi:application --workers 2 --timeout 60
     healthCheckPath: /api/mercados/
