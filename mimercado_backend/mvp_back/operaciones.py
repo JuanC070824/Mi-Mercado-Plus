@@ -22,8 +22,8 @@ def exigir_repartidor(user):
 
 def asignacion(user, bloquear=False):
     exigir_repartidor(user)
-    qs=RepartidorMercado.objects
-    if bloquear: qs=qs.select_for_update()
+    # Sin bloqueo, el mercado viene en la misma consulta (el inicio muestra su nombre).
+    qs=RepartidorMercado.objects.select_for_update() if bloquear else RepartidorMercado.objects.select_related('mercado')
     return qs.filter(repartidor_id=user.pk,fin_en__isnull=True,autorizado=True,
                      mercado__estado='activo').order_by('id').first()
 
@@ -100,18 +100,25 @@ def _ultimo_por_pedido(queryset):
     for fila in queryset: filas.setdefault(fila.pedido_id,fila)
     return filas
 
-def pedidos_sin_calificar(pedido_ids):
-    """Ids de pedidos entregados a los que les falta reseñar algún puesto o al repartidor."""
+def pedidos_sin_calificar(pedido_ids, entregas=None):
+    """Ids de pedidos entregados a los que les falta reseñar algún puesto o al repartidor.
+
+    Si se pasan `entregas` ({pedido_id: entrega vigente}), los ids ya son de pedidos
+    entregados y no se vuelven a consultar.
+    """
     from .models import ResenaPuesto, ResenaRepartidor
-    ids=list(Pedido.objects.filter(pk__in=pedido_ids,estado='entregado').values_list('id',flat=True))
+    ids=list(pedido_ids) if entregas is not None else list(
+        Pedido.objects.filter(pk__in=pedido_ids,estado='entregado').values_list('id',flat=True))
     if not ids: return set()
     partes_activas=defaultdict(set)
     for pid,parte in PedidoPuesto.objects.filter(pedido_id__in=ids).exclude(
             estado__in=['rechazado','cancelado']).values_list('pedido_id','id'):
         partes_activas[pid].add(parte)
     calificadas=set(ResenaPuesto.objects.filter(pedido_id__in=ids).values_list('pedido_puesto_id',flat=True))
-    entregas=_ultimo_por_pedido(Entrega.objects.filter(pedido_id__in=ids).exclude(
-        estado__in=['rechazada','cancelada']).order_by('-id'))
+    if entregas is None:
+        entregas=_ultimo_por_pedido(Entrega.objects.filter(pedido_id__in=ids).exclude(
+            estado__in=['rechazada','cancelada']).order_by('-id'))
+    entregas={pid:e for pid,e in entregas.items() if pid in ids}
     entregas_calificadas=set(ResenaRepartidor.objects.filter(
         entrega_id__in=[e.pk for e in entregas.values()]).values_list('entrega_id',flat=True))
     return {pid for pid in ids if partes_activas[pid]-calificadas
@@ -129,9 +136,9 @@ def pedidos_operacion_payload(pedidos, comprador=False):
         estado__in=['rechazada','cancelada']).select_related('repartidor_mercado__repartidor').order_by('-id'))
     pagos=_ultimo_por_pedido(Pago.objects.filter(pedido_id__in=ids,estado__in=['aprobado','procesando']).order_by('-id'))
     entregados=[p.pk for p in pedidos if p.estado=='entregado']
-    sin_calificar=pedidos_sin_calificar(entregados) if comprador and entregados else set()
+    sin_calificar=pedidos_sin_calificar(entregados,entregas) if comprador and entregados else set()
     resultado=[]
-    for pedido,payload in zip(pedidos,pedidos_payload(pedidos)):
+    for pedido,payload in zip(pedidos,pedidos_payload(pedidos,quotes)):
         quote=quotes.get(pedido.pk)
         entrega=entregas.get(pedido.pk)
         pago=pagos.get(pedido.pk)
