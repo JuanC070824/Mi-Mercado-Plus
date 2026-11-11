@@ -20,15 +20,29 @@ class _EscucharDialog extends StatefulWidget {
 class _EscucharDialogState extends State<_EscucharDialog> {
   String _texto = '';
   bool _cerrado = false;
+  bool _sinAudio = false;
 
   @override
   void initState() {
     super.initState();
-    widget.voz.escuchar((texto, fin) {
-      if (!mounted || _cerrado) return;
-      setState(() => _texto = texto);
-      if (fin) _cerrar(texto);
-    });
+    _escuchar();
+  }
+
+  void _escuchar() {
+    if (_sinAudio) setState(() => _sinAudio = false);
+    widget.voz.escuchar(
+      (texto, fin) {
+        if (!mounted || _cerrado) return;
+        setState(() => _texto = texto);
+        if (fin) _cerrar(texto);
+      },
+      // Silencio, error o micrófono bloqueado: se usa lo entendido o se avisa.
+      alTerminar: () {
+        if (!mounted || _cerrado) return;
+        if (_texto.trim().isNotEmpty) return _cerrar(_texto);
+        setState(() => _sinAudio = true);
+      },
+    );
   }
 
   void _cerrar(String? resultado) {
@@ -46,21 +60,33 @@ class _EscucharDialogState extends State<_EscucharDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    icon: const Icon(Icons.mic, size: 56, color: AppColors.azul),
-    title: const Text(
-      'Te escucho…',
+    icon: Icon(
+      _sinAudio ? Icons.mic_off : Icons.mic,
+      size: 56,
+      color: AppColors.azul,
+    ),
+    title: Text(
+      _sinAudio ? 'No te escuchamos' : 'Te escucho…',
       textAlign: TextAlign.center,
-      style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
     ),
     content: Semantics(
       liveRegion: true,
       child: Text(
-        _texto.isEmpty ? 'Di el nombre del casero o del puesto.' : '“$_texto”',
+        _sinAudio
+            ? 'Revisa el permiso del micrófono o escribe tu búsqueda.'
+            : _texto.isEmpty
+            ? 'Di el nombre del casero o del puesto.'
+            : '“$_texto”',
         textAlign: TextAlign.center,
         style: TextStyle(
-          fontSize: _texto.isEmpty ? 18 : 24,
-          fontWeight: _texto.isEmpty ? FontWeight.w400 : FontWeight.w700,
-          color: _texto.isEmpty ? AppColors.textoSecundario : AppColors.texto,
+          fontSize: _texto.isEmpty || _sinAudio ? 18 : 24,
+          fontWeight: _texto.isEmpty || _sinAudio
+              ? FontWeight.w400
+              : FontWeight.w700,
+          color: _texto.isEmpty || _sinAudio
+              ? AppColors.textoSecundario
+              : AppColors.texto,
         ),
       ),
     ),
@@ -72,8 +98,15 @@ class _EscucharDialogState extends State<_EscucharDialog> {
           backgroundColor: AppColors.azul,
           minimumSize: const Size(48, 56),
         ),
-        onPressed: _texto.trim().isEmpty ? null : () => _cerrar(_texto),
-        child: const Text('Buscar', style: TextStyle(fontSize: 18)),
+        onPressed: _sinAudio
+            ? _escuchar
+            : _texto.trim().isEmpty
+            ? null
+            : () => _cerrar(_texto),
+        child: Text(
+          _sinAudio ? 'Intentar de nuevo' : 'Buscar',
+          style: const TextStyle(fontSize: 18),
+        ),
       ),
       TextButton(
         style: TextButton.styleFrom(minimumSize: const Size(48, 48)),

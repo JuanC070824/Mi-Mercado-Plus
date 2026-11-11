@@ -1,0 +1,46 @@
+# Backend de MiMercado+ en Render (https://render.com/docs/blueprint-spec).
+# Las claves (sync: false) no se guardan aquí: Render las pide al crear el servicio.
+services:
+  - type: web
+    name: mimercado-backend
+    runtime: python
+    plan: free
+    # Lo más cercano a la base en Supabase (Canadá): menos espera por cada consulta.
+    region: virginia
+    rootDir: mimercado_backend
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
+    startCommand: gunicorn config.wsgi:application --workers 2 --timeout 60
+    healthCheckPath: /api/mercados/
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: DJANGO_DEBUG
+        value: "false"
+      - key: DJANGO_ALLOWED_HOSTS
+        value: .onrender.com,localhost,127.0.0.1
+      - key: CSRF_TRUSTED_ORIGINS
+        value: https://mimercado-backend.onrender.com
+      - key: CORS_ALLOWED_ORIGINS
+        value: http://localhost:3000,http://127.0.0.1:3000
+      - key: DB_NAME
+        value: postgres
+      - key: DB_HOST
+        value: aws-0-ca-central-1.pooler.supabase.com
+      - key: DB_PORT
+        value: "5432"
+      - key: DB_USER
+        value: mimercado_app.nsfrwxrjidyckgfriyhv
+      - key: DB_SSLMODE
+        value: require
+      - key: AUTH_TOKEN_TTL_SECONDS
+        value: "3600"
+      - key: PAYMENT_MODE
+        value: mock
+      - key: MOCK_YAPE_CODE
+        value: "123456"
+      - key: DJANGO_SECRET_KEY
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: JSONPE_KEY
+        sync: false

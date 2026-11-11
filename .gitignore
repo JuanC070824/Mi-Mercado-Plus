@@ -60,3 +60,6 @@ __pycache__/
 *.pem
 
 
+
+# Archivos estáticos generados por collectstatic (Render)
+mimercado_backend/staticfiles/

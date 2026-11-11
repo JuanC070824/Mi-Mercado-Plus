@@ -4,3 +4,6 @@ psycopg[binary]>=3.2,<4
 django-cors-headers>=4.7,<5
 python-dotenv>=1,<2
 requests>=2.32,<3
+# Producción (Render): servidor WSGI y archivos estáticos de /admin.
+gunicorn>=23,<24
+whitenoise>=6.8,<7
