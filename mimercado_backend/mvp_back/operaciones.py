@@ -37,16 +37,59 @@ def distancia(pedido):
     a,b,c,d=map(lambda x:radians(float(x)),[mercado.latitud,mercado.longitud,pedido.latitud,pedido.longitud])
     return round(6371*2*asin(min(1,sqrt(sin((c-a)/2)**2+cos(a)*cos(c)*sin((d-b)/2)**2))),2)
 
+def aptos_para_reparto(pedidos):
+    """Pedidos listos para ofrecer a un repartidor, validados con consultas fijas.
+
+    Mismas reglas que antes (y que services.quote_total para Yape), pero sin
+    unas 9 consultas por pedido: con la base en la nube eso sumaba segundos.
+    """
+    from .models import CotizacionDetalle, CotizacionPuesto, PedidoDetalle
+    from .money import soles
+    pedidos=[p for p in pedidos if p.estado in ['en_preparacion','listo_para_recojo','en_recojo']]
+    ids=[p.pk for p in pedidos]
+    if not ids: return []
+    quotes={q.pedido_id:q for q in Cotizacion.objects.filter(pedido_id__in=ids,estado='aceptada')}
+    partes=defaultdict(dict)
+    for pid,parte,estado in PedidoPuesto.objects.filter(pedido_id__in=ids).exclude(
+            estado__in=['rechazado','cancelado']).values_list('pedido_id','id','estado'):
+        partes[pid][parte]=estado
+    candidatos=[p for p in pedidos if p.pk in quotes and partes[p.pk]
+                and all(e in ['en_preparacion','listo','recogido'] for e in partes[p.pk].values())]
+    yape=[p for p in candidatos if p.metodo_pago=='yape']
+    if not yape: return candidatos
+    quote_ids=[quotes[p.pk].pk for p in yape]
+    grupos=defaultdict(dict)
+    for gid,qid,parte in CotizacionPuesto.objects.filter(cotizacion_id__in=quote_ids).values_list(
+            'id','cotizacion_id','pedido_puesto_id'):
+        grupos[qid][gid]=parte
+    lineas_esperadas=defaultdict(set)
+    for lid,parte in PedidoDetalle.objects.filter(
+            pedido_puesto_id__in=[x for p in yape for x in partes[p.pk]]).exclude(
+            disponibilidad='sin_stock').values_list('id','pedido_puesto_id'):
+        lineas_esperadas[parte].add(lid)
+    lineas_cotizadas=defaultdict(set)
+    subtotal=defaultdict(Decimal)
+    for gid,linea,monto in CotizacionDetalle.objects.filter(
+            cotizacion_puesto_id__in=[g for q in quote_ids for g in grupos[q]]).values_list(
+            'cotizacion_puesto_id','pedido_detalle_id','subtotal'):
+        lineas_cotizadas[gid].add(linea)
+        subtotal[gid]+=monto
+    pagos={(pid,qid,monto) for pid,qid,monto in Pago.objects.filter(
+        pedido_id__in=[p.pk for p in yape],estado='aprobado').values_list('pedido_id','cotizacion_id','monto')}
+    aprobados=set()
+    for p in yape:
+        quote=quotes[p.pk]
+        if set(partes[p.pk])!=set(grupos[quote.pk].values()):
+            raise ValidationError('La cotización no contiene todos los puestos activos.')
+        for gid,parte in grupos[quote.pk].items():
+            if not lineas_esperadas[parte] or lineas_esperadas[parte]!=lineas_cotizadas[gid]:
+                raise ValidationError('La cotización tiene ítems incompletos.')
+        total=soles(sum((subtotal[g] for g in grupos[quote.pk]),Decimal(0))+quote.costo_envio)
+        if (p.pk,quote.pk,total) in pagos: aprobados.add(p.pk)
+    return [p for p in candidatos if p.metodo_pago!='yape' or p.pk in aprobados]
+
 def apto_para_reparto(pedido):
-    if pedido.estado not in ['en_preparacion','listo_para_recojo','en_recojo']: return False
-    quote=Cotizacion.objects.filter(pedido_id=pedido.pk,estado='aceptada').first()
-    if quote is None: return False
-    partes=PedidoPuesto.objects.filter(pedido_id=pedido.pk).exclude(estado__in=['rechazado','cancelado'])
-    if not partes.exists() or partes.exclude(estado__in=['en_preparacion','listo','recogido']).exists(): return False
-    if pedido.metodo_pago=='yape':
-        from .services import quote_total
-        if not Pago.objects.filter(pedido_id=pedido.pk,cotizacion_id=quote.pk,estado='aprobado',monto=quote_total(quote)).exists(): return False
-    return True
+    return bool(aptos_para_reparto([pedido]))
 
 def nombre(user):
     return ' '.join(filter(None,[user.nombres,user.apellido_paterno,user.apellido_materno]))
