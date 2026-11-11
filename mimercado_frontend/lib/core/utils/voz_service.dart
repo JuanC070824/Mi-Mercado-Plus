@@ -6,7 +6,12 @@ abstract class VozService {
   Future<bool> preparar();
 
   /// Escucha y avisa el texto entendido; [fin] es true con el resultado definitivo.
-  Future<void> escuchar(void Function(String texto, bool fin) alOir);
+  /// [alTerminar] avisa si dejó de escuchar sin resultado (silencio, error o
+  /// micrófono bloqueado), para no dejar al usuario esperando.
+  Future<void> escuchar(
+    void Function(String texto, bool fin) alOir, {
+    required void Function() alTerminar,
+  });
 
   Future<void> detener();
 }
@@ -18,12 +23,21 @@ class VozSpeechToText implements VozService {
   final _stt = SpeechToText();
   bool? _lista;
   String? _idioma;
+  void Function()? _alTerminar;
 
   @override
   Future<bool> preparar() async {
     if (_lista == true) return true;
     try {
-      _lista = await _stt.initialize();
+      _lista = await _stt.initialize(
+        onError: (_) => _alTerminar?.call(),
+        onStatus: (estado) {
+          if (estado == SpeechToText.doneStatus ||
+              estado == SpeechToText.notListeningStatus) {
+            _alTerminar?.call();
+          }
+        },
+      );
       if (_lista!) {
         // Español del Perú si el teléfono lo tiene; si no, cualquier español.
         final idiomas = await _stt.locales();
@@ -42,18 +56,26 @@ class VozSpeechToText implements VozService {
   }
 
   @override
-  Future<void> escuchar(void Function(String texto, bool fin) alOir) =>
-      _stt.listen(
-        onResult: (r) => alOir(r.recognizedWords, r.finalResult),
-        listenOptions: SpeechListenOptions(
-          localeId: _idioma,
-          listenFor: const Duration(seconds: 15),
-          pauseFor: const Duration(seconds: 3),
-          partialResults: true,
-          listenMode: ListenMode.search,
-        ),
-      );
+  Future<void> escuchar(
+    void Function(String texto, bool fin) alOir, {
+    required void Function() alTerminar,
+  }) {
+    _alTerminar = alTerminar;
+    return _stt.listen(
+      onResult: (r) => alOir(r.recognizedWords, r.finalResult),
+      listenOptions: SpeechListenOptions(
+        localeId: _idioma,
+        listenFor: const Duration(seconds: 15),
+        pauseFor: const Duration(seconds: 3),
+        partialResults: true,
+        listenMode: ListenMode.search,
+      ),
+    );
+  }
 
   @override
-  Future<void> detener() => _stt.stop();
+  Future<void> detener() {
+    _alTerminar = null;
+    return _stt.stop();
+  }
 }
