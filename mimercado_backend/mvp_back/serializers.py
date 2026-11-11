@@ -37,6 +37,22 @@ class RegistroSerializer(serializers.Serializer):
 class DniSerializer(serializers.Serializer):
     dni = serializers.RegexField(r'^[0-9]{8}$')
 
+class RecuperarSerializer(serializers.Serializer):
+    celular = PhoneField()
+    dni = serializers.RegexField(r'^[0-9]{8}$')
+
+class RestablecerSerializer(serializers.Serializer):
+    celular = PhoneField()
+    codigo = serializers.RegexField(r'^[0-9]{6}$')
+    password = serializers.CharField(write_only=True, trim_whitespace=False, max_length=128)
+
+    def validate_password(self, value):
+        try:
+            validate_password(value)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.messages)
+        return value
+
 class LoginSerializer(serializers.Serializer):
     celular = PhoneField()
     password = serializers.CharField(write_only=True, trim_whitespace=False, max_length=128)

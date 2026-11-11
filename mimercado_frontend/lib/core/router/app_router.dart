@@ -7,6 +7,7 @@ import '../../data/models/usuario.dart';
 import '../../data/repositories/repositorios_app.dart';
 import '../../features/auth/screens/bienvenida_screen.dart';
 import '../../features/auth/screens/cliente_login_screen.dart';
+import '../../features/auth/screens/recuperar_password_screen.dart';
 import '../../features/auth/screens/cliente_registro_screen.dart';
 import '../../features/canasta/screens/canasta_screen.dart';
 import '../../features/canasta/screens/entrega_pago_screen.dart';
@@ -90,6 +91,13 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/cliente/registro',
       builder: (context, state) => const ClienteRegistroScreen(),
+    ),
+    // RF-04: la abre "¿Olvidaste tu contraseña?" del login de cualquier perfil.
+    GoRoute(
+      path: '/recuperar',
+      builder: (context, state) => RecuperarPasswordScreen(
+        rol: state.extra is Rol ? state.extra as Rol : Rol.cliente,
+      ),
     ),
 
     // Pantallas con menú horizontal inferior: Inicio, Canasta, Mi pedido, Perfil

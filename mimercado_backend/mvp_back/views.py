@@ -9,6 +9,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError, NotFound, PermissionDenied
 from rest_framework.throttling import ScopedRateThrottle
+from . import recuperacion
 from . import serializers as s
 from .models import (Usuario, UsuarioRol, Producto, Mercado, Puesto, Direccion,
                      Pedido, PedidoPuesto, PedidoDetalle, Cotizacion,
@@ -117,6 +118,45 @@ class DniView(APIView):
             'apellido_materno':identidad['apellido_materno'],
             'registro_token':firmar_consulta(identidad),
         })
+
+class RecuperarView(APIView):
+    """Paso 1 de RF-04: el DNI debe ser del titular de la cuenta (mismos nombres que al registrarse)."""
+    permission_classes=[AllowAny]
+    authentication_classes=[]
+    throttle_classes=[ScopedRateThrottle]
+    throttle_scope='recuperar'
+    def post(self,request):
+        data=validated(s.RecuperarSerializer,request.data)
+        user=Usuario.objects.filter(celular=data['celular'],estado='activo').first()
+        try:
+            identidad=consultar_dni(data['dni'])
+        except DniNoEncontrado:
+            identidad=None
+        except DniServicioNoDisponible as exc:
+            return Response({'detail':str(exc)},status=503)
+        # Mismo mensaje si no existe la cuenta o si el DNI no coincide: no revela qué celulares están registrados.
+        if user is None or identidad is None or not recuperacion.es_titular(user,identidad):
+            return Response({'detail':'El celular y el DNI no corresponden a una misma cuenta.'},status=400)
+        respuesta={'detail':'Escribe el código de 6 números para crear tu nueva contraseña.',
+                   'vence_en_minutos':recuperacion.VENTANA_SEGUNDOS//60}
+        # Sin SMS ni correo configurados, el código se muestra en pantalla (como el pago de demostración).
+        if settings.RECUPERACION_MODO=='demo':respuesta['codigo_demostracion']=recuperacion.generar_codigo(user)
+        return Response(respuesta)
+
+class RestablecerView(APIView):
+    """Paso 2 de RF-04: cambiar la contraseña cierra todas las sesiones e invalida el código."""
+    permission_classes=[AllowAny]
+    authentication_classes=[]
+    throttle_classes=[ScopedRateThrottle]
+    throttle_scope='recuperar'
+    def post(self,request):
+        data=validated(s.RestablecerSerializer,request.data)
+        user=Usuario.objects.filter(celular=data['celular'],estado='activo').first()
+        if user is None or not recuperacion.codigo_valido(user,data['codigo']):
+            return Response({'detail':'El código no es válido o ya venció. Pide uno nuevo.'},status=400)
+        user.password_hash=make_password(data['password'])
+        user.save(update_fields=['password_hash'])
+        return Response({'detail':'Listo, tu contraseña se cambió. Ya puedes ingresar.'})
 
 class LoginView(APIView):
     permission_classes=[AllowAny]
