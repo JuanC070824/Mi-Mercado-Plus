@@ -36,6 +36,7 @@ class Command(BaseCommand):
         maria=usuario('María','900000001','comprador')
         direccion,_=Direccion.objects.get_or_create(comprador_id=maria.pk,direccion='Av. Venezuela 3400, Lima',
                                                     defaults={'referencia':'Portón verde','principal':True})
+        usuario('Admin','900000099','administrador')
         ernesto=usuario('Ernesto','900000090','repartidor')
         RepartidorMercado.objects.get_or_create(repartidor=ernesto,mercado=mercado,defaults={
             'movilidad':'bicicleta','autorizado':True,'disponible':True})
@@ -65,5 +66,6 @@ class Command(BaseCommand):
         a=pedido('yape',['listo','en_preparacion'])
         b=pedido('efectivo',['listo','listo'])
         self.stdout.write(self.style.SUCCESS(
-            f'Cuentas de prueba listas (cliente 900000001, repartidor 900000090, caseros 900000011 y 900000012). '
+            f'Cuentas de prueba listas (cliente 900000001, repartidor 900000090, caseros 900000011 y 900000012, '
+            f'administrador 900000099). '
             f'Pedidos para repartir: #{a} (Yape) y #{b} (efectivo).'))

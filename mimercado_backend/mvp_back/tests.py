@@ -225,9 +225,11 @@ class ApiTests(TestCase):
         self.assertEqual(r.status_code,403,r.data)
         self.assertNotIn('token',r.data)
 
+        # "administrador" ya es un perfil válido, pero esta cuenta no lo tiene: sin token.
         r=self.post('/api/auth/login/',{
             'celular':'900000001','password':'CompraSegura!42','rol':'administrador'})
-        self.assertEqual(r.status_code,400,r.data)
+        self.assertEqual(r.status_code,403,r.data)
+        self.assertNotIn('token',r.data)
 
     def test_duplicate_phone(self):
         self.assertEqual(self.post('/api/auth/registro/',self.registro(celular='900000001')).status_code,400)

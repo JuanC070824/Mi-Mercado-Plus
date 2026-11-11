@@ -57,9 +57,25 @@ class LoginSerializer(serializers.Serializer):
     celular = PhoneField()
     password = serializers.CharField(write_only=True, trim_whitespace=False, max_length=128)
     rol = serializers.ChoiceField(
-        choices=['comprador', 'vendedor', 'repartidor'],
+        choices=['comprador', 'vendedor', 'repartidor', 'administrador'],
         required=False,
     )
+
+class MercadoAdminSerializer(serializers.Serializer):
+    """Alta y edición de mercados por el administrador (RF-05)."""
+    nombre = serializers.CharField(max_length=150)
+    direccion = serializers.CharField(max_length=300)
+    distrito = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    estado = serializers.ChoiceField(choices=['activo', 'suspendido', 'inactivo'], required=False)
+    latitud = serializers.DecimalField(max_digits=9, decimal_places=6, required=False, allow_null=True,
+                                       min_value=Decimal('-90'), max_value=Decimal('90'))
+    longitud = serializers.DecimalField(max_digits=9, decimal_places=6, required=False, allow_null=True,
+                                        min_value=Decimal('-180'), max_value=Decimal('180'))
+
+    def validate(self, data):
+        if ('latitud' in data) != ('longitud' in data) or (data.get('latitud') is None) != (data.get('longitud') is None):
+            raise serializers.ValidationError('Indica latitud y longitud juntas, o ninguna.')
+        return data
 
 class ItemSerializer(serializers.Serializer):
     producto_id = serializers.IntegerField(min_value=1)

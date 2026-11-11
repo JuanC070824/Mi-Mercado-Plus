@@ -1,10 +1,14 @@
 import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:mimercado_frontend/core/state/sesion_state.dart';
 import 'package:mimercado_frontend/data/repositories/canasta_api_repository.dart';
+import 'package:mimercado_frontend/data/models/producto.dart';
+import 'package:mimercado_frontend/data/models/puesto.dart';
 import 'package:mimercado_frontend/data/repositories/catalogo_api_repository.dart';
+import 'package:mimercado_frontend/features/mercado/widgets/lo_que_siempre_pides.dart';
 
 Map<String, dynamic> _puesto(
   int id,
@@ -121,5 +125,114 @@ void main() {
     );
     expect(await repo.volverAPedir(25), ['Pollo']);
     expect(repo.canasta.value.cantidadDe(101), 1);
+  });
+
+  test(
+    '"lo que siempre pides" trae producto y puesto con una sola llamada',
+    () async {
+      SesionState.iniciar(token: 'tk', expiresIn: 3600);
+      var llamadas = 0;
+      final repo = CatalogoApiRepository(
+        baseUrl: 'http://localhost',
+        client: MockClient((r) async {
+          llamadas++;
+          return http.Response(
+            jsonEncode({
+              'puestos': [_puesto(7, 'Rosa')],
+              'productos': [
+                {
+                  'id': 101,
+                  'puesto_id': 7,
+                  'nombre': 'Tomate',
+                  'unidad': 'kg',
+                  'precio_unitario_centavos': 400,
+                  'disponible': true,
+                  'veces': 3,
+                  'puesto': _puesto(7, 'Rosa'),
+                },
+                {'id': 102, 'puesto_id': 9, 'nombre': 'Sin puesto'},
+              ],
+            }),
+            200,
+          );
+        }),
+      );
+      final caseros = repo.masQueridos(mercadoId: 3);
+      final frecuentes = await repo.loQueSiemprePides(mercadoId: 3);
+      expect((await caseros).single.nombre, 'Rosa');
+      expect(frecuentes.single.producto.nombre, 'Tomate');
+      expect(frecuentes.single.producto.precioUnitario, 4);
+      expect(frecuentes.single.puesto.nombre, 'Rosa');
+      expect(frecuentes.single.veces, 3);
+      expect(llamadas, 1);
+
+      SesionState.cerrar();
+      expect(await repo.loQueSiemprePides(), isEmpty);
+      expect(llamadas, 1);
+    },
+  );
+
+  testWidgets('la sección muestra lo frecuente y agrega con un toque', (
+    tester,
+  ) async {
+    const puesto = Puesto(
+      id: 7,
+      mercadoId: 3,
+      nombre: 'Verduras Rosa',
+      casero: 'Rosa',
+      categoria: CategoriaPuesto.verduras,
+      calificacion: 5,
+      resenas: 2,
+    );
+    const tomate = ProductoFrecuente(
+      producto: Producto(
+        id: 101,
+        puestoId: 7,
+        nombre: 'Tomate',
+        unidad: UnidadMedida.kg,
+        precioUnitario: 4,
+      ),
+      puesto: puesto,
+      veces: 3,
+    );
+    const papa = ProductoFrecuente(
+      producto: Producto(
+        id: 102,
+        puestoId: 7,
+        nombre: 'Papa',
+        unidad: UnidadMedida.kg,
+        precioUnitario: 2,
+        disponible: false,
+      ),
+      puesto: puesto,
+      veces: 2,
+    );
+    ProductoFrecuente? agregado;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: LoQueSiemprePides(
+            productos: const [tomate, papa],
+            onAgregar: (f) => agregado = f,
+          ),
+        ),
+      ),
+    );
+    expect(find.text('Lo que siempre pides'), findsOneWidget);
+    expect(find.text('Verduras Rosa · S/ 4.00'), findsOneWidget);
+    expect(find.text('Hoy no hay'), findsOneWidget);
+    await tester.tap(find.text('Agregar').first);
+    expect(agregado, same(tomate));
+    await tester.tap(find.text('Agregar').last); // la papa está deshabilitada
+    expect(agregado, same(tomate));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: LoQueSiemprePides(productos: const [], onAgregar: (_) {}),
+        ),
+      ),
+    );
+    expect(find.text('Lo que siempre pides'), findsNothing);
   });
 }

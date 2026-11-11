@@ -11,6 +11,18 @@ import '../models/producto.dart';
 import '../models/puesto.dart';
 import 'catalogo_repository.dart';
 
+/// Un producto que el cliente pide seguido ("Lo que siempre pides").
+class ProductoFrecuente {
+  const ProductoFrecuente({
+    required this.producto,
+    required this.puesto,
+    required this.veces,
+  });
+  final Producto producto;
+  final Puesto puesto;
+  final int veces;
+}
+
 class CatalogoApiRepository implements CatalogoRepository {
   CatalogoApiRepository({http.Client? client, String? baseUrl})
     : _client = client ?? http.Client(),
@@ -91,8 +103,55 @@ class CatalogoApiRepository implements CatalogoRepository {
 
   /// null si no hay sesión de cliente o el servidor no responde: se usa el orden general.
   Future<List<Puesto>?> _recomendados(int? mercadoId) async {
+    final puestos = (await _recomendaciones(mercadoId))?['puestos'];
+    if (puestos is! List) return null;
+    return [
+      for (final value in puestos)
+        if (value is Map<String, dynamic>) _puesto(value),
+    ];
+  }
+
+  /// RF-20: productos que el cliente más repite, con su puesto para agregarlos.
+  Future<List<ProductoFrecuente>> loQueSiemprePides({int? mercadoId}) async {
+    final productos = (await _recomendaciones(mercadoId))?['productos'];
+    if (productos is! List) return const [];
+    return [
+      for (final value in productos)
+        if (value is Map<String, dynamic> &&
+            value['puesto'] is Map<String, dynamic>)
+          ProductoFrecuente(
+            producto: productoDesdeJson(value),
+            puesto: _puesto(value['puesto'] as Map<String, dynamic>),
+            veces: ((value['veces'] as num?) ?? 0).toInt(),
+          ),
+    ];
+  }
+
+  // El inicio pide caseros y productos casi a la vez: una sola llamada sirve
+  // para ambos durante unos segundos.
+  ({int? mercadoId, String? token, DateTime en, Future<Map?> datos})? _ultima;
+
+  Future<Map?> _recomendaciones(int? mercadoId) {
     final token = SesionState.token;
-    if (token == null) return null;
+    if (token == null) return Future.value(null);
+    final u = _ultima;
+    if (u != null &&
+        u.mercadoId == mercadoId &&
+        u.token == token &&
+        DateTime.now().difference(u.en) < const Duration(seconds: 5)) {
+      return u.datos;
+    }
+    final datos = _pedirRecomendaciones(mercadoId, token);
+    _ultima = (
+      mercadoId: mercadoId,
+      token: token,
+      en: DateTime.now(),
+      datos: datos,
+    );
+    return datos;
+  }
+
+  Future<Map?> _pedirRecomendaciones(int? mercadoId, String token) async {
     try {
       final ruta = mercadoId == null
           ? '/api/comprador/recomendaciones/'
@@ -104,12 +163,8 @@ class CatalogoApiRepository implements CatalogoRepository {
           )
           .timeout(const Duration(seconds: 15));
       if (response.statusCode != 200) return null;
-      final puestos = (jsonDecode(response.body) as Map)['puestos'];
-      if (puestos is! List) return null;
-      return [
-        for (final value in puestos)
-          if (value is Map<String, dynamic>) _puesto(value),
-      ];
+      final data = jsonDecode(response.body);
+      return data is Map ? data : null;
     } catch (_) {
       return null;
     }

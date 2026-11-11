@@ -799,11 +799,13 @@ class RecomendacionesView(APIView):
             return (-compras.get(p.pk,0),not p.abierto,-(prom or 0),-n,p.nombre)
         top=sorted(puestos,key=orden)[:5]
         veces={r['producto_id']:r['n'] for r in productos.values('producto_id').annotate(n=Count('id')).order_by('-n','producto_id')[:5]}
-        repetidos=sorted(Producto.objects.filter(pk__in=veces),key=lambda p:-veces[p.pk])
+        repetidos=sorted(Producto.objects.filter(pk__in=veces).select_related('puesto__vendedor','puesto__categoria'),
+                         key=lambda p:-veces[p.pk])
         return Response({
             'puestos':[{**puesto_payload(p),'calificacion':round(float(resenas.get(p.pk,(0,0))[0] or 0),1),
                         'resenas':resenas.get(p.pk,(0,0))[1],'compras':compras.get(p.pk,0)} for p in top],
-            'productos':[{**producto_payload(p),'veces':veces[p.pk]} for p in repetidos]})
+            # Con su puesto: la app los agrega a la canasta en un toque ("Lo que siempre pides").
+            'productos':[{**producto_payload(p),'veces':veces[p.pk],'puesto':puesto_payload(p.puesto)} for p in repetidos]})
 
 class VolverAPedirView(APIView):
     """Pone en la canasta los productos de un pedido anterior que sigan disponibles."""

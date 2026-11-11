@@ -23,6 +23,8 @@ class BienvenidaScreen extends StatelessWidget {
         context.push('/repartidor/login');
       case Rol.comerciante:
         context.push('/casero/login');
+      case Rol.administrador:
+        context.push('/admin/login');
     }
   }
 
@@ -69,7 +71,7 @@ class BienvenidaScreen extends StatelessWidget {
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      for (final rol in Rol.values)
+                      for (final rol in Rol.publicos)
                         Expanded(
                           child: RolButton(
                             etiqueta: rol.etiqueta,
@@ -78,6 +80,20 @@ class BienvenidaScreen extends StatelessWidget {
                           ),
                         ),
                     ],
+                  ),
+                  const SizedBox(height: 16),
+                  // Discreto: casi nadie es administrador y no debe confundir a los demás.
+                  TextButton.icon(
+                    style: TextButton.styleFrom(
+                      minimumSize: const Size(48, 48),
+                      foregroundColor: AppColors.textoSecundario,
+                    ),
+                    onPressed: () => _elegirRol(context, Rol.administrador),
+                    icon: const Icon(Icons.admin_panel_settings_outlined),
+                    label: const Text(
+                      'Soy administrador del mercado',
+                      style: TextStyle(fontSize: 16),
+                    ),
                   ),
                 ],
               ),

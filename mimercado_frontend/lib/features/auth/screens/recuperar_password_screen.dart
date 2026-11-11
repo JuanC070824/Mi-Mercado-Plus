@@ -27,6 +27,7 @@ class RecuperarPasswordScreen extends StatefulWidget {
     Rol.cliente: '/cliente/login',
     Rol.comerciante: '/casero/login',
     Rol.repartidor: '/repartidor/login',
+    Rol.administrador: '/admin/login',
   };
 
   @override
