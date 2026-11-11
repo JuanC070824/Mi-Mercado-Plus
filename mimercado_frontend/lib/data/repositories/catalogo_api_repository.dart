@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:http/http.dart' as http;
 
 import '../../core/config/api_config.dart';
+import '../../core/state/sesion_state.dart';
 import '../models/mercado.dart';
 import '../models/producto.dart';
 import '../models/puesto.dart';
@@ -80,9 +81,38 @@ class CatalogoApiRepository implements CatalogoRepository {
 
   @override
   Future<List<Puesto>> masQueridos({int? mercadoId, int limite = 5}) async {
+    // RF-20: con sesión, primero los caseros donde más compra el cliente.
+    final recomendados = await _recomendados(mercadoId);
+    if (recomendados != null) return recomendados.take(limite).toList();
     final todos = await _puestos(mercadoId: mercadoId);
     todos.sort((a, b) => b.calificacion.compareTo(a.calificacion));
     return todos.take(limite).toList();
+  }
+
+  /// null si no hay sesión de cliente o el servidor no responde: se usa el orden general.
+  Future<List<Puesto>?> _recomendados(int? mercadoId) async {
+    final token = SesionState.token;
+    if (token == null) return null;
+    try {
+      final ruta = mercadoId == null
+          ? '/api/comprador/recomendaciones/'
+          : '/api/comprador/recomendaciones/?mercado_id=$mercadoId';
+      final response = await _client
+          .get(
+            ApiConfig.uri(ruta, baseUrlOverride: _baseUrl),
+            headers: {'Authorization': 'Bearer $token'},
+          )
+          .timeout(const Duration(seconds: 15));
+      if (response.statusCode != 200) return null;
+      final puestos = (jsonDecode(response.body) as Map)['puestos'];
+      if (puestos is! List) return null;
+      return [
+        for (final value in puestos)
+          if (value is Map<String, dynamic>) _puesto(value),
+      ];
+    } catch (_) {
+      return null;
+    }
   }
 
   @override
