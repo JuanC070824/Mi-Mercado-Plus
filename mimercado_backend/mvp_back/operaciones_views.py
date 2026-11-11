@@ -1,5 +1,5 @@
 from django.db import transaction
-from django.db.models import Sum
+from django.db.models import Q, Sum
 from django.utils import timezone
 from django.conf import settings
 from rest_framework.views import APIView
@@ -10,6 +10,7 @@ from . import operaciones as op
 from .models import (Mercado, RepartidorMercado, Entrega, Pedido, Cotizacion, Pago,
                      PedidoPuesto, ResenaPuesto, ResenaRepartidor)
 from .services import require_buyer
+from .views import ultima_cotizacion_por_pedido
 from .money import cents
 
 MOVILIDADES = ['a_pie','carretilla','bicicleta','moto','mototaxi','otro']
@@ -35,22 +36,30 @@ class RepartidorInicioView(APIView):
                 'placa':pendiente.placa if pendiente else None,
                 'descripcion_movilidad':pendiente.descripcion_movilidad if pendiente else None,
                 'mercados':list(Mercado.objects.filter(estado='activo').order_by('nombre').values('id','nombre'))})
-        # Cada pedido trae su cliente y mercado en la misma consulta (cada consulta es un viaje de red).
-        con_pedido=('pedido__comprador','pedido__mercado')
-        activa=Entrega.objects.filter(repartidor_mercado_id=rm.pk,estado__in=op.VIGENTES).select_related(*con_pedido).first()
-        entregas=Entrega.objects.filter(repartidor_mercado_id=rm.pk,estado='entregada',entregada_en__date=timezone.localdate())
-        ganancia=Cotizacion.objects.filter(pedido_id__in=entregas.values('pedido_id'),estado='aceptada').aggregate(
-            total=Sum('ganancia_repartidor'))['total'] or 0
+        # Entrega en curso y entregas de hoy en una sola consulta, con su pedido,
+        # cliente y mercado (cada consulta es un viaje de red).
+        mias=list(Entrega.objects.filter(repartidor_mercado_id=rm.pk).filter(
+            Q(estado__in=op.VIGENTES)|Q(estado='entregada',entregada_en__date=timezone.localdate())
+        ).select_related('pedido__comprador','pedido__mercado').order_by('id'))
+        for e in mias:  # el payload muestra al repartidor: ya lo tenemos
+            e.repartidor_mercado=rm;rm.repartidor=request.user
+        activa=next((e for e in mias if e.estado in op.VIGENTES),None)
+        de_hoy=sorted((e for e in mias if e.estado=='entregada'),key=lambda e:e.entregada_en,reverse=True)
         aptos=[]
         if rm.disponible and activa is None:
             candidatos=Pedido.objects.filter(mercado_id=rm.mercado_id,estado__in=['en_preparacion','listo_para_recojo','en_recojo']).select_related('comprador','mercado').order_by('creado_en','id')
             asignados=Entrega.objects.exclude(estado__in=['rechazada','cancelada']).values('pedido_id')
             aptos=op.aptos_para_reparto(candidatos.exclude(id__in=asignados)[:100])
         # Un solo armado por lotes para ofertas, entrega en curso e historial.
-        de_hoy=list(entregas.select_related(*con_pedido).order_by('-entregada_en'))
         hechos=[e.pedido for e in de_hoy[:100]]
         actual=[activa.pedido] if activa else []
-        payloads=op.pedidos_operacion_payload(aptos+actual+hechos)
+        quotes=ultima_cotizacion_por_pedido([p.pk for p in aptos+actual]+[e.pedido_id for e in de_hoy])
+        # La ganancia del día sale de las mismas cotizaciones (antes era otra consulta).
+        ganancia=sum((quotes[e.pedido_id].ganancia_repartidor for e in de_hoy
+                      if e.pedido_id in quotes and quotes[e.pedido_id].estado=='aceptada'),0)
+        # Las ofertas no tienen entrega (se excluyeron las asignadas); el resto son mías.
+        payloads=op.pedidos_operacion_payload(aptos+actual+hechos,quotes=quotes,
+                                              entregas={e.pedido_id:e for e in mias})
         return Response({'autorizado':True,'disponible':rm.disponible,
             'mercado':{'id':rm.mercado_id,'nombre':rm.mercado.nombre},'movilidad':rm.movilidad,'placa':rm.placa,
             'descripcion_movilidad':rm.descripcion_movilidad,

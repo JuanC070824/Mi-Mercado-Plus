@@ -13,11 +13,12 @@ from rest_framework.exceptions import ValidationError, PermissionDenied, NotFoun
 from .models import (Usuario, UsuarioRol, RepartidorMercado, Mercado, Pedido, PedidoPuesto,
                      Cotizacion, Pago, Entrega, EntregaParada, HistorialEstado, Mensaje)
 from .money import cents
+from .authentication import tiene_rol
 
 VIGENTES = ['asignada', 'aceptada', 'en_recojo', 'en_camino']
 
 def exigir_repartidor(user):
-    if not UsuarioRol.objects.filter(usuario_id=user.pk,rol_codigo='repartidor').exists():
+    if not tiene_rol(user,'repartidor'):
         raise PermissionDenied('Esta cuenta no tiene perfil de repartidor.')
 
 def asignacion(user, bloquear=False):
@@ -125,20 +126,23 @@ def _ultimo_por_pedido(queryset):
     for fila in queryset: filas.setdefault(fila.pedido_id,fila)
     return filas
 
-def pedidos_sin_calificar(pedido_ids, entregas=None):
+def pedidos_sin_calificar(pedido_ids, entregas=None, partes=None):
     """Ids de pedidos entregados a los que les falta reseñar algún puesto o al repartidor.
 
-    Si se pasan `entregas` ({pedido_id: entrega vigente}), los ids ya son de pedidos
-    entregados y no se vuelven a consultar.
+    `entregas` ({pedido_id: entrega vigente}) y `partes` ({pedido_id: ids de sus
+    puestos activos}) evitan repetir consultas que el llamador ya hizo.
     """
     from .models import ResenaPuesto, ResenaRepartidor
     ids=list(pedido_ids) if entregas is not None else list(
         Pedido.objects.filter(pk__in=pedido_ids,estado='entregado').values_list('id',flat=True))
     if not ids: return set()
-    partes_activas=defaultdict(set)
-    for pid,parte in PedidoPuesto.objects.filter(pedido_id__in=ids).exclude(
-            estado__in=['rechazado','cancelado']).values_list('pedido_id','id'):
-        partes_activas[pid].add(parte)
+    if partes is not None:
+        partes_activas=defaultdict(set,{pid:set(v) for pid,v in partes.items() if pid in set(ids)})
+    else:
+        partes_activas=defaultdict(set)
+        for pid,parte in PedidoPuesto.objects.filter(pedido_id__in=ids).exclude(
+                estado__in=['rechazado','cancelado']).values_list('pedido_id','id'):
+            partes_activas[pid].add(parte)
     calificadas=set(ResenaPuesto.objects.filter(pedido_id__in=ids).values_list('pedido_puesto_id',flat=True))
     if entregas is None:
         entregas=_ultimo_por_pedido(Entrega.objects.filter(pedido_id__in=ids).exclude(
@@ -149,21 +153,28 @@ def pedidos_sin_calificar(pedido_ids, entregas=None):
     return {pid for pid in ids if partes_activas[pid]-calificadas
             or (pid in entregas and entregas[pid].pk not in entregas_calificadas)}
 
-def pedidos_operacion_payload(pedidos, comprador=False):
-    """Igual que pedido_operacion_payload pero para una lista, con consultas fijas."""
-    from .views import pedidos_payload, ultima_cotizacion_por_pedido
+def pedidos_operacion_payload(pedidos, comprador=False, quotes=None, entregas=None):
+    """Igual que pedido_operacion_payload pero para una lista, con consultas fijas.
+
+    `quotes` y `entregas` ({pedido_id: fila}) evitan volver a consultar lo que
+    el llamador ya tiene (cada consulta es un viaje a la base en la nube).
+    """
+    from .views import partes_de_pedidos, pedidos_payload, ultima_cotizacion_por_pedido
     pedidos=list(pedidos)
     if not pedidos: return []
     ids=[p.pk for p in pedidos]
     prefetch_related_objects(pedidos,'mercado')
-    quotes=ultima_cotizacion_por_pedido(ids)
-    entregas=_ultimo_por_pedido(Entrega.objects.filter(pedido_id__in=ids).exclude(
-        estado__in=['rechazada','cancelada']).select_related('repartidor_mercado__repartidor').order_by('-id'))
+    if quotes is None: quotes=ultima_cotizacion_por_pedido(ids)
+    if entregas is None:
+        entregas=_ultimo_por_pedido(Entrega.objects.filter(pedido_id__in=ids).exclude(
+            estado__in=['rechazada','cancelada']).select_related('repartidor_mercado__repartidor').order_by('-id'))
     pagos=_ultimo_por_pedido(Pago.objects.filter(pedido_id__in=ids,estado__in=['aprobado','procesando']).order_by('-id'))
+    partes=partes_de_pedidos(ids)
+    activas={pid:{x.pk for x in v if x.estado not in ['rechazado','cancelado']} for pid,v in partes.items()}
     entregados=[p.pk for p in pedidos if p.estado=='entregado']
-    sin_calificar=pedidos_sin_calificar(entregados,entregas) if comprador and entregados else set()
+    sin_calificar=pedidos_sin_calificar(entregados,entregas,activas) if comprador and entregados else set()
     resultado=[]
-    for pedido,payload in zip(pedidos,pedidos_payload(pedidos,quotes)):
+    for pedido,payload in zip(pedidos,pedidos_payload(pedidos,quotes,partes)):
         quote=quotes.get(pedido.pk)
         entrega=entregas.get(pedido.pk)
         pago=pagos.get(pedido.pk)

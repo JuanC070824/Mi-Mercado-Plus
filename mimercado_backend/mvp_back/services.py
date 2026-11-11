@@ -9,10 +9,11 @@ from .models import (Usuario, UsuarioRol, Producto, UnidadMedida, Carrito, Carri
                      CarritoItem, Direccion, Pedido, PedidoPuesto, PedidoDetalle,
                      Cotizacion, CotizacionPuesto, CotizacionDetalle, HistorialEstado)
 from .money import cents, line_total, soles
+from .authentication import tiene_rol
 
 
 def require_buyer(user):
-    if not UsuarioRol.objects.filter(usuario_id=user.pk, rol_codigo='comprador').exists():
+    if not tiene_rol(user, 'comprador'):
         raise PermissionDenied('Esta operación requiere rol comprador.')
 
 
@@ -45,14 +46,16 @@ def put_item(user, product_id, quantity):
         product = Producto.objects.select_related('puesto__mercado').get(pk=product_id)
     except Producto.DoesNotExist:
         raise NotFound('Producto no encontrado.')
-    guardar_item(user, product, quantity)
-    return cart_payload(user)
+    cart = guardar_item(user, product, quantity)
+    return cart_payload(user, cart=cart)
 
 
-def guardar_item(user, product, quantity):
-    """Valida y guarda una línea de la canasta (el llamador ya bloqueó al usuario)."""
+def guardar_item(user, product, quantity, cart=None):
+    """Valida y guarda una línea de la canasta (el llamador ya bloqueó al usuario).
+    Devuelve la canasta abierta para no volver a buscarla."""
     product_check(product, quantity)
-    cart = Carrito.objects.filter(comprador_id=user.pk, estado='abierto').first()
+    if cart is None:
+        cart = Carrito.objects.filter(comprador_id=user.pk, estado='abierto').first()
     if cart and cart.mercado_id != product.puesto.mercado_id:
         raise ValidationError('La canasta admite varios puestos de un mismo mercado. Vacíala para cambiar de mercado.')
     if not cart:
@@ -60,22 +63,38 @@ def guardar_item(user, product, quantity):
     group, _ = CarritoPuesto.objects.get_or_create(carrito_id=cart.pk, puesto_id=product.puesto_id,
                                                  defaults={'mercado_id': cart.mercado_id})
     # cantidad es absoluta: repetir la solicitud no duplica unidades.
-    CarritoItem.objects.update_or_create(carrito_puesto_id=group.pk, producto_id=product.pk,
-                                        defaults={'puesto_id': product.puesto_id, 'cantidad': quantity})
+    # Primero se intenta actualizar (un solo viaje a la base); si no existía, se crea.
+    if not CarritoItem.objects.filter(carrito_puesto_id=group.pk, producto_id=product.pk).update(
+            puesto_id=product.puesto_id, cantidad=quantity):
+        CarritoItem.objects.create(carrito_puesto_id=group.pk, producto_id=product.pk,
+                                   puesto_id=product.puesto_id, cantidad=quantity)
+    return cart
 
 
-def cart_payload(user):
-    require_buyer(user)
-    cart = Carrito.objects.filter(comprador_id=user.pk, estado='abierto').first()
-    if not cart:
-        return {'id': None, 'mercado_id': None, 'puestos': [], 'total_productos_centavos': 0}
+VACIA = {'id': None, 'mercado_id': None, 'puestos': [], 'total_productos_centavos': 0}
+
+
+def cart_payload(user, cart=None, verificado=False):
+    """Canasta con sus puestos y productos en tres consultas, tenga los puestos que tenga.
+    `cart` y `verificado` evitan repetir búsquedas que el llamador ya hizo."""
+    if cart is None:
+        if not verificado:
+            require_buyer(user)
+        cart = Carrito.objects.filter(comprador_id=user.pk, estado='abierto').first()
+    if not cart or cart.estado != 'abierto':
+        return dict(VACIA, puestos=[])
+    grupos = list(CarritoPuesto.objects.filter(carrito_id=cart.pk).select_related(
+        'puesto__vendedor', 'puesto__categoria').order_by('id'))
+    por_grupo = defaultdict(list)
+    for item in CarritoItem.objects.filter(carrito_puesto_id__in=[g.pk for g in grupos]).select_related(
+            'producto').order_by('id'):
+        por_grupo[item.carrito_puesto_id].append(item)
     groups = []
     grand = Decimal('0')
-    for group in CarritoPuesto.objects.filter(carrito_id=cart.pk).select_related(
-            'puesto__vendedor','puesto__categoria').order_by('id'):
+    for group in grupos:
         items = []
         subtotal = Decimal('0')
-        for item in CarritoItem.objects.filter(carrito_puesto_id=group.pk).select_related('producto').order_by('id'):
+        for item in por_grupo[group.pk]:
             total = line_total(item.cantidad, item.producto.precio_unitario)
             subtotal += total
             items.append({'id': item.pk, 'producto_id': item.producto_id, 'nombre': item.producto.nombre,
@@ -98,22 +117,27 @@ def change_item(user, item_id, quantity=None):
     require_buyer(user)
     lock_user(user)
     try:
-        item = CarritoItem.objects.select_related('carrito_puesto__carrito').get(
+        item = CarritoItem.objects.select_related(
+            'carrito_puesto__carrito', 'producto__puesto__mercado').get(
             pk=item_id, carrito_puesto__carrito__comprador_id=user.pk,
             carrito_puesto__carrito__estado='abierto')
     except CarritoItem.DoesNotExist:
         raise NotFound('Ítem no encontrado en tu canasta.')
-    if quantity is not None:
-        return put_item(user, item.producto_id, quantity)
     group = item.carrito_puesto
     cart = group.carrito
+    if quantity is not None:
+        # El ítem ya trae su producto, puesto y canasta: no se vuelven a buscar.
+        product_check(item.producto, quantity)
+        item.cantidad = quantity
+        item.save(update_fields=['cantidad'])
+        return cart_payload(user, cart=cart)
     item.delete()
     if not CarritoItem.objects.filter(carrito_puesto_id=group.pk).exists():
         group.delete()
-    if not CarritoPuesto.objects.filter(carrito_id=cart.pk).exists():
-        cart.estado = 'abandonado'
-        cart.save(update_fields=['estado'])
-    return cart_payload(user)
+        if not CarritoPuesto.objects.filter(carrito_id=cart.pk).exists():
+            cart.estado = 'abandonado'
+            cart.save(update_fields=['estado'])
+    return cart_payload(user, cart=cart)
 
 
 def _productos_para_checkout(ids):
