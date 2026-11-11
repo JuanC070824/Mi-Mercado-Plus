@@ -26,8 +26,7 @@ def movilidad_validada(data):
 
 class RepartidorInicioView(APIView):
     def get(self,request):
-        op.exigir_repartidor(request.user)
-        rm=op.asignacion(request.user)
+        rm=op.asignacion(request.user)  # también exige el perfil de repartidor
         if rm is None:
             pendiente=RepartidorMercado.objects.filter(repartidor_id=request.user.pk,fin_en__isnull=True).first()
             return Response({'autorizado':False,'pendiente':pendiente is not None,
@@ -36,23 +35,26 @@ class RepartidorInicioView(APIView):
                 'placa':pendiente.placa if pendiente else None,
                 'descripcion_movilidad':pendiente.descripcion_movilidad if pendiente else None,
                 'mercados':list(Mercado.objects.filter(estado='activo').order_by('nombre').values('id','nombre'))})
-        activa=Entrega.objects.filter(repartidor_mercado_id=rm.pk,estado__in=op.VIGENTES).first()
+        # Cada pedido trae su cliente y mercado en la misma consulta (cada consulta es un viaje de red).
+        con_pedido=('pedido__comprador','pedido__mercado')
+        activa=Entrega.objects.filter(repartidor_mercado_id=rm.pk,estado__in=op.VIGENTES).select_related(*con_pedido).first()
         entregas=Entrega.objects.filter(repartidor_mercado_id=rm.pk,estado='entregada',entregada_en__date=timezone.localdate())
         ganancia=Cotizacion.objects.filter(pedido_id__in=entregas.values('pedido_id'),estado='aceptada').aggregate(
             total=Sum('ganancia_repartidor'))['total'] or 0
         aptos=[]
         if rm.disponible and activa is None:
-            candidatos=Pedido.objects.filter(mercado_id=rm.mercado_id,estado__in=['en_preparacion','listo_para_recojo','en_recojo']).order_by('creado_en','id')
+            candidatos=Pedido.objects.filter(mercado_id=rm.mercado_id,estado__in=['en_preparacion','listo_para_recojo','en_recojo']).select_related('comprador','mercado').order_by('creado_en','id')
             asignados=Entrega.objects.exclude(estado__in=['rechazada','cancelada']).values('pedido_id')
             aptos=op.aptos_para_reparto(candidatos.exclude(id__in=asignados)[:100])
         # Un solo armado por lotes para ofertas, entrega en curso e historial.
-        hechos=[e.pedido for e in entregas.select_related('pedido').order_by('-entregada_en')[:100]]
+        de_hoy=list(entregas.select_related(*con_pedido).order_by('-entregada_en'))
+        hechos=[e.pedido for e in de_hoy[:100]]
         actual=[activa.pedido] if activa else []
         payloads=op.pedidos_operacion_payload(aptos+actual+hechos)
         return Response({'autorizado':True,'disponible':rm.disponible,
             'mercado':{'id':rm.mercado_id,'nombre':rm.mercado.nombre},'movilidad':rm.movilidad,'placa':rm.placa,
             'descripcion_movilidad':rm.descripcion_movilidad,
-            'entregas_hoy':entregas.count(),'ganancia_hoy_centavos':cents(ganancia),
+            'entregas_hoy':len(de_hoy),'ganancia_hoy_centavos':cents(ganancia),
             'sonido':request.user.sonido,'vibracion':request.user.vibracion,
             'historial_hoy':payloads[len(aptos)+len(actual):],
             'ofertas':payloads[:len(aptos)],'en_curso':payloads[len(aptos)] if actual else None})
@@ -124,7 +126,7 @@ class RepartidorCompletarView(APIView):
 class CompradorPedidosView(APIView):
     def get(self,request):
         require_buyer(request.user)
-        pedidos=Pedido.objects.filter(comprador_id=request.user.pk).order_by('-creado_en','-id')
+        pedidos=Pedido.objects.filter(comprador_id=request.user.pk).select_related('comprador','mercado').order_by('-creado_en','-id')
         if request.query_params.get('vigente')=='1':
             # «Mi pedido» refresca cada 10 s: solo el pedido en curso o, si no hay,
             # el último entregado que falta calificar (no los 100 del historial).

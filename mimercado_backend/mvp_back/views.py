@@ -471,7 +471,7 @@ def ultima_cotizacion_por_pedido(ids):
     return quotes
 
 
-def pedidos_payload(pedidos):
+def pedidos_payload(pedidos, quotes=None):
     """Arma varios pedidos con un número fijo de consultas, no unas 9 por pedido.
 
     Con Aiven cada consulta es un viaje de red: armar el historial pedido por
@@ -496,7 +496,7 @@ def pedidos_payload(pedidos):
             'precio_estimado_centavos':cents(d.precio_estimado_unitario),
             'disponibilidad':d.disponibilidad,
         })
-    quotes=ultima_cotizacion_por_pedido(ids)
+    if quotes is None: quotes=ultima_cotizacion_por_pedido(ids)
     grupos_por_quote=defaultdict(list)
     for grupo in CotizacionPuesto.objects.filter(
             cotizacion_id__in=[q.pk for q in quotes.values()]).select_related('pedido_puesto').order_by('id'):
