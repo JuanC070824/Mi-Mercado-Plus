@@ -1,4 +1,6 @@
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
+from django.db import connection
 from django.contrib.auth.hashers import make_password
 from django.core.management import call_command
 from io import StringIO
@@ -180,3 +182,31 @@ class RepartoApiTests(TestCase):
         inicio=self.client.get('/api/repartidor/inicio/').data
         self.assertIsNone(inicio['en_curso']);self.assertEqual(inicio['ganancia_hoy_centavos'],500)
         self.assertEqual(inicio['entregas_hoy'],1)
+    def entregar(self,u,order):
+        entrega=self.aceptar(u,order);self.recoger_todo(order)
+        url=f'/api/repartidor/pedidos/{order}/entregar/'
+        self.assertEqual(self.post(url,{'codigo':op.codigo_entrega(entrega)}).status_code,200)
+    def test_vigente_devuelve_solo_en_curso_o_por_calificar(self):
+        u,rm=self.driver();viejo=self.preparado()
+        self.entregar(u,viejo)
+        self.auth(self.user);r=self.client.get('/api/comprador/pedidos/?vigente=1')
+        self.assertEqual([p['id'] for p in r.data],[viejo]);self.assertTrue(r.data[0]['pendiente_calificar'])
+        nuevo=self.order()
+        r=self.client.get('/api/comprador/pedidos/?vigente=1')
+        self.assertEqual([p['id'] for p in r.data],[nuevo]);self.assertFalse(r.data[0]['pendiente_calificar'])
+        self.assertEqual(len(self.client.get('/api/comprador/pedidos/').data),2)
+    def test_consultas_no_crecen_con_cada_pedido(self):
+        # Con Aiven cada consulta es un viaje de red: armar pedido por pedido era lento.
+        u,rm=self.driver()
+        def contar(url,usuario):
+            self.auth(usuario)
+            with CaptureQueriesContext(connection) as q:
+                self.assertEqual(self.client.get(url).status_code,200)
+            return len(q)
+        self.entregar(u,self.preparado())
+        antes={url:contar(url,quien) for url,quien in [
+            ('/api/comprador/pedidos/',self.user),('/api/repartidor/inicio/',u),('/api/vendedor/pedidos/',self.seller)]}
+        for _ in range(3):
+            self.auth(self.user);self.entregar(u,self.preparado())
+        for url,quien in [('/api/comprador/pedidos/',self.user),('/api/repartidor/inicio/',u),('/api/vendedor/pedidos/',self.seller)]:
+            self.assertEqual(contar(url,quien),antes[url],url)

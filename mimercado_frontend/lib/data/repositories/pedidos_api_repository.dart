@@ -196,14 +196,42 @@ class PedidosApiRepository implements PedidoRepository {
     return [for (final j in data as List) leer(Map<String, dynamic>.from(j))];
   }
 
+  // «Mi pedido» pide el activo y, si no hay, el pendiente de calificar: ambas
+  // preguntas comparten una sola respuesta liviana mientras nada cambie.
+  Future<List<Pedido>>? _vigente;
+  DateTime? _vigenteEn;
+  int? _vigenteVersion;
+
+  /// Solo el pedido en curso o el último por calificar (no todo el historial).
+  Future<List<Pedido>> _pedidoVigente() {
+    final reciente =
+        _vigenteEn != null &&
+        DateTime.now().difference(_vigenteEn!) < const Duration(seconds: 2);
+    if (_vigente != null && reciente && _vigenteVersion == _cambios.value) {
+      return _vigente!;
+    }
+    _vigenteEn = DateTime.now();
+    _vigenteVersion = _cambios.value;
+    return _vigente = solicitar('GET', '/api/comprador/pedidos/?vigente=1')
+        .then(
+          (data) => [
+            for (final j in data as List) leer(Map<String, dynamic>.from(j)),
+          ],
+        )
+        .catchError((Object e) {
+          _vigente = null;
+          throw e;
+        });
+  }
+
   @override
   Future<Pedido?> pedidoActivoCliente(String celular) async =>
-      (await pedidosCliente(celular)).where((p) => p.estado.activo).firstOrNull;
+      (await _pedidoVigente()).where((p) => p.estado.activo).firstOrNull;
   @override
   Future<Pedido?> pedidoParaCalificar(String celular) async =>
-      (await pedidosCliente(
-        celular,
-      )).where((p) => datosDe(p.id)['pendiente_calificar'] == true).firstOrNull;
+      (await _pedidoVigente())
+          .where((p) => datosDe(p.id)['pendiente_calificar'] == true)
+          .firstOrNull;
   @override
   Future<void> aceptarCotizacion(int id) async {
     if (!_datos.containsKey(id)) await pedidosCliente('');

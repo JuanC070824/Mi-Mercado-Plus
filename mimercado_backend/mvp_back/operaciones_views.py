@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.db.models import Sum
 from django.utils import timezone
 from django.conf import settings
 from rest_framework.views import APIView
@@ -37,20 +38,24 @@ class RepartidorInicioView(APIView):
                 'mercados':list(Mercado.objects.filter(estado='activo').order_by('nombre').values('id','nombre'))})
         activa=Entrega.objects.filter(repartidor_mercado_id=rm.pk,estado__in=op.VIGENTES).first()
         entregas=Entrega.objects.filter(repartidor_mercado_id=rm.pk,estado='entregada',entregada_en__date=timezone.localdate())
-        ganancia=sum((Cotizacion.objects.get(pedido_id=e.pedido_id,estado='aceptada').ganancia_repartidor for e in entregas),0)
-        pedidos=[]
+        ganancia=Cotizacion.objects.filter(pedido_id__in=entregas.values('pedido_id'),estado='aceptada').aggregate(
+            total=Sum('ganancia_repartidor'))['total'] or 0
+        aptos=[]
         if rm.disponible and activa is None:
             candidatos=Pedido.objects.filter(mercado_id=rm.mercado_id,estado__in=['en_preparacion','listo_para_recojo','en_recojo']).order_by('creado_en','id')
             asignados=Entrega.objects.exclude(estado__in=['rechazada','cancelada']).values('pedido_id')
-            for p in candidatos.exclude(id__in=asignados)[:100]:
-                if op.apto_para_reparto(p): pedidos.append(op.pedido_operacion_payload(p))
+            aptos=[p for p in candidatos.exclude(id__in=asignados)[:100] if op.apto_para_reparto(p)]
+        # Un solo armado por lotes para ofertas, entrega en curso e historial.
+        hechos=[e.pedido for e in entregas.select_related('pedido').order_by('-entregada_en')[:100]]
+        actual=[activa.pedido] if activa else []
+        payloads=op.pedidos_operacion_payload(aptos+actual+hechos)
         return Response({'autorizado':True,'disponible':rm.disponible,
             'mercado':{'id':rm.mercado_id,'nombre':rm.mercado.nombre},'movilidad':rm.movilidad,'placa':rm.placa,
             'descripcion_movilidad':rm.descripcion_movilidad,
             'entregas_hoy':entregas.count(),'ganancia_hoy_centavos':cents(ganancia),
             'sonido':request.user.sonido,'vibracion':request.user.vibracion,
-            'historial_hoy':[op.pedido_operacion_payload(e.pedido) for e in entregas.order_by('-entregada_en')[:100]],
-            'ofertas':pedidos,'en_curso':op.pedido_operacion_payload(activa.pedido) if activa else None})
+            'historial_hoy':payloads[len(aptos)+len(actual):],
+            'ofertas':payloads[:len(aptos)],'en_curso':payloads[len(aptos)] if actual else None})
 
     @transaction.atomic
     def patch(self,request):
@@ -119,8 +124,17 @@ class RepartidorCompletarView(APIView):
 class CompradorPedidosView(APIView):
     def get(self,request):
         require_buyer(request.user)
-        pedidos=Pedido.objects.filter(comprador_id=request.user.pk).order_by('-creado_en','-id')[:100]
-        return Response([op.pedido_operacion_payload(p,comprador=True) for p in pedidos])
+        pedidos=Pedido.objects.filter(comprador_id=request.user.pk).order_by('-creado_en','-id')
+        if request.query_params.get('vigente')=='1':
+            # «Mi pedido» refresca cada 10 s: solo el pedido en curso o, si no hay,
+            # el último entregado que falta calificar (no los 100 del historial).
+            activo=pedidos.exclude(estado__in=['entregado','cancelado']).first()
+            if activo is None:
+                recientes=list(pedidos.filter(estado='entregado').values_list('id',flat=True)[:100])
+                pendientes=op.pedidos_sin_calificar(recientes)
+                activo=next((pedidos.get(pk=pid) for pid in recientes if pid in pendientes),None)
+            return Response(op.pedidos_operacion_payload([activo] if activo else [],comprador=True))
+        return Response(op.pedidos_operacion_payload(pedidos[:100],comprador=True))
 
 class CompradorCalificarView(APIView):
     @transaction.atomic

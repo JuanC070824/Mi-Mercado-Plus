@@ -97,6 +97,30 @@ void main() {
       expect(solicitudes, 1);
     },
   );
+  test(
+    'Mi pedido pide solo el pedido vigente, una vez para activo y calificar',
+    () async {
+      final urls = <Uri>[];
+      final repo = PedidosApiRepository(
+        baseUrl: 'http://localhost',
+        client: MockClient((r) async {
+          urls.add(r.url);
+          return http.Response(
+            jsonEncode([
+              pedidoRepartoJson(estado: 'entregado')
+                ..['pendiente_calificar'] = true,
+            ]),
+            200,
+          );
+        }),
+      );
+      expect(await repo.pedidoActivoCliente('900000001'), isNull);
+      expect((await repo.pedidoParaCalificar('900000001'))?.id, 25);
+      expect(urls, hasLength(1));
+      expect(urls.single.path, '/api/comprador/pedidos/');
+      expect(urls.single.queryParameters, {'vigente': '1'});
+    },
+  );
   test('cambio de movilidad envía únicamente movilidad y sus datos', () async {
     final repo = PedidosApiRepository(
       baseUrl: 'http://localhost',
