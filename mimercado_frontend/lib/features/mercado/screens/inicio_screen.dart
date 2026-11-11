@@ -18,6 +18,8 @@ import '../../../data/repositories/catalogo_api_repository.dart';
 import '../widgets/componentes_inicio.dart';
 import '../widgets/encabezado_inicio.dart';
 import '../widgets/escuchar_voz_dialog.dart';
+import '../widgets/lo_que_siempre_pides.dart';
+import '../../canasta/widgets/acciones_canasta.dart';
 import '../widgets/selector_mercado_sheet.dart';
 
 class InicioScreen extends StatefulWidget {
@@ -38,6 +40,7 @@ class _InicioScreenState extends State<InicioScreen> {
   Map<int, String> _nombresMercado = {};
   CategoriaPuesto? _categoria;
   List<Puesto> _puestos = [];
+  List<ProductoFrecuente> _frecuentes = [];
   bool _cargando = true;
   String? _errorCarga;
   int _consultaId = 0;
@@ -82,6 +85,7 @@ class _InicioScreenState extends State<InicioScreen> {
       final sel = _seleccion;
       final texto = _busqueda.text.trim();
       final List<Puesto> r;
+      if (!_hayFiltros) _cargarFrecuentes(sel?.mercado.id, id);
       if (sel == null) {
         r = await _repo.masQueridos();
       } else if (_categoria == null && texto.isEmpty) {
@@ -108,7 +112,25 @@ class _InicioScreenState extends State<InicioScreen> {
     }
   }
 
+  /// RF-20: solo con API y sesión de cliente; si falla, la sección no aparece.
+  Future<void> _cargarFrecuentes(int? mercadoId, int consulta) async {
+    final repo = _repo;
+    if (repo is! CatalogoApiRepository) return;
+    final r = await repo.loQueSiemprePides(mercadoId: mercadoId);
+    if (!mounted || consulta != _consultaId) return;
+    setState(() => _frecuentes = r.take(4).toList());
+  }
+
   // ---------- Acciones ----------
+
+  Future<void> _agregarFrecuente(ProductoFrecuente f) async {
+    final ok = await cambiarCanasta(
+      context,
+      f.puesto,
+      () => canastaApp.agregar(f.puesto, f.producto),
+    );
+    if (ok && mounted) _aviso('Agregamos ${f.producto.nombre} a tu canasta.');
+  }
 
   void _aviso(String texto) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -259,6 +281,11 @@ class _InicioScreenState extends State<InicioScreen> {
                         onTap: _tocarBarraMercado,
                       ),
                       const SizedBox(height: 28),
+                      if (!_hayFiltros)
+                        LoQueSiemprePides(
+                          productos: _frecuentes,
+                          onAgregar: _agregarFrecuente,
+                        ),
                       _seccionCaseros(),
                     ],
                   ),

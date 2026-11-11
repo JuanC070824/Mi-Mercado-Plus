@@ -23,6 +23,7 @@ class RecomendacionesTests(TestCase):
         self.assertEqual([p['compras'] for p in r.data['puestos']],[2,1])
         self.assertEqual((r.data['puestos'][1]['calificacion'],r.data['puestos'][1]['resenas']),(4.0,1))
         self.assertEqual([(p['nombre'],p['veces']) for p in r.data['productos']],[('Tomate',2),('Pollo',1)])
+        self.assertEqual([p['puesto']['nombre'] for p in r.data['productos']],['Rosa','Julio'])
         self.assertNotIn('Otro',[p['nombre'] for p in r.data['puestos']])  # puesto de otro mercado
 
     def test_sin_compras_muestra_los_mejor_calificados(self):
