@@ -1,7 +1,7 @@
 from collections import defaultdict
 from django.contrib.auth.hashers import make_password, check_password
 from django.db import transaction, IntegrityError
-from django.db.models import Q, Count, Sum, Max, prefetch_related_objects
+from django.db.models import Q, Avg, Count, Sum, Max, prefetch_related_objects
 from django.utils import timezone
 from django.conf import settings
 from rest_framework.views import APIView
@@ -14,9 +14,11 @@ from . import serializers as s
 from .models import (Usuario, UsuarioRol, Producto, Mercado, Puesto, Direccion,
                      Pedido, PedidoPuesto, PedidoDetalle, Cotizacion,
                      CotizacionPuesto, CotizacionDetalle, RepartidorMercado,
-                     Categoria, UnidadMedida, HistorialEstado, EntregaParada, HorarioPuesto)
+                     Categoria, UnidadMedida, HistorialEstado, EntregaParada, HorarioPuesto,
+                     Carrito, CarritoItem, ResenaPuesto)
 from .authentication import issue_token
-from .services import put_item, cart_payload, change_item, checkout, require_buyer, accept_quote, quote_total, lock_user
+from .services import (put_item, guardar_item, cart_payload, change_item, checkout, require_buyer, accept_quote,
+                       quote_total, lock_user)
 from .payments import pay_order
 from .money import cents
 from .dni import (consultar_dni, firmar_consulta, leer_consulta,
@@ -772,6 +774,60 @@ class PedidoView(APIView):
             quotes.append({'id':quote.pk,'version':quote.version,'estado':quote.estado,'total_centavos':total})
         return Response({'id':order.pk,'codigo':order.codigo,'estado':order.estado,
                          'metodo_pago':order.metodo_pago,'cotizaciones':quotes})
+
+class RecomendacionesView(APIView):
+    """RF-20: primero los caseros donde más compra el cliente, luego los mejor calificados."""
+    def get(self,request):
+        require_buyer(request.user)
+        puestos=Puesto.objects.filter(estado='activo',mercado__estado='activo').select_related('vendedor','categoria')
+        productos=PedidoDetalle.objects.filter(pedido_puesto__pedido__comprador_id=request.user.pk,
+            producto__activo=True).exclude(pedido_puesto__estado__in=['rechazado','cancelado'])
+        mercado_id=request.query_params.get('mercado_id')
+        if mercado_id:
+            if not mercado_id.isdecimal():raise ValidationError('El filtro debe ser entero.')
+            puestos=puestos.filter(mercado_id=int(mercado_id))
+            productos=productos.filter(producto__puesto__mercado_id=int(mercado_id))
+        puestos=list(puestos)
+        compras={r['puesto_id']:r['n'] for r in PedidoPuesto.objects.filter(
+            pedido__comprador_id=request.user.pk,puesto_id__in=[p.pk for p in puestos]).exclude(
+            estado__in=['rechazado','cancelado']).values('puesto_id').annotate(n=Count('id'))}
+        resenas={r['pedido_puesto__puesto_id']:(r['prom'],r['n']) for r in ResenaPuesto.objects.filter(
+            pedido_puesto__puesto_id__in=[p.pk for p in puestos]).values('pedido_puesto__puesto_id').annotate(
+            prom=Avg('estrellas'),n=Count('id'))}
+        def orden(p):
+            prom,n=resenas.get(p.pk,(0,0))
+            return (-compras.get(p.pk,0),not p.abierto,-(prom or 0),-n,p.nombre)
+        top=sorted(puestos,key=orden)[:5]
+        veces={r['producto_id']:r['n'] for r in productos.values('producto_id').annotate(n=Count('id')).order_by('-n','producto_id')[:5]}
+        repetidos=sorted(Producto.objects.filter(pk__in=veces),key=lambda p:-veces[p.pk])
+        return Response({
+            'puestos':[{**puesto_payload(p),'calificacion':round(float(resenas.get(p.pk,(0,0))[0] or 0),1),
+                        'resenas':resenas.get(p.pk,(0,0))[1],'compras':compras.get(p.pk,0)} for p in top],
+            'productos':[{**producto_payload(p),'veces':veces[p.pk]} for p in repetidos]})
+
+class VolverAPedirView(APIView):
+    """Pone en la canasta los productos de un pedido anterior que sigan disponibles."""
+    @transaction.atomic
+    def post(self,request,order_id):
+        require_buyer(request.user)
+        lock_user(request.user)
+        pedido=Pedido.objects.filter(pk=order_id,comprador_id=request.user.pk).first()
+        if pedido is None:raise NotFound('Pedido no encontrado.')
+        carrito=Carrito.objects.filter(comprador_id=request.user.pk,estado='abierto').first()
+        if carrito and carrito.mercado_id!=pedido.mercado_id and CarritoItem.objects.filter(carrito_puesto__carrito_id=carrito.pk).exists():
+            raise ValidationError('Tu canasta tiene productos de otro mercado. Vacíala para volver a pedir.')
+        if carrito and carrito.mercado_id!=pedido.mercado_id:
+            carrito.estado='abandonado';carrito.save(update_fields=['estado'])
+        agregados,omitidos=[],[]
+        for d in PedidoDetalle.objects.filter(pedido_puesto__pedido_id=pedido.pk).exclude(
+                pedido_puesto__estado__in=['rechazado','cancelado']).select_related('producto__puesto__mercado').order_by('id'):
+            try:
+                if d.producto is None:raise ValidationError('Era un producto de la lista de mandado.')
+                guardar_item(request.user,d.producto,d.cantidad_solicitada)
+                agregados.append(d.nombre_solicitado)
+            except ValidationError:
+                omitidos.append(d.nombre_solicitado)
+        return Response({'agregados':agregados,'omitidos':omitidos,'carrito':cart_payload(request.user)})
 
 class AceptarCotizacionView(APIView):
     def post(self,request,order_id,quote_id):

@@ -33,6 +33,20 @@ class CanastaApiRepository implements CanastaRepository {
     return _canasta.value;
   }
 
+  /// Pone en la canasta los productos de un pedido anterior que sigan disponibles.
+  /// Devuelve los nombres que no se pudieron agregar.
+  Future<List<String>> volverAPedir(int pedidoId) async {
+    final data = await _enviar(
+      'POST',
+      '/api/comprador/pedidos/$pedidoId/volver-a-pedir/',
+      body: const {},
+    );
+    final carrito = data['carrito'];
+    if (carrito is Map<String, dynamic>) _publicarDesdeJson(carrito);
+    _cargada = true;
+    return [for (final n in data['omitidos'] as List? ?? []) n.toString()];
+  }
+
   @override
   Future<Canasta> agregar(Puesto puesto, Producto producto) async {
     if (!_cargada) await cargar();

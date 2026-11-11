@@ -10,6 +10,8 @@ urlpatterns=[
     path('repartidor/pedidos/<int:order_id>/entregar/',o.RepartidorCompletarView.as_view()),
     path('comprador/pedidos/',o.CompradorPedidosView.as_view()),
     path('comprador/pedidos/<int:order_id>/calificar/',o.CompradorCalificarView.as_view()),
+    path('comprador/pedidos/<int:order_id>/volver-a-pedir/',v.VolverAPedirView.as_view()),
+    path('comprador/recomendaciones/',v.RecomendacionesView.as_view()),
     path('pagos/configuracion/',o.PagoConfiguracionView.as_view()),
     path('auth/dni/',v.DniView.as_view()),
     path('auth/registro/',v.RegistroView.as_view()),

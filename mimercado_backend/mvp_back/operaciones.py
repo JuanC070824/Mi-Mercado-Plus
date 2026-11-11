@@ -27,6 +27,31 @@ def asignacion(user, bloquear=False):
     return qs.filter(repartidor_id=user.pk,fin_en__isnull=True,autorizado=True,
                      mercado__estado='activo').order_by('id').first()
 
+def tiene_entrega_en_curso(rm):
+    return Entrega.objects.filter(repartidor_mercado_id=rm.pk,estado__in=VIGENTES).exists()
+
+@transaction.atomic
+def autorizar_solicitud(rm):
+    """Autoriza una solicitud de mercado (RF-18). Devuelve el motivo si no se pudo."""
+    rm=RepartidorMercado.objects.select_for_update().get(pk=rm.pk)
+    if rm.fin_en is not None: return 'la solicitud ya terminó'
+    if not Usuario.objects.filter(pk=rm.repartidor_id,estado='activo').exists(): return 'la cuenta no está activa'
+    if not Mercado.objects.filter(pk=rm.mercado_id,estado='activo').exists(): return 'el mercado no está activo'
+    # Un repartidor trabaja en un solo mercado: se cierra la asignación anterior, si existe.
+    for otra in RepartidorMercado.objects.select_for_update().filter(
+            repartidor_id=rm.repartidor_id,fin_en__isnull=True,autorizado=True).exclude(pk=rm.pk):
+        if tiene_entrega_en_curso(otra): return 'tiene una entrega en curso'
+        otra.disponible=False;otra.fin_en=timezone.now();otra.save(update_fields=['disponible','fin_en'])
+    rm.autorizado=True;rm.disponible=True;rm.save(update_fields=['autorizado','disponible'])
+    return None
+
+@transaction.atomic
+def quitar_autorizacion(rm):
+    rm=RepartidorMercado.objects.select_for_update().get(pk=rm.pk)
+    if tiene_entrega_en_curso(rm): return 'tiene una entrega en curso'
+    rm.autorizado=False;rm.disponible=False;rm.save(update_fields=['autorizado','disponible'])
+    return None
+
 def codigo_entrega(entrega):
     digest=hmac.new(settings.SECRET_KEY.encode(),f'entrega:{entrega.pk}:{entrega.pedido_id}'.encode(),hashlib.sha256).digest()
     return str(int.from_bytes(digest[:8],'big') % 10000).zfill(4)

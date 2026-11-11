@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/utils/formato.dart';
+import '../../../core/utils/voz_service.dart';
 import '../../../core/widgets/botones_app.dart';
 import '../../../core/widgets/componentes_app.dart';
 import '../../../core/widgets/mensaje_error.dart';
@@ -16,11 +17,13 @@ import '../../../data/repositories/catalogo_repository.dart';
 import '../../../data/repositories/catalogo_api_repository.dart';
 import '../widgets/componentes_inicio.dart';
 import '../widgets/encabezado_inicio.dart';
+import '../widgets/escuchar_voz_dialog.dart';
 import '../widgets/selector_mercado_sheet.dart';
 
 class InicioScreen extends StatefulWidget {
-  const InicioScreen({super.key, required this.usuario});
+  const InicioScreen({super.key, required this.usuario, this.voz});
   final Usuario usuario;
+  final VozService? voz;
 
   @override
   State<InicioScreen> createState() => _InicioScreenState();
@@ -169,6 +172,25 @@ class _InicioScreenState extends State<InicioScreen> {
     if (ok) _cargarPuestos();
   }
 
+  /// RF-08: lo que dice el cliente se escribe en el buscador del mercado elegido.
+  Future<void> _buscarPorVoz() async {
+    final voz = widget.voz ?? VozSpeechToText.instancia;
+    if (!await voz.preparar()) {
+      if (mounted) {
+        _aviso(
+          'No pudimos usar el micrófono. Revisa el permiso o escribe tu búsqueda.',
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
+    final texto = (await escucharBusqueda(context, voz))?.trim() ?? '';
+    if (!mounted || texto.isEmpty) return;
+    _espera?.cancel();
+    _busqueda.text = texto;
+    _cargarPuestos();
+  }
+
   void _alEscribir(String _) {
     _espera?.cancel();
     _espera = Timer(const Duration(milliseconds: 300), _cargarPuestos);
@@ -203,9 +225,8 @@ class _InicioScreenState extends State<InicioScreen> {
               onTapBusquedaBloqueada: _pedirMercadoParaBuscar,
               onCambio: _alEscribir,
               onLimpiar: _limpiarBusqueda,
-              onVoz: () => sel == null
-                  ? _pedirMercadoParaBuscar()
-                  : _aviso('La búsqueda por voz estará disponible pronto.'),
+              onVoz: () =>
+                  sel == null ? _pedirMercadoParaBuscar() : _buscarPorVoz(),
               onSoporte: () => mostrarSoporte(context),
             ),
             Center(

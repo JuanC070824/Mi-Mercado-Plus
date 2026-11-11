@@ -45,6 +45,12 @@ def put_item(user, product_id, quantity):
         product = Producto.objects.select_related('puesto__mercado').get(pk=product_id)
     except Producto.DoesNotExist:
         raise NotFound('Producto no encontrado.')
+    guardar_item(user, product, quantity)
+    return cart_payload(user)
+
+
+def guardar_item(user, product, quantity):
+    """Valida y guarda una línea de la canasta (el llamador ya bloqueó al usuario)."""
     product_check(product, quantity)
     cart = Carrito.objects.filter(comprador_id=user.pk, estado='abierto').first()
     if cart and cart.mercado_id != product.puesto.mercado_id:
@@ -56,7 +62,6 @@ def put_item(user, product_id, quantity):
     # cantidad es absoluta: repetir la solicitud no duplica unidades.
     CarritoItem.objects.update_or_create(carrito_puesto_id=group.pk, producto_id=product.pk,
                                         defaults={'puesto_id': product.puesto_id, 'cantidad': quantity})
-    return cart_payload(user)
 
 
 def cart_payload(user):
