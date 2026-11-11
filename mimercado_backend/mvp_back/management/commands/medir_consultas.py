@@ -8,7 +8,8 @@ from mvp_back.authentication import issue_token
 from mvp_back.models import Usuario
 
 # Pantallas que más se refrescan. Con la base en la nube cada consulta es un viaje de red.
-RUTAS=[('comprador','/api/comprador/pedidos/?vigente=1'),('comprador','/api/comprador/pedidos/'),
+RUTAS=[('comprador','/api/carrito/'),
+       ('comprador','/api/comprador/pedidos/?vigente=1'),('comprador','/api/comprador/pedidos/'),
        ('vendedor','/api/vendedor/pedidos/'),('repartidor','/api/repartidor/inicio/')]
 
 class Command(BaseCommand):

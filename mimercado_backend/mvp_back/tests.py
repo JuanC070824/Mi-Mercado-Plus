@@ -3,6 +3,8 @@ from io import StringIO
 from unittest.mock import patch
 from django.test import TestCase, SimpleTestCase, override_settings
 from django.core.management import call_command
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.contrib.auth.hashers import make_password,check_password
 from django.utils import timezone
 from rest_framework.test import APIClient
@@ -269,6 +271,32 @@ class ApiTests(TestCase):
     def test_closed_stall(self):
         Puesto.objects.filter(pk=self.stall.pk).update(abierto=False)
         self.assertEqual(self.add().status_code,400)
+
+    def test_canasta_con_pocas_consultas(self):
+        """Cada consulta es un viaje a la base en la nube: la canasta no debe crecer con los puestos."""
+        def consultas(fn):
+            with CaptureQueriesContext(connection) as q:
+                r=fn()
+            self.assertEqual(r.status_code,200,getattr(r,'data',None))
+            return len(q)
+        self.add();self.add(self.p2,'1.500')
+        ver_con_dos=consultas(lambda:self.client.get('/api/carrito/'))
+        for i in range(3):
+            puesto=Puesto.objects.create(mercado_id=self.market.pk,vendedor_id=self.seller.pk,
+                                         categoria_id=self.cat.pk,nombre=f'Extra{i}',abierto=True)
+            self.add(Producto.objects.create(puesto_id=puesto.pk,nombre=f'X{i}',unidad_codigo='kg',
+                                             precio_unitario=Decimal('2.00')))
+        self.assertEqual(consultas(lambda:self.client.get('/api/carrito/')),ver_con_dos)
+        self.assertLessEqual(ver_con_dos,5)
+        self.assertLessEqual(consultas(lambda:self.add(self.p1,'2.000')),12)
+        r=self.client.get('/api/carrito/')
+        item=r.data['puestos'][0]['items'][0]['id']
+        self.assertLessEqual(consultas(lambda:self.client.patch(
+            f'/api/carrito/items/{item}/',{'cantidad':'3.000'},format='json')),10)
+        r=self.client.get('/api/carrito/')
+        self.assertEqual(r.data['puestos'][0]['items'][0]['cantidad'],'3.000')
+        self.assertEqual(len(r.data['puestos']),5)
+        self.assertEqual(r.data['total_productos_centavos'],1200+1500+600)
 
     def test_remove_final_item_allows_market_change(self):
         r=self.add();item=r.data['puestos'][0]['items'][0]['id']

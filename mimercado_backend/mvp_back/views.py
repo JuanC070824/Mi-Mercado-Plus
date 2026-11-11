@@ -820,16 +820,17 @@ class VolverAPedirView(APIView):
             raise ValidationError('Tu canasta tiene productos de otro mercado. Vacíala para volver a pedir.')
         if carrito and carrito.mercado_id!=pedido.mercado_id:
             carrito.estado='abandonado';carrito.save(update_fields=['estado'])
+            carrito=None
         agregados,omitidos=[],[]
         for d in PedidoDetalle.objects.filter(pedido_puesto__pedido_id=pedido.pk).exclude(
                 pedido_puesto__estado__in=['rechazado','cancelado']).select_related('producto__puesto__mercado').order_by('id'):
             try:
                 if d.producto is None:raise ValidationError('Era un producto de la lista de mandado.')
-                guardar_item(request.user,d.producto,d.cantidad_solicitada)
+                carrito=guardar_item(request.user,d.producto,d.cantidad_solicitada,cart=carrito)
                 agregados.append(d.nombre_solicitado)
             except ValidationError:
                 omitidos.append(d.nombre_solicitado)
-        return Response({'agregados':agregados,'omitidos':omitidos,'carrito':cart_payload(request.user)})
+        return Response({'agregados':agregados,'omitidos':omitidos,'carrito':cart_payload(request.user,cart=carrito,verificado=True)})
 
 class AceptarCotizacionView(APIView):
     def post(self,request,order_id,quote_id):
