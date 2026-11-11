@@ -1,11 +1,13 @@
 """Operaciones de reparto sobre el esquema existente; sin datos de demostración."""
 import hashlib
 import hmac
+from collections import defaultdict
 from math import asin, cos, radians, sin, sqrt
 from decimal import Decimal
 from django.conf import settings
 from django.contrib.auth.hashers import make_password, check_password
 from django.db import transaction
+from django.db.models import prefetch_related_objects
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError, PermissionDenied, NotFound
 from .models import (Usuario, UsuarioRol, RepartidorMercado, Mercado, Pedido, PedidoPuesto,
@@ -49,32 +51,66 @@ def apto_para_reparto(pedido):
 def nombre(user):
     return ' '.join(filter(None,[user.nombres,user.apellido_paterno,user.apellido_materno]))
 
+def _ultimo_por_pedido(queryset):
+    """{pedido_id: primera fila según el orden del queryset}, en una consulta."""
+    filas={}
+    for fila in queryset: filas.setdefault(fila.pedido_id,fila)
+    return filas
+
+def pedidos_sin_calificar(pedido_ids):
+    """Ids de pedidos entregados a los que les falta reseñar algún puesto o al repartidor."""
+    from .models import ResenaPuesto, ResenaRepartidor
+    ids=list(Pedido.objects.filter(pk__in=pedido_ids,estado='entregado').values_list('id',flat=True))
+    if not ids: return set()
+    partes_activas=defaultdict(set)
+    for pid,parte in PedidoPuesto.objects.filter(pedido_id__in=ids).exclude(
+            estado__in=['rechazado','cancelado']).values_list('pedido_id','id'):
+        partes_activas[pid].add(parte)
+    calificadas=set(ResenaPuesto.objects.filter(pedido_id__in=ids).values_list('pedido_puesto_id',flat=True))
+    entregas=_ultimo_por_pedido(Entrega.objects.filter(pedido_id__in=ids).exclude(
+        estado__in=['rechazada','cancelada']).order_by('-id'))
+    entregas_calificadas=set(ResenaRepartidor.objects.filter(
+        entrega_id__in=[e.pk for e in entregas.values()]).values_list('entrega_id',flat=True))
+    return {pid for pid in ids if partes_activas[pid]-calificadas
+            or (pid in entregas and entregas[pid].pk not in entregas_calificadas)}
+
+def pedidos_operacion_payload(pedidos, comprador=False):
+    """Igual que pedido_operacion_payload pero para una lista, con consultas fijas."""
+    from .views import pedidos_payload, ultima_cotizacion_por_pedido
+    pedidos=list(pedidos)
+    if not pedidos: return []
+    ids=[p.pk for p in pedidos]
+    prefetch_related_objects(pedidos,'mercado')
+    quotes=ultima_cotizacion_por_pedido(ids)
+    entregas=_ultimo_por_pedido(Entrega.objects.filter(pedido_id__in=ids).exclude(
+        estado__in=['rechazada','cancelada']).select_related('repartidor_mercado__repartidor').order_by('-id'))
+    pagos=_ultimo_por_pedido(Pago.objects.filter(pedido_id__in=ids,estado__in=['aprobado','procesando']).order_by('-id'))
+    entregados=[p.pk for p in pedidos if p.estado=='entregado']
+    sin_calificar=pedidos_sin_calificar(entregados) if comprador and entregados else set()
+    resultado=[]
+    for pedido,payload in zip(pedidos,pedidos_payload(pedidos)):
+        quote=quotes.get(pedido.pk)
+        entrega=entregas.get(pedido.pk)
+        pago=pagos.get(pedido.pk)
+        if payload['cotizacion'] is not None: payload['cotizacion']['id']=quote.pk
+        payload.update({'distancia_km':distancia(pedido),'distancia_tipo':'linea_recta',
+            'ganancia_repartidor_centavos':cents(quote.ganancia_repartidor) if quote else 0,
+            'pago_aprobado':pago is not None and pago.estado=='aprobado',
+            'pago_pendiente':pago is not None and pago.estado=='procesando',
+            'pago_simulado':pago is not None and (pago.proveedor_transaccion_id or '').startswith('mock_'),
+            'entrega_estado':entrega.estado if entrega else None,
+            'repartidor':None})
+        if entrega:
+            rm=entrega.repartidor_mercado
+            payload['repartidor']={'nombre':nombre(rm.repartidor),'celular':rm.repartidor.celular,
+                'mercado_id':rm.mercado_id,'movilidad':rm.movilidad,'placa':rm.placa,'calificacion':0}
+            if comprador and entrega.estado in VIGENTES: payload['codigo_entrega']=codigo_entrega(entrega)
+        if comprador: payload['pendiente_calificar']=pedido.pk in sin_calificar
+        resultado.append(payload)
+    return resultado
+
 def pedido_operacion_payload(pedido, comprador=False):
-    from .views import pedido_payload
-    payload=pedido_payload(pedido)
-    quote=Cotizacion.objects.filter(pedido_id=pedido.pk).order_by('-version').first()
-    if payload['cotizacion'] is not None: payload['cotizacion']['id']=quote.pk
-    entrega=Entrega.objects.filter(pedido_id=pedido.pk).exclude(estado__in=['rechazada','cancelada']).order_by('-id').first()
-    pago=Pago.objects.filter(pedido_id=pedido.pk,estado__in=['aprobado','procesando']).order_by('-id').first()
-    payload.update({'distancia_km':distancia(pedido),'distancia_tipo':'linea_recta',
-        'ganancia_repartidor_centavos':cents(quote.ganancia_repartidor) if quote else 0,
-        'pago_aprobado':pago is not None and pago.estado=='aprobado',
-        'pago_pendiente':pago is not None and pago.estado=='procesando',
-        'pago_simulado':pago is not None and (pago.proveedor_transaccion_id or '').startswith('mock_'),
-        'entrega_estado':entrega.estado if entrega else None,
-        'repartidor':None})
-    if entrega:
-        rm=entrega.repartidor_mercado
-        payload['repartidor']={'nombre':nombre(rm.repartidor),'celular':rm.repartidor.celular,
-            'mercado_id':rm.mercado_id,'movilidad':rm.movilidad,'placa':rm.placa,'calificacion':0}
-        if comprador and entrega.estado in VIGENTES: payload['codigo_entrega']=codigo_entrega(entrega)
-    if comprador:
-        from .models import ResenaPuesto, ResenaRepartidor
-        partes=PedidoPuesto.objects.filter(pedido_id=pedido.pk).exclude(estado__in=['rechazado','cancelado'])
-        payload['pendiente_calificar']=pedido.estado=='entregado' and (
-            partes.exclude(id__in=ResenaPuesto.objects.filter(pedido_id=pedido.pk).values('pedido_puesto_id')).exists()
-            or (entrega is not None and not ResenaRepartidor.objects.filter(entrega_id=entrega.pk).exists()))
-    return payload
+    return pedidos_operacion_payload([pedido],comprador)[0]
 
 @transaction.atomic
 def aceptar_reparto(user,pedido_id):

@@ -87,7 +87,10 @@ DATABASES = {
         'HOST': os.getenv('DB_HOST', 'localhost'),
         'PORT': os.getenv('DB_PORT', '5432'),
         'OPTIONS': {'sslmode': os.getenv('DB_SSLMODE', 'require')},
-        'CONN_MAX_AGE': 0,
+        # Reusar la conexión SSL con Aiven: abrir una por petición suma varios
+        # viajes de red antes de la primera consulta.
+        'CONN_MAX_AGE': int(os.getenv('DB_CONN_MAX_AGE', '60')),
+        'CONN_HEALTH_CHECKS': True,
     }
 }
 if os.getenv('DB_SSLROOTCERT'):

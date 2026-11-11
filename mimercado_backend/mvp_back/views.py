@@ -1,6 +1,7 @@
+from collections import defaultdict
 from django.contrib.auth.hashers import make_password, check_password
 from django.db import transaction, IntegrityError
-from django.db.models import Q, Count, Sum, Max
+from django.db.models import Q, Count, Sum, Max, prefetch_related_objects
 from django.utils import timezone
 from django.conf import settings
 from rest_framework.views import APIView
@@ -462,52 +463,89 @@ def puesto_payload(puesto):
     }
 
 
-def pedido_payload(pedido):
-    partes=[]
+def ultima_cotizacion_por_pedido(ids):
+    """{pedido_id: cotización de mayor versión}, en una sola consulta."""
+    quotes={}
+    for q in Cotizacion.objects.filter(pedido_id__in=ids).order_by('pedido_id','-version'):
+        quotes.setdefault(q.pedido_id,q)
+    return quotes
+
+
+def pedidos_payload(pedidos):
+    """Arma varios pedidos con un número fijo de consultas, no unas 9 por pedido.
+
+    Con Aiven cada consulta es un viaje de red: armar el historial pedido por
+    pedido hacía lentas las pantallas que listan pedidos o refrescan seguido.
+    """
+    pedidos=list(pedidos)
+    if not pedidos: return []
+    ids=[p.pk for p in pedidos]
+    prefetch_related_objects(pedidos,'comprador')
     paradas={fila['pedido_puesto_id']:fila['orden'] for fila in
-             EntregaParada.objects.filter(pedido_id=pedido.pk).values('pedido_puesto_id','orden')}
-    for indice,parte in enumerate(PedidoPuesto.objects.filter(
-            pedido_id=pedido.pk).select_related('puesto__vendedor','puesto__categoria').order_by('id'),1):
-        detalles=[{
+             EntregaParada.objects.filter(pedido_id__in=ids).order_by('id').values('pedido_puesto_id','orden')}
+    partes_por_pedido=defaultdict(list)
+    for parte in PedidoPuesto.objects.filter(pedido_id__in=ids).select_related(
+            'puesto__vendedor','puesto__categoria').order_by('id'):
+        partes_por_pedido[parte.pedido_id].append(parte)
+    detalles_por_parte=defaultdict(list)
+    for d in PedidoDetalle.objects.filter(
+            pedido_puesto_id__in=[x.pk for v in partes_por_pedido.values() for x in v]).order_by('id'):
+        detalles_por_parte[d.pedido_puesto_id].append({
             'id':d.pk,'producto_id':d.producto_id,'nombre':d.nombre_solicitado,
             'unidad':d.unidad_codigo,'cantidad':str(d.cantidad_solicitada),
             'precio_estimado_centavos':cents(d.precio_estimado_unitario),
             'disponibilidad':d.disponibilidad,
-        } for d in PedidoDetalle.objects.filter(pedido_puesto_id=parte.pk).order_by('id')]
-        partes.append({
+        })
+    quotes=ultima_cotizacion_por_pedido(ids)
+    grupos_por_quote=defaultdict(list)
+    for grupo in CotizacionPuesto.objects.filter(
+            cotizacion_id__in=[q.pk for q in quotes.values()]).select_related('pedido_puesto').order_by('id'):
+        grupos_por_quote[grupo.cotizacion_id].append(grupo)
+    detalles_por_grupo=defaultdict(list)
+    for d in CotizacionDetalle.objects.filter(
+            cotizacion_puesto_id__in=[g.pk for v in grupos_por_quote.values() for g in v]).order_by('id'):
+        detalles_por_grupo[d.cotizacion_puesto_id].append({
+            'pedido_detalle_id':d.pedido_detalle_id,'nombre_final':d.nombre_final,
+            'cantidad_real':str(d.cantidad_real),'precio_unitario_centavos':cents(d.precio_unitario),
+        })
+    historial_por_pedido=defaultdict(list)
+    for h in HistorialEstado.objects.filter(pedido_id__in=ids).order_by('creado_en','id'):
+        historial_por_pedido[h.pedido_id].append(
+            {'hora':h.creado_en,'texto':h.observacion or h.estado.replace('_',' ').capitalize()})
+
+    resultado=[]
+    for pedido in pedidos:
+        partes=[{
             'id':parte.pk,'puesto':puesto_payload(parte.puesto),
             'codigo_bolsa':parte.codigo_bolsa,'estado':parte.estado,
             'lista_mandado':parte.lista_mandado,'motivo_rechazo':parte.motivo_rechazo,
-            'parada':paradas.get(parte.pk,indice),'detalles':detalles,
+            'parada':paradas.get(parte.pk,indice),'detalles':detalles_por_parte[parte.pk],
+        } for indice,parte in enumerate(partes_por_pedido[pedido.pk],1)]
+        quote=quotes.get(pedido.pk)
+        cotizacion=None
+        if quote:
+            cotizacion={'version':quote.version,'estado':quote.estado,
+                        'costo_envio_centavos':cents(quote.costo_envio),'puestos':[{
+                            'pedido_puesto_id':grupo.pedido_puesto_id,
+                            'tasa_comision':str(grupo.tasa_comision),
+                            'nota':grupo.pedido_puesto.nota,
+                            'detalles':detalles_por_grupo[grupo.pk],
+                        } for grupo in grupos_por_quote[quote.pk]]}
+        resultado.append({
+            'id':pedido.pk,'codigo':pedido.codigo,'codigo_corto':str(pedido.pk),
+            'cliente_nombre':' '.join(filter(None,[pedido.comprador.nombres,pedido.comprador.apellido_paterno])),
+            'cliente_celular':pedido.celular_contacto,'mercado_id':pedido.mercado_id,
+            'estado':pedido.estado,'metodo_pago':pedido.metodo_pago,
+            'direccion':pedido.direccion_entrega,'referencia':pedido.referencia_entrega,
+            'puestos':partes,'costo_envio_centavos':cents(quote.costo_envio if quote else 0),
+            'historial':historial_por_pedido[pedido.pk],'codigo_entrega':'','cotizacion':cotizacion,
+            'creado_en':pedido.creado_en,'programado_para':pedido.programado_para,
         })
-    cotizacion=None
-    quote=Cotizacion.objects.filter(pedido_id=pedido.pk).order_by('-version').first()
-    if quote:
-        cot_puestos=[]
-        for grupo in CotizacionPuesto.objects.filter(cotizacion_id=quote.pk).select_related('pedido_puesto').order_by('id'):
-            cot_puestos.append({
-                'pedido_puesto_id':grupo.pedido_puesto_id,
-                'tasa_comision':str(grupo.tasa_comision),
-                'nota':grupo.pedido_puesto.nota,
-                'detalles':[{
-                    'pedido_detalle_id':d.pedido_detalle_id,'nombre_final':d.nombre_final,
-                    'cantidad_real':str(d.cantidad_real),'precio_unitario_centavos':cents(d.precio_unitario),
-                } for d in CotizacionDetalle.objects.filter(cotizacion_puesto_id=grupo.pk).order_by('id')],
-            })
-        cotizacion={'version':quote.version,'estado':quote.estado,
-                    'costo_envio_centavos':cents(quote.costo_envio),'puestos':cot_puestos}
-    historial=[{'hora':h.creado_en,'texto':h.observacion or h.estado.replace('_',' ').capitalize()}
-               for h in HistorialEstado.objects.filter(pedido_id=pedido.pk).order_by('creado_en','id')]
-    return {
-        'id':pedido.pk,'codigo':pedido.codigo,'codigo_corto':str(pedido.pk),
-        'cliente_nombre':' '.join(filter(None,[pedido.comprador.nombres,pedido.comprador.apellido_paterno])),
-        'cliente_celular':pedido.celular_contacto,'mercado_id':pedido.mercado_id,
-        'estado':pedido.estado,'metodo_pago':pedido.metodo_pago,
-        'direccion':pedido.direccion_entrega,'referencia':pedido.referencia_entrega,
-        'puestos':partes,'costo_envio_centavos':cents(quote.costo_envio if quote else 0),
-        'historial':historial,'codigo_entrega':'','cotizacion':cotizacion,
-        'creado_en':pedido.creado_en,'programado_para':pedido.programado_para,
-    }
+    return resultado
+
+
+def pedido_payload(pedido):
+    return pedidos_payload([pedido])[0]
 
 
 class VendedorPedidosView(APIView):
@@ -515,7 +553,7 @@ class VendedorPedidosView(APIView):
         puesto=puesto_vendedor_actual(request.user)
         ids=PedidoPuesto.objects.filter(puesto_id=puesto.pk).values_list('pedido_id',flat=True)
         pedidos=Pedido.objects.filter(pk__in=ids).select_related('comprador').order_by('-creado_en','-id')[:100]
-        return Response([pedido_payload(p) for p in pedidos])
+        return Response(pedidos_payload(pedidos))
 
 
 class VendedorPedidoAccionView(APIView):
