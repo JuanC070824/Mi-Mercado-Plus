@@ -16,7 +16,7 @@ from .models import (Usuario, UsuarioRol, Producto, Mercado, Puesto, Direccion,
                      CotizacionPuesto, CotizacionDetalle, RepartidorMercado,
                      Categoria, UnidadMedida, HistorialEstado, EntregaParada, HorarioPuesto,
                      Carrito, CarritoItem, ResenaPuesto)
-from .authentication import issue_token
+from .authentication import issue_token, tiene_rol
 from .services import (put_item, guardar_item, cart_payload, change_item, checkout, require_buyer, accept_quote,
                        quote_total, lock_user)
 from .payments import pay_order
@@ -247,8 +247,7 @@ class CategoriasView(APIView):
 
 class VendedorPuestoView(APIView):
     def _validar_vendedor(self,request):
-        if not UsuarioRol.objects.filter(
-            usuario_id=request.user.pk,rol_codigo='vendedor').exists():
+        if not tiene_rol(request.user,'vendedor'):
             raise PermissionDenied('Esta cuenta no tiene el perfil de vendedor.')
 
     def _actual(self,request):
@@ -320,10 +319,7 @@ class VendedorPuestoView(APIView):
 
 class VendedorInicioView(APIView):
     def _puesto(self, request):
-        if not UsuarioRol.objects.filter(
-            usuario_id=request.user.pk,
-            rol_codigo='vendedor',
-        ).exists():
+        if not tiene_rol(request.user,'vendedor'):
             raise PermissionDenied('Esta cuenta no tiene el perfil de vendedor.')
         return Puesto.objects.select_related('mercado', 'categoria').filter(
             vendedor_id=request.user.pk,
@@ -435,7 +431,7 @@ class ProductosView(APIView):
 
 
 def puesto_vendedor_actual(user):
-    if not UsuarioRol.objects.filter(usuario_id=user.pk,rol_codigo='vendedor').exists():
+    if not tiene_rol(user,'vendedor'):
         raise PermissionDenied('Esta cuenta no tiene el perfil de vendedor.')
     puesto=Puesto.objects.filter(vendedor_id=user.pk,estado='activo').order_by('id').first()
     if puesto is None:raise NotFound('Primero crea tu puesto en Mi puesto.')
@@ -505,6 +501,15 @@ def puesto_payload(puesto):
     }
 
 
+def partes_de_pedidos(ids):
+    """{pedido_id: [sus PedidoPuesto con puesto]}, en una sola consulta."""
+    partes=defaultdict(list)
+    for parte in PedidoPuesto.objects.filter(pedido_id__in=ids).select_related(
+            'puesto__vendedor','puesto__categoria').order_by('id'):
+        partes[parte.pedido_id].append(parte)
+    return partes
+
+
 def ultima_cotizacion_por_pedido(ids):
     """{pedido_id: cotización de mayor versión}, en una sola consulta."""
     quotes={}
@@ -513,7 +518,7 @@ def ultima_cotizacion_por_pedido(ids):
     return quotes
 
 
-def pedidos_payload(pedidos, quotes=None):
+def pedidos_payload(pedidos, quotes=None, partes_por_pedido=None):
     """Arma varios pedidos con un número fijo de consultas, no unas 9 por pedido.
 
     Con Aiven cada consulta es un viaje de red: armar el historial pedido por
@@ -525,10 +530,8 @@ def pedidos_payload(pedidos, quotes=None):
     prefetch_related_objects(pedidos,'comprador')
     paradas={fila['pedido_puesto_id']:fila['orden'] for fila in
              EntregaParada.objects.filter(pedido_id__in=ids).order_by('id').values('pedido_puesto_id','orden')}
-    partes_por_pedido=defaultdict(list)
-    for parte in PedidoPuesto.objects.filter(pedido_id__in=ids).select_related(
-            'puesto__vendedor','puesto__categoria').order_by('id'):
-        partes_por_pedido[parte.pedido_id].append(parte)
+    if partes_por_pedido is None:
+        partes_por_pedido=partes_de_pedidos(ids)
     detalles_por_parte=defaultdict(list)
     for d in PedidoDetalle.objects.filter(
             pedido_puesto_id__in=[x.pk for v in partes_por_pedido.values() for x in v]).order_by('id'):

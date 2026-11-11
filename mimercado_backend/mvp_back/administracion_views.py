@@ -9,9 +9,10 @@ from rest_framework.views import APIView
 from . import operaciones as op
 from . import serializers as s
 from .models import Entrega, Mercado, Puesto, RepartidorMercado, UsuarioRol
+from .authentication import tiene_rol
 
 def exigir_administrador(user):
-    if not UsuarioRol.objects.filter(usuario_id=user.pk,rol_codigo='administrador').exists():
+    if not tiene_rol(user,'administrador'):
         raise PermissionDenied('Esta opción es solo para el administrador del mercado.')
 
 def mercado_payload(m,puestos=0):

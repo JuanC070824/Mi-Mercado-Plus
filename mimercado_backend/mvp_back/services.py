@@ -9,10 +9,11 @@ from .models import (Usuario, UsuarioRol, Producto, UnidadMedida, Carrito, Carri
                      CarritoItem, Direccion, Pedido, PedidoPuesto, PedidoDetalle,
                      Cotizacion, CotizacionPuesto, CotizacionDetalle, HistorialEstado)
 from .money import cents, line_total, soles
+from .authentication import tiene_rol
 
 
 def require_buyer(user):
-    if not UsuarioRol.objects.filter(usuario_id=user.pk, rol_codigo='comprador').exists():
+    if not tiene_rol(user, 'comprador'):
         raise PermissionDenied('Esta operación requiere rol comprador.')
 
 
