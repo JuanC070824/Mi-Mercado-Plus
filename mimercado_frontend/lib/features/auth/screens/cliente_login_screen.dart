@@ -142,16 +142,8 @@ class _ClienteLoginScreenState extends State<ClienteLoginScreen> {
                           Align(
                             alignment: Alignment.centerRight,
                             child: TextButton(
-                              onPressed: () {
-                                // TODO: recuperación de contraseña cuando exista en el backend
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Para recuperar tu contraseña, escríbenos desde Soporte.',
-                                    ),
-                                  ),
-                                );
-                              },
+                              onPressed: () =>
+                                  context.push('/recuperar', extra: widget.rol),
                               child: const Text(
                                 '¿Olvidaste tu contraseña?',
                                 style: TextStyle(

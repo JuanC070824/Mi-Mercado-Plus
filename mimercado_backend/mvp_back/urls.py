@@ -14,6 +14,8 @@ urlpatterns=[
     path('auth/dni/',v.DniView.as_view()),
     path('auth/registro/',v.RegistroView.as_view()),
     path('auth/login/',v.LoginView.as_view()),
+    path('auth/recuperar/',v.RecuperarView.as_view()),
+    path('auth/restablecer/',v.RestablecerView.as_view()),
     path('auth/me/',v.PerfilView.as_view()),
     path('mercados/',v.MercadosView.as_view()),
     path('categorias/',v.CategoriasView.as_view()),

@@ -152,7 +152,8 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': ['mvp_back.authentication.BearerAuthentication'],
     'DEFAULT_PERMISSION_CLASSES': ['rest_framework.permissions.IsAuthenticated'],
     'UNAUTHENTICATED_USER': None,
-    'DEFAULT_THROTTLE_RATES': {'login': '10/min', 'registro': '5/min', 'dni': '20/min', 'pago': '5/min'},
+    'DEFAULT_THROTTLE_RATES': {'login': '10/min', 'registro': '5/min', 'dni': '20/min', 'pago': '5/min',
+                               'recuperar': '5/min'},
     'DEFAULT_RENDERER_CLASSES': ['rest_framework.renderers.JSONRenderer'],
 }
 AUTH_TOKEN_TTL_SECONDS = int(os.getenv('AUTH_TOKEN_TTL_SECONDS', '3600'))
@@ -162,4 +163,6 @@ JSONPE_DNI_URL = os.getenv('JSONPE_DNI_URL', 'https://api.json.pe/api/dni')
 JSONPE_TIMEOUT_SECONDS = int(os.getenv('JSONPE_TIMEOUT_SECONDS', '10'))
 JSONPE_REGISTRATION_TOKEN_TTL_SECONDS = int(os.getenv('JSONPE_REGISTRATION_TOKEN_TTL_SECONDS', '600'))
 PAYMENT_MODE = os.getenv('PAYMENT_MODE', 'mock')  # mock (demostración local) | disabled
+# demo: el código de recuperación se muestra en pantalla (no hay SMS ni correo configurados).
+RECUPERACION_MODO = os.getenv('RECUPERACION_MODO', 'demo')
 MOCK_YAPE_CODE = os.getenv('MOCK_YAPE_CODE', '123456')

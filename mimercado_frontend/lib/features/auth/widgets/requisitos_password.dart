@@ -48,7 +48,13 @@ class _Requisito extends StatelessWidget {
                 color: color,
               ),
               const SizedBox(width: 8),
-              Text(texto, style: TextStyle(fontSize: 17, color: color)),
+              // Con letra grande el texto baja de línea en vez de desbordar.
+              Flexible(
+                child: Text(
+                  texto,
+                  style: TextStyle(fontSize: 17, color: color),
+                ),
+              ),
             ],
           ),
         ),

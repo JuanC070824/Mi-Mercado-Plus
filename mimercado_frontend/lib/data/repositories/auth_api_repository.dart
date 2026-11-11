@@ -10,6 +10,21 @@ import '../models/rol.dart';
 import '../models/usuario.dart';
 import 'auth_repository.dart';
 
+/// Respuesta de un paso de "recuperar contraseña".
+class ResultadoRecuperacion {
+  const ResultadoRecuperacion.ok(this.mensaje, {this.codigoDemostracion})
+    : exito = true;
+  const ResultadoRecuperacion.error(this.mensaje)
+    : exito = false,
+      codigoDemostracion = null;
+
+  final bool exito;
+  final String mensaje;
+
+  /// Solo en modo demostración: sin SMS, el servidor devuelve el código.
+  final String? codigoDemostracion;
+}
+
 class AuthApiRepository implements AuthRepository {
   AuthApiRepository({http.Client? client, String? baseUrl})
     : _client = client ?? http.Client(),
@@ -68,6 +83,66 @@ class AuthApiRepository implements AuthRepository {
         },
     },
   );
+
+  /// Paso 1 (RF-04): el DNI debe ser del titular de la cuenta.
+  Future<ResultadoRecuperacion> solicitarRecuperacion({
+    required String celular,
+    required String dni,
+  }) => _enviarRecuperacion('/api/auth/recuperar/', {
+    'celular': celular,
+    'dni': dni,
+  });
+
+  /// Paso 2 (RF-04): con el código de 6 números se guarda la nueva contraseña.
+  Future<ResultadoRecuperacion> restablecerPassword({
+    required String celular,
+    required String codigo,
+    required String password,
+  }) => _enviarRecuperacion('/api/auth/restablecer/', {
+    'celular': celular,
+    'codigo': codigo,
+    'password': password,
+  });
+
+  Future<ResultadoRecuperacion> _enviarRecuperacion(
+    String ruta,
+    Map<String, dynamic> body,
+  ) async {
+    try {
+      final response = await _client
+          .post(
+            ApiConfig.uri(ruta, baseUrlOverride: _baseUrl),
+            headers: const {'Content-Type': 'application/json'},
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 15));
+      final decoded = jsonDecode(response.body);
+      final data = decoded is Map<String, dynamic>
+          ? decoded
+          : <String, dynamic>{};
+      if (response.statusCode != 200) {
+        return ResultadoRecuperacion.error(_mensajeError(data));
+      }
+      return ResultadoRecuperacion.ok(
+        data['detail']?.toString() ?? '',
+        codigoDemostracion: data['codigo_demostracion']?.toString(),
+      );
+    } on TimeoutException {
+      return const ResultadoRecuperacion.error(
+        'El servidor tardó demasiado en responder. Inténtalo nuevamente.',
+      );
+    } on http.ClientException {
+      return const ResultadoRecuperacion.error(
+        'No pudimos conectarnos con MiMercado+. Revisa tu conexión.',
+      );
+    } on FormatException {
+      return const ResultadoRecuperacion.error(
+        'El servidor devolvió una respuesta que no pudimos leer.',
+      );
+    } on StateError catch (error) {
+      return ResultadoRecuperacion.error(error.message);
+    }
+  }
 
   @override
   Future<Direccion?> direccionPrincipal(String celular) async {

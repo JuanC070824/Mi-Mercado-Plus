@@ -12,8 +12,9 @@ class Validadores {
     final t = v?.trim() ?? '';
     if (t.isEmpty) return 'El DNI es obligatorio';
     if (!RegExp(r'^\d+$').hasMatch(t)) return 'El DNI solo lleva números';
-    if (t.length != 8)
+    if (t.length != 8) {
       return 'El DNI debe tener 8 dígitos (llevas ${t.length})';
+    }
     return null;
   }
 
@@ -35,8 +36,9 @@ class Validadores {
     final t = v?.trim() ?? '';
     if (t.isEmpty) return 'El celular es obligatorio';
     if (!RegExp(r'^\d+$').hasMatch(t)) return 'El celular solo lleva números';
-    if (t.length != 9)
+    if (t.length != 9) {
       return 'El celular debe tener 9 dígitos (llevas ${t.length})';
+    }
     if (!t.startsWith('9')) return 'El celular debe empezar con 9';
     return null;
   }
