@@ -23,7 +23,7 @@ class MiMercadoApp extends StatelessWidget {
     return MaterialApp.router(
       key: ValueKey(idioma),
       locale: idioma.localeMaterial,
-      supportedLocales: const [Locale('es', 'PE'), Locale('en')],
+      supportedLocales: const [Locale('es', 'PE')],
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,

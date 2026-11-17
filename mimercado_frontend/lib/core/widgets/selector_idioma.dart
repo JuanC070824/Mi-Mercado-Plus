@@ -4,8 +4,7 @@ import '../i18n/idioma.dart';
 import '../theme/app_colors.dart';
 import 'componentes_app.dart';
 
-/// Abre la lista de idiomas. Cada idioma aparece escrito en su propia lengua
-/// para que cualquiera reconozca el suyo, aunque la app esté en otro idioma.
+/// Abre la lista de idiomas: Español, Quechua y Aymara.
 Future<void> elegirIdioma(BuildContext context) async {
   final elegido = await showModalBottomSheet<Idioma>(
     context: context,

@@ -1,16 +1,16 @@
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'traducciones_en.dart';
+import 'traducciones_ay.dart';
 import 'traducciones_qu.dart';
 
-/// Idiomas de la app. Cada uno se muestra escrito en su propia lengua.
+/// Idiomas de la app (con su nombre en español, como lo conoce el usuario).
 enum Idioma {
   espanol('es', 'Español', Locale('es', 'PE')),
-  ingles('en', 'English', Locale('en')),
-  // Material no trae textos en quechua: sus controles (calendario, copiar,
-  // pegar) quedan en español, que es lo que el usuario ya conoce.
-  quechua('qu', 'Runasimi', Locale('es', 'PE'));
+  // Material no trae textos en quechua ni aimara: sus controles (calendario,
+  // copiar, pegar) quedan en español, que es lo que el usuario ya conoce.
+  quechua('qu', 'Quechua', Locale('es', 'PE')),
+  aimara('ay', 'Aymara', Locale('es', 'PE'));
 
   const Idioma(this.codigo, this.nombre, this.localeMaterial);
   final String codigo;
@@ -54,8 +54,8 @@ class IdiomaState {
 String tr(String es, [List<Object?> args = const []]) {
   final tabla = switch (IdiomaState.actual.value) {
     Idioma.espanol => null,
-    Idioma.ingles => traduccionesEn,
     Idioma.quechua => traduccionesQu,
+    Idioma.aimara => traduccionesAy,
   };
   var texto = tabla?[es] ?? es;
   for (var i = 0; i < args.length; i++) {

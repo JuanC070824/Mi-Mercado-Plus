@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mimercado_frontend/app.dart';
 import 'package:mimercado_frontend/core/i18n/idioma.dart';
-import 'package:mimercado_frontend/core/i18n/traducciones_en.dart';
+import 'package:mimercado_frontend/core/i18n/traducciones_ay.dart';
 import 'package:mimercado_frontend/core/i18n/traducciones_qu.dart';
 import 'package:mimercado_frontend/core/router/app_router.dart';
 import 'package:mimercado_frontend/data/models/pedido.dart';
@@ -19,12 +19,12 @@ void main() {
     expect(tr('Mi canasta'), 'Mi canasta');
   });
 
-  test('en inglés y quechua traduce, y lo que falta sale en español', () async {
-    await IdiomaState.cambiar(Idioma.ingles);
-    expect(tr('Mi canasta'), 'My basket');
-    expect(tr('Hola, {0}', ['María']), 'Hi, María');
+  test('en quechua y aimara traduce, y lo que falta sale en español', () async {
+    await IdiomaState.cambiar(Idioma.aimara);
+    expect(tr('Mi canasta'), 'Kanastaja');
+    expect(tr('Hola, {0}', ['María']), 'Kamisaki, María');
     expect(tr('Frase que no existe'), 'Frase que no existe');
-    expect(EstadoPedido.enCamino.etiqueta, 'On the way');
+    expect(EstadoPedido.enCamino.etiqueta, 'Thakhinkiwa');
 
     await IdiomaState.cambiar(Idioma.quechua);
     expect(tr('Mi canasta'), 'Isanqay');
@@ -41,7 +41,7 @@ void main() {
   test(
     'cada traducción conserva los mismos datos variables que el español',
     () {
-      for (final tabla in [traduccionesEn, traduccionesQu]) {
+      for (final tabla in [traduccionesQu, traduccionesAy]) {
         for (final e in tabla.entries) {
           final esperado = _marcador.allMatches(e.key).map((m) => m[0]).toSet();
           final obtenido = _marcador
@@ -54,7 +54,7 @@ void main() {
     },
   );
 
-  testWidgets('desde la bienvenida se cambia a inglés y a runasimi', (
+  testWidgets('desde la bienvenida se cambia a quechua y a aimara', (
     tester,
   ) async {
     final vista =
@@ -70,16 +70,16 @@ void main() {
 
     await tester.tap(find.text('Español'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('English'));
-    await tester.pumpAndSettle();
-    expect(find.text('I am:'), findsOneWidget);
-    expect(find.text('Customer'), findsOneWidget);
-
-    await tester.tap(find.text('English'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Runasimi'));
+    await tester.tap(find.text('Quechua'));
     await tester.pumpAndSettle();
     expect(find.text('Ñuqaqa kani:'), findsOneWidget);
     expect(find.text('Rantiq'), findsOneWidget);
+
+    await tester.tap(find.text('Quechua'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Aymara'));
+    await tester.pumpAndSettle();
+    expect(find.text('Nayax:'), findsOneWidget);
+    expect(find.text('Alasiri'), findsOneWidget);
   });
 }

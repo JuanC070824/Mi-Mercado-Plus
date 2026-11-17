@@ -1,5 +1,4 @@
 import 'package:speech_to_text/speech_to_text.dart';
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
 
 /// Reconocimiento de voz para buscar caseros hablando (RF-08).
 abstract class VozService {
@@ -48,17 +47,12 @@ class VozSpeechToText implements VozService {
     return _lista!;
   }
 
-  /// Inglés si la app está en inglés. En español y en quechua se escucha en
-  /// español del Perú: el reconocimiento de voz del teléfono no trae quechua.
+  /// Siempre español del Perú: el reconocimiento de voz del teléfono no trae
+  /// quechua ni aimara, y quien habla esos idiomas suele hablar español.
   String? _idiomaDeVoz() {
     String? buscar(bool Function(String) cumple) => _idiomas
         .where((id) => cumple(id.toLowerCase().replaceAll('-', '_')))
         .firstOrNull;
-    if (IdiomaState.actual.value == Idioma.ingles) {
-      final en =
-          buscar((id) => id == 'en_us') ?? buscar((id) => id.startsWith('en'));
-      if (en != null) return en;
-    }
     return buscar((id) => id == 'es_pe') ?? buscar((id) => id.startsWith('es'));
   }
 
