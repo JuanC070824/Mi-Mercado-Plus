@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
 
 class UbicacionActual {
   const UbicacionActual({
@@ -21,8 +22,8 @@ class UbicacionException implements Exception {
 class UbicacionService {
   static Future<UbicacionActual> obtener({bool buscarDireccion = true}) async {
     if (!await Geolocator.isLocationServiceEnabled()) {
-      throw const UbicacionException(
-        'Tu GPS está apagado. Actívalo o escribe tu dirección.',
+      throw UbicacionException(
+        tr('Tu GPS está apagado. Actívalo o escribe tu dirección.'),
       );
     }
 
@@ -31,14 +32,16 @@ class UbicacionService {
       permiso = await Geolocator.requestPermission();
     }
     if (permiso == LocationPermission.denied) {
-      throw const UbicacionException(
-        'No diste permiso de ubicación. Puedes escribir tu dirección.',
+      throw UbicacionException(
+        tr('No diste permiso de ubicación. Puedes escribir tu dirección.'),
       );
     }
     if (permiso == LocationPermission.deniedForever) {
-      throw const UbicacionException(
-        'El permiso de ubicación está bloqueado. Actívalo en los ajustes '
-        'o escribe tu dirección.',
+      throw UbicacionException(
+        tr(
+          'El permiso de ubicación está bloqueado. Actívalo en los ajustes '
+          'o escribe tu dirección.',
+        ),
       );
     }
 
@@ -58,8 +61,10 @@ class UbicacionService {
         direccion: direccion,
       );
     } catch (_) {
-      throw const UbicacionException(
-        'No pudimos obtener tu ubicación. Inténtalo de nuevo o escribe tu dirección.',
+      throw UbicacionException(
+        tr(
+          'No pudimos obtener tu ubicación. Inténtalo de nuevo o escribe tu dirección.',
+        ),
       );
     }
   }

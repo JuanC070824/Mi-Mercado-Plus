@@ -1,6 +1,7 @@
 import 'cotizacion.dart';
 import 'producto.dart';
 import 'puesto.dart';
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
 
 /// Estado del pedido completo (lo que ve el cliente arriba).
 enum EstadoPedido {
@@ -13,8 +14,11 @@ enum EstadoPedido {
   entregado('Entregado', 'entregado'),
   cancelado('Cancelado', 'cancelado');
 
-  const EstadoPedido(this.etiqueta, this.codigoBd);
-  final String etiqueta;
+  const EstadoPedido(this._etiqueta, this.codigoBd);
+  final String _etiqueta;
+
+  /// Se traduce al idioma elegido cada vez que se muestra.
+  String get etiqueta => tr(_etiqueta);
   final String codigoBd;
 
   bool get activo => this != entregado && this != cancelado;
@@ -32,8 +36,11 @@ enum EstadoPedidoPuesto {
   rechazado('Rechazado', 'rechazado'),
   cancelado('Cancelado', 'cancelado');
 
-  const EstadoPedidoPuesto(this.etiqueta, this.codigoBd);
-  final String etiqueta;
+  const EstadoPedidoPuesto(this._etiqueta, this.codigoBd);
+  final String _etiqueta;
+
+  /// Se traduce al idioma elegido cada vez que se muestra.
+  String get etiqueta => tr(_etiqueta);
   final String codigoBd;
 
   /// Rechazado o cancelado: ya no cuenta para el pedido.
@@ -46,8 +53,11 @@ enum Disponibilidad {
   sinStock('Sin stock', 'sin_stock'),
   reemplazo('Ofrezco otro', 'reemplazo');
 
-  const Disponibilidad(this.etiqueta, this.codigoBd);
-  final String etiqueta;
+  const Disponibilidad(this._etiqueta, this.codigoBd);
+  final String _etiqueta;
+
+  /// Se traduce al idioma elegido cada vez que se muestra.
+  String get etiqueta => tr(_etiqueta);
   final String codigoBd;
 }
 
@@ -56,8 +66,11 @@ enum MetodoPago {
   yape('Yape', 'yape'),
   plin('Plin', 'plin');
 
-  const MetodoPago(this.etiqueta, this.codigoBd);
-  final String etiqueta;
+  const MetodoPago(this._etiqueta, this.codigoBd);
+  final String _etiqueta;
+
+  /// Se traduce al idioma elegido cada vez que se muestra.
+  String get etiqueta => tr(_etiqueta);
   final String codigoBd;
 }
 
@@ -66,8 +79,11 @@ enum MotivoRechazo {
   cerrando('Estoy por cerrar'),
   muchosPedidos('Tengo muchos pedidos');
 
-  const MotivoRechazo(this.etiqueta);
-  final String etiqueta;
+  const MotivoRechazo(this._etiqueta);
+  final String _etiqueta;
+
+  /// Se traduce al idioma elegido cada vez que se muestra.
+  String get etiqueta => tr(_etiqueta);
 }
 
 class PedidoDetalle {

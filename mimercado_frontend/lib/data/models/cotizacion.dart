@@ -1,3 +1,5 @@
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
+
 /// Redondea a céntimos para que las sumas no arrastren decimales raros.
 double redondear2(double x) => (x * 100).round() / 100;
 
@@ -7,8 +9,11 @@ enum EstadoCotizacion {
   aceptada('Aceptado', 'aceptada'),
   reemplazada('Reemplazado', 'reemplazada');
 
-  const EstadoCotizacion(this.etiqueta, this.codigoBd);
-  final String etiqueta;
+  const EstadoCotizacion(this._etiqueta, this.codigoBd);
+  final String _etiqueta;
+
+  /// Se traduce al idioma elegido cada vez que se muestra.
+  String get etiqueta => tr(_etiqueta);
   final String codigoBd;
 }
 
