@@ -183,7 +183,11 @@ class _EntregaPagoScreenState extends State<EntregaPagoScreen> {
         const SizedBox(height: 8),
         for (final m in MetodoPago.values) ...[
           OpcionElegible(
-            titulo: m.etiqueta,
+            titulo:
+                m == MetodoPago.yape &&
+                    const bool.fromEnvironment('MERCADOPAGO_PRUEBAS')
+                ? 'Mercado Pago de prueba'
+                : m.etiqueta,
             detalle: switch (m) {
               MetodoPago.efectivo => 'Pagas al repartidor cuando llegue',
               MetodoPago.yape => 'Te guiamos paso a paso',
@@ -224,7 +228,9 @@ class _EntregaPagoScreenState extends State<EntregaPagoScreen> {
         ],
         BotonPrincipal(
           texto: _metodo == MetodoPago.yape
-              ? 'Continuar con Yape'
+              ? (const bool.fromEnvironment('MERCADOPAGO_PRUEBAS')
+                    ? 'Continuar con Mercado Pago'
+                    : 'Continuar con Yape')
               : 'Confirmar pedido',
           cargando: _enviando,
           onPressed: dir == null ? null : _confirmar,

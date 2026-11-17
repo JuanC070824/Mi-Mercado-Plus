@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/config/api_config.dart';
 import '../../../data/repositories/pedidos_api_repository.dart';
 import '../widgets/pago_yape_simulado.dart';
+import '../widgets/pago_mercadopago_pruebas.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/formato.dart';
@@ -163,7 +164,13 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
               aceptado &&
               p.metodoPago == MetodoPago.yape) ...[
             const SizedBox(height: 16),
-            PagoYapeSimulado(pedido: p, usuario: widget.usuario),
+            if (PagoMercadoPagoPruebas.habilitado)
+              PagoMercadoPagoPruebas(
+                key: ValueKey('mercadopago_${p.id}'),
+                pedido: p,
+              )
+            else
+              PagoYapeSimulado(pedido: p, usuario: widget.usuario),
           ],
           const SizedBox(height: 20),
           if (p.estado == EstadoPedido.enCamino)
@@ -427,7 +434,11 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
       const SizedBox(height: 16),
       EtiquetaEstado(
         texto: p.metodoPago == MetodoPago.yape
-            ? 'Ya pagaste con Yape'
+            ? (_repo is PedidosApiRepository &&
+                      _repo.datosDe(p.id)['pago_proveedor'] ==
+                          'mercadopago_prueba'
+                  ? 'Mercado Pago de prueba confirmado'
+                  : 'Ya pagaste con Yape')
             : 'Ten listo ${soles(total)} para pagar en ${p.metodoPago.etiqueta.toLowerCase()}',
         icono: p.metodoPago == MetodoPago.yape
             ? Icons.check_circle

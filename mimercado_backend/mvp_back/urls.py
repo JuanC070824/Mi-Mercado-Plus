@@ -2,8 +2,14 @@ from django.urls import path
 from . import views as v
 from . import operaciones_views as o
 from . import administracion_views as a
+from . import mercadopago_views as mp
 
 urlpatterns=[
+    path('pagos/mercadopago/configuracion/',mp.ConfiguracionMercadoPagoView.as_view()),
+    path('pagos/mercadopago/checkout/',mp.CheckoutMercadoPagoView.as_view()),
+    path('pagos/mercadopago/confirmar/',mp.ConfirmarMercadoPagoView.as_view()),
+    path('pagos/mercadopago/pedidos/<int:order_id>/estado/',mp.EstadoMercadoPagoView.as_view()),
+    path('pagos/mercadopago/webhook/',mp.WebhookMercadoPagoView.as_view()),
     path('administracion/repartidores/',a.AdminRepartidoresView.as_view()),
     path('administracion/repartidores/<int:solicitud_id>/<str:accion>/',a.AdminRepartidorAccionView.as_view()),
     path('administracion/mercados/',a.AdminMercadosView.as_view()),

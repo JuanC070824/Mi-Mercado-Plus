@@ -131,7 +131,9 @@ class RepartidorEntregaView extends StatelessWidget {
           alignment: AlignmentDirectional.centerStart,
           child: EtiquetaEstado(
             texto: pagado
-                ? datos['pago_simulado'] == true
+                ? datos['pago_proveedor'] == 'mercadopago_prueba'
+                      ? 'Mercado Pago de prueba confirmado'
+                      : datos['pago_simulado'] == true
                       ? 'Pago de demostración confirmado'
                       : 'El cliente ya pagó con Yape'
                 : 'El pago todavía está pendiente',

@@ -1,5 +1,5 @@
 from django.db import transaction
-from django.db.models import Q, Sum
+from django.db.models import Q, Sum, Case, When, Value, IntegerField
 from django.utils import timezone
 from django.conf import settings
 from rest_framework.views import APIView
@@ -139,7 +139,12 @@ class CompradorPedidosView(APIView):
         if request.query_params.get('vigente')=='1':
             # «Mi pedido» refresca cada 10 s: solo el pedido en curso o, si no hay,
             # el último entregado que falta calificar (no los 100 del historial).
-            activo=pedidos.exclude(estado__in=['entregado','cancelado']).first()
+            # Una compra más reciente no debe ocultar el código de otra entrega.
+            activo=pedidos.exclude(estado__in=['entregado','cancelado']).order_by(
+                Case(When(estado='en_camino',then=Value(0)),
+                     When(estado='en_recojo',then=Value(1)),
+                     default=Value(2),output_field=IntegerField()),
+                '-creado_en','-id').first()
             if activo is None:
                 recientes=list(pedidos.filter(estado='entregado').values_list('id',flat=True)[:100])
                 pendientes=op.pedidos_sin_calificar(recientes)

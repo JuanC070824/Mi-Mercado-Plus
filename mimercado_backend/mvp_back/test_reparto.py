@@ -93,6 +93,26 @@ class RepartoApiTests(TestCase):
         self.assertEqual(self.post(url,{'codigo':codigo}).status_code,200)
         self.assertEqual(self.post(url,{'codigo':codigo}).status_code,200)
         self.assertEqual(self.client.get('/api/repartidor/inicio/').data['entregas_hoy'],1)
+
+    def test_pedido_nuevo_no_oculta_codigo_de_entrega_en_camino(self):
+        anterior=self.preparado();u,rm=self.driver();self.aceptar(u,anterior)
+        self.recoger_todo(anterior)
+        self.auth(self.user);nuevo=self.preparado()
+        r=self.client.get('/api/comprador/pedidos/?vigente=1')
+        self.assertEqual([p['id'] for p in r.data],[anterior])
+        codigo=r.data[0]['codigo_entrega']
+        self.assertEqual(len(codigo),4)
+        self.auth(u)
+        self.assertEqual(self.post(f'/api/repartidor/pedidos/{anterior}/entregar/',{'codigo':codigo}).status_code,200)
+        self.auth(self.user)
+        r=self.client.get('/api/comprador/pedidos/?vigente=1')
+        self.assertEqual([p['id'] for p in r.data],[nuevo])
+
+    def test_pedido_en_recojo_tiene_prioridad_sobre_compra_reciente(self):
+        anterior=self.preparado();u,rm=self.driver();self.aceptar(u,anterior)
+        self.auth(self.user);self.preparado()
+        r=self.client.get('/api/comprador/pedidos/?vigente=1')
+        self.assertEqual([p['id'] for p in r.data],[anterior])
     def test_avisos_se_guardan_sin_duplicados(self):
         order=self.preparado();u,rm=self.driver();self.aceptar(u,order)
         self.assertEqual(self.accion(order,'recogiendo').status_code,200)

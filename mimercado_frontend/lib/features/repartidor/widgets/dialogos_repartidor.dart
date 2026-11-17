@@ -52,6 +52,8 @@ Future<bool?> mostrarOfertaRepartidor(
     Text(
       pedido.metodoPago == MetodoPago.efectivo
           ? 'El cliente paga en efectivo al recibir.'
+          : datos['pago_proveedor'] == 'mercadopago_prueba'
+          ? 'Mercado Pago de prueba confirmado.'
           : datos['pago_simulado'] == true
           ? 'Pago de demostración confirmado. No se movió dinero.'
           : 'El pago con Yape ya está confirmado.',

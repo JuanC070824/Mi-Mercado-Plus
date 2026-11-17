@@ -12,3 +12,7 @@ ALLOWED_HOSTS=['testserver','localhost','127.0.0.1']
 REST_FRAMEWORK['DEFAULT_THROTTLE_RATES']['entrega']='10000/min'
 REST_FRAMEWORK['DEFAULT_THROTTLE_RATES']['recuperar']='10000/min'
 RECUPERACION_MODO='demo'
+REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'].update({
+    'mp_checkout': '10000/min', 'mp_estado': '10000/min', 'mp_webhook': '10000/min',
+})
+MERCADOPAGO_PRUEBAS_ENABLED=False

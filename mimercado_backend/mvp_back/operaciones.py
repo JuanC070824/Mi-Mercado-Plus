@@ -183,7 +183,8 @@ def pedidos_operacion_payload(pedidos, comprador=False, quotes=None, entregas=No
             'ganancia_repartidor_centavos':cents(quote.ganancia_repartidor) if quote else 0,
             'pago_aprobado':pago is not None and pago.estado=='aprobado',
             'pago_pendiente':pago is not None and pago.estado=='procesando',
-            'pago_simulado':pago is not None and (pago.proveedor_transaccion_id or '').startswith('mock_'),
+            'pago_simulado':pago is not None and (pago.proveedor_transaccion_id or '').startswith(('mock_', 'mp_test_')),
+            'pago_proveedor':'mercadopago_prueba' if pago and (pago.proveedor_transaccion_id or '').startswith('mp_test_') else None,
             'entrega_estado':entrega.estado if entrega else None,
             'repartidor':None})
         if entrega:
