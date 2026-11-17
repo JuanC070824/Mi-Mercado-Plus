@@ -8,6 +8,8 @@ import '../../../data/models/cotizacion.dart';
 import '../../../data/models/pedido.dart';
 import '../../../data/repositories/pedido_repository.dart';
 
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
+
 /// C5b · Hoja "Confirma el precio final": estimado vs final por puesto, envío,
 /// total final y notas del casero. Devuelve true si el cliente aceptó.
 Future<bool> mostrarPrecioFinal(BuildContext context, Pedido pedido) async {
@@ -54,15 +56,15 @@ class _HojaPrecioState extends State<_HojaPrecio> {
     final mensaje = await showDialog<String>(
       context: context,
       builder: (ctx) => SimpleDialog(
-        title: const Text(
-          'Escribe a tus caseros',
+        title: Text(
+          tr('Escribe a tus caseros'),
           style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
         ),
         children: [
-          for (final m in const [
-            '¿Por qué cambió el precio?',
-            'Quiero menos cantidad',
-            'Por favor, llámenme',
+          for (final m in [
+            tr('¿Por qué cambió el precio?'),
+            tr('Quiero menos cantidad'),
+            tr('Por favor, llámenme'),
           ])
             SimpleDialogOption(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
@@ -77,7 +79,9 @@ class _HojaPrecioState extends State<_HojaPrecio> {
       if (mounted) {
         avisar(
           context,
-          'Mensaje copiado. Envíalo a tus caseros desde tu aplicación de mensajes.',
+          tr(
+            'Mensaje copiado. Envíalo a tus caseros desde tu aplicación de mensajes.',
+          ),
         );
       }
     }
@@ -104,13 +108,13 @@ class _HojaPrecioState extends State<_HojaPrecio> {
         const SizedBox(height: 12),
         Semantics(
           header: true,
-          child: const Text(
-            'Tus caseros ya pesaron',
+          child: Text(
+            tr('Tus caseros ya pesaron'),
             style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
           ),
         ),
-        const Text(
-          'Revisa el precio final antes de que salga tu pedido.',
+        Text(
+          tr('Revisa el precio final antes de que salga tu pedido.'),
           style: TextStyle(fontSize: 18),
         ),
         const SizedBox(height: 16),
@@ -120,9 +124,10 @@ class _HojaPrecioState extends State<_HojaPrecio> {
         ],
         for (final parte in p.puestos.where((x) => x.estado.descartado)) ...[
           EtiquetaEstado(
-            texto:
-                '${parte.puesto.nombre} no pudo atenderte'
-                '${parte.motivoRechazo == null ? '' : ': ${parte.motivoRechazo}'}',
+            texto: tr('{0} no pudo atenderte{1}', [
+              parte.puesto.nombre,
+              parte.motivoRechazo == null ? '' : ': ${parte.motivoRechazo}',
+            ]),
             icono: Icons.block,
             tipo: TipoEstado.error,
           ),
@@ -132,14 +137,17 @@ class _HojaPrecioState extends State<_HojaPrecio> {
           child: Column(
             children: [
               FilaMonto(
-                etiqueta: 'Productos (estimado)',
+                etiqueta: tr('Productos (estimado)'),
                 monto: p.totalProductosEstimado,
               ),
-              FilaMonto(etiqueta: 'Productos (final)', monto: c.totalProductos),
-              FilaMonto(etiqueta: 'Envío', monto: c.costoEnvio),
+              FilaMonto(
+                etiqueta: tr('Productos (final)'),
+                monto: c.totalProductos,
+              ),
+              FilaMonto(etiqueta: tr('Envío'), monto: c.costoEnvio),
               const Divider(color: AppColors.divisor),
               FilaMonto(
-                etiqueta: 'Total final',
+                etiqueta: tr('Total final'),
                 monto: c.totalCliente,
                 destacado: true,
               ),
@@ -148,12 +156,12 @@ class _HojaPrecioState extends State<_HojaPrecio> {
         ),
         const SizedBox(height: 20),
         BotonPrincipal(
-          texto: 'Aceptar y continuar',
+          texto: tr('Aceptar y continuar'),
           cargando: _aceptando,
           onPressed: _aceptar,
         ),
         const SizedBox(height: 10),
-        BotonSecundario(texto: 'Tengo una duda', onPressed: _duda),
+        BotonSecundario(texto: tr('Tengo una duda'), onPressed: _duda),
       ],
     );
   }
@@ -180,19 +188,19 @@ class _Puesto extends StatelessWidget {
               parte.puesto.nombre,
               style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
             ),
-            FilaMonto(etiqueta: 'Estimado', monto: estimado),
+            FilaMonto(etiqueta: tr('Estimado'), monto: estimado),
             if (final_ != null)
-              FilaMonto(etiqueta: 'Final', monto: final_, destacado: true),
+              FilaMonto(etiqueta: tr('Final'), monto: final_, destacado: true),
             if (cp?.nota != null)
               Text(
-                'Nota del casero: "${cp!.nota}"',
+                tr('Nota del casero: "{0}"', [cp!.nota]),
                 style: const TextStyle(fontSize: 17),
               ),
             if (cambio)
               EtiquetaEstado(
                 texto: final_ > estimado
-                    ? 'Subió por el peso real'
-                    : 'Bajó por el peso real',
+                    ? tr('Subió por el peso real')
+                    : tr('Bajó por el peso real'),
                 icono: final_ > estimado
                     ? Icons.trending_up
                     : Icons.trending_down,

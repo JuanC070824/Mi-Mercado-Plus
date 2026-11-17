@@ -12,6 +12,8 @@ import '../models/puesto.dart';
 import 'catalogo_api_repository.dart';
 import 'pedido_repository.dart';
 
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
+
 class PedidosVendedorApiRepository {
   PedidosVendedorApiRepository({http.Client? client, String? baseUrl})
     : _client = client ?? http.Client(),
@@ -25,7 +27,7 @@ class PedidosVendedorApiRepository {
   Future<List<Pedido>> pedidosDePuesto(int puestoId) async {
     final data = await _enviar('GET', '/api/vendedor/pedidos/');
     if (data is! List) {
-      throw const PedidoException('El servidor devolvió pedidos inválidos.');
+      throw PedidoException(tr('El servidor devolvió pedidos inválidos.'));
     }
     return [
       for (final raw in data)
@@ -91,7 +93,7 @@ class PedidosVendedorApiRepository {
         id: (pj['id'] as num).toInt(),
         mercadoId: (pj['mercado_id'] as num).toInt(),
         nombre: pj['nombre'].toString(),
-        casero: pj['casero']?.toString() ?? 'Casero',
+        casero: pj['casero']?.toString() ?? tr('Casero'),
         categoria: _categoria(pj['categoria']?.toString()),
         calificacion: ((pj['calificacion'] as num?) ?? 0).toDouble(),
         resenas: ((pj['resenas'] as num?) ?? 0).toInt(),
@@ -227,7 +229,7 @@ class PedidosVendedorApiRepository {
     Map<String, dynamic>? body,
   }) async {
     final token = SesionState.token;
-    if (token == null) throw const PedidoException('Tu sesión venció.');
+    if (token == null) throw PedidoException(tr('Tu sesión venció.'));
     try {
       final req =
           http.Request(metodo, ApiConfig.uri(ruta, baseUrlOverride: _baseUrl))
@@ -247,16 +249,16 @@ class PedidosVendedorApiRepository {
         throw PedidoException(
           d['detail']?.toString() ??
               d.values.firstOrNull?.toString() ??
-              'No pudimos actualizar el pedido.',
+              tr('No pudimos actualizar el pedido.'),
         );
       }
       return decoded;
     } on PedidoException {
       rethrow;
     } on TimeoutException {
-      throw const PedidoException('El servidor tardó demasiado.');
+      throw PedidoException(tr('El servidor tardó demasiado.'));
     } catch (_) {
-      throw const PedidoException('No pudimos conectarnos con MiMercado+.');
+      throw PedidoException(tr('No pudimos conectarnos con MiMercado+.'));
     }
   }
 }

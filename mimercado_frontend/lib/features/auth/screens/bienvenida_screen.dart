@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/rol.dart';
+import '../../../core/widgets/selector_idioma.dart';
 import '../widgets/rol_button.dart';
 import 'package:go_router/go_router.dart';
+
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
 
 //PANTALLA DE BIENVENIDA INICIAL
 
@@ -43,10 +46,16 @@ class BienvenidaScreen extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Primero el idioma: quien no lee español lo encuentra al entrar.
+                  const Align(
+                    alignment: Alignment.centerRight,
+                    child: BotonIdioma(),
+                  ),
+                  const SizedBox(height: 12),
                   _Portada(estatica: sinAnimacion),
                   const SizedBox(height: 24),
-                  const Text(
-                    'Del mercado a tu puerta. Fresco, rápido y sin vueltas',
+                  Text(
+                    tr('Del mercado a tu puerta. Fresco, rápido y sin vueltas'),
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: AppColors.azul,
@@ -58,8 +67,8 @@ class BienvenidaScreen extends StatelessWidget {
                   const SizedBox(height: 24),
                   Semantics(
                     header: true,
-                    child: const Text(
-                      'Soy:',
+                    child: Text(
+                      tr('Soy:'),
                       style: TextStyle(
                         color: AppColors.azul,
                         fontSize: 24,
@@ -90,8 +99,8 @@ class BienvenidaScreen extends StatelessWidget {
                     ),
                     onPressed: () => _elegirRol(context, Rol.administrador),
                     icon: const Icon(Icons.admin_panel_settings_outlined),
-                    label: const Text(
-                      'Soy administrador del mercado',
+                    label: Text(
+                      tr('Soy administrador del mercado'),
                       style: TextStyle(fontSize: 16),
                     ),
                   ),

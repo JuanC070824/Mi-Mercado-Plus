@@ -5,6 +5,8 @@ import '../../../core/widgets/componentes_app.dart';
 import '../../../data/models/usuario.dart';
 import '../../../data/repositories/auth_api_repository.dart';
 
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
+
 class PreferenciasVendedor extends StatefulWidget {
   const PreferenciasVendedor({
     super.key,
@@ -58,7 +60,7 @@ class _PreferenciasVendedorState extends State<PreferenciasVendedor> {
       _aplicar(usuario);
     } catch (_) {
       if (mounted) {
-        setState(() => _error = 'No pudimos cargar tus preferencias.');
+        setState(() => _error = tr('No pudimos cargar tus preferencias.'));
       }
     } finally {
       if (mounted) setState(() => _cargando = false);
@@ -84,12 +86,13 @@ class _PreferenciasVendedorState extends State<PreferenciasVendedor> {
       final usuario = await _repo.preferenciasVendedor(nuevo, guardar: true);
       if (!mounted) return;
       _aplicar(usuario);
-      avisar(context, 'Preferencias guardadas en tu cuenta.');
+      avisar(context, tr('Preferencias guardadas en tu cuenta.'));
     } catch (_) {
       if (mounted) {
         setState(
-          () => _error =
-              'No pudimos guardar el cambio. Se conserva tu configuración anterior.',
+          () => _error = tr(
+            'No pudimos guardar el cambio. Se conserva tu configuración anterior.',
+          ),
         );
       }
     } finally {
@@ -102,39 +105,43 @@ class _PreferenciasVendedorState extends State<PreferenciasVendedor> {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          'Cómo te avisamos y cómo lees',
+        Text(
+          tr('Cómo te avisamos y cómo lees'),
           style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 8),
-        const Text(
-          'Los cambios se guardan en tu cuenta. El sonido y la vibración dependen de tu dispositivo y sus permisos.',
+        Text(
+          tr(
+            'Los cambios se guardan en tu cuenta. El sonido y la vibración dependen de tu dispositivo y sus permisos.',
+          ),
           style: TextStyle(fontSize: 16),
         ),
         if (_cargando)
-          const Padding(
+          Padding(
             padding: EdgeInsets.all(12),
             child: LinearProgressIndicator(
-              semanticsLabel: 'Cargando preferencias',
+              semanticsLabel: tr('Cargando preferencias'),
             ),
           ),
         _opcion(
-          'Letra grande',
-          'Amplía la letra sin reducir el tamaño elegido en tu dispositivo.',
+          tr('Letra grande'),
+          tr(
+            'Amplía la letra sin reducir el tamaño elegido en tu dispositivo.',
+          ),
           Icons.format_size,
           _usuario.letraGrande,
           (v) => _guardar(_usuario.copyWith(letraGrande: v)),
         ),
         _opcion(
-          'Sonido de pedidos',
-          'Aviso sonoro al abrir un pedido nuevo.',
+          tr('Sonido de pedidos'),
+          tr('Aviso sonoro al abrir un pedido nuevo.'),
           Icons.volume_up_outlined,
           _usuario.sonido,
           (v) => _guardar(_usuario.copyWith(sonido: v)),
         ),
         _opcion(
-          'Vibración de pedidos',
-          'Aviso con vibración cuando el dispositivo lo permita.',
+          tr('Vibración de pedidos'),
+          tr('Aviso con vibración cuando el dispositivo lo permita.'),
           Icons.vibration,
           _usuario.vibracion,
           (v) => _guardar(_usuario.copyWith(vibracion: v)),
@@ -142,8 +149,8 @@ class _PreferenciasVendedorState extends State<PreferenciasVendedor> {
         if (_guardando)
           Semantics(
             liveRegion: true,
-            child: const Text(
-              'Guardando preferencias…',
+            child: Text(
+              tr('Guardando preferencias…'),
               style: TextStyle(fontSize: 18),
             ),
           ),
@@ -159,7 +166,7 @@ class _PreferenciasVendedorState extends State<PreferenciasVendedor> {
             TextButton(
               onPressed: _cargar,
               style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
-              child: const Text('Volver a cargar preferencias'),
+              child: Text(tr('Volver a cargar preferencias')),
             ),
         ],
       ],

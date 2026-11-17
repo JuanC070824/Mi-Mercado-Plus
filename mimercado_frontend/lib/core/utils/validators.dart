@@ -1,19 +1,23 @@
 import 'package:flutter/services.dart';
 
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
+
 // Esto me sirve para las reglas de validación (9 dígitos, correo válido, etc.)
 
 class Validadores {
-  static String? requerido(String? v, {String campo = 'Este campo'}) {
-    if (v == null || v.trim().isEmpty) return '$campo es obligatorio';
+  static String? requerido(String? v, {String? campo}) {
+    if (v == null || v.trim().isEmpty) {
+      return tr('{0} es obligatorio', [campo ?? tr('Este campo')]);
+    }
     return null;
   }
 
   static String? dni(String? v) {
     final t = v?.trim() ?? '';
-    if (t.isEmpty) return 'El DNI es obligatorio';
-    if (!RegExp(r'^\d+$').hasMatch(t)) return 'El DNI solo lleva números';
+    if (t.isEmpty) return tr('El DNI es obligatorio');
+    if (!RegExp(r'^\d+$').hasMatch(t)) return tr('El DNI solo lleva números');
     if (t.length != 8) {
-      return 'El DNI debe tener 8 dígitos (llevas ${t.length})';
+      return tr('El DNI debe tener 8 dígitos (llevas {0})', [t.length]);
     }
     return null;
   }
@@ -24,31 +28,33 @@ class Validadores {
     bool opcional = false,
   }) {
     final t = v?.trim() ?? '';
-    if (t.isEmpty) return opcional ? null : '$campo es obligatorio';
-    if (t.length < 2) return '$campo debe tener al menos 2 letras';
+    if (t.isEmpty) return opcional ? null : tr('{0} es obligatorio', [campo]);
+    if (t.length < 2) return tr('{0} debe tener al menos 2 letras', [campo]);
     if (!RegExp(r"^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ' -]+$").hasMatch(t)) {
-      return '$campo solo puede tener letras';
+      return tr('{0} solo puede tener letras', [campo]);
     }
     return null;
   }
 
   static String? celular(String? v) {
     final t = v?.trim() ?? '';
-    if (t.isEmpty) return 'El celular es obligatorio';
-    if (!RegExp(r'^\d+$').hasMatch(t)) return 'El celular solo lleva números';
-    if (t.length != 9) {
-      return 'El celular debe tener 9 dígitos (llevas ${t.length})';
+    if (t.isEmpty) return tr('El celular es obligatorio');
+    if (!RegExp(r'^\d+$').hasMatch(t)) {
+      return tr('El celular solo lleva números');
     }
-    if (!t.startsWith('9')) return 'El celular debe empezar con 9';
+    if (t.length != 9) {
+      return tr('El celular debe tener 9 dígitos (llevas {0})', [t.length]);
+    }
+    if (!t.startsWith('9')) return tr('El celular debe empezar con 9');
     return null;
   }
 
   static String? correo(String? v) {
     final t = v?.trim() ?? '';
     if (t.isEmpty) return null; // opcional en la BD
-    if (t.length > 254) return 'El correo es demasiado largo';
+    if (t.length > 254) return tr('El correo es demasiado largo');
     if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]{2,}$').hasMatch(t)) {
-      return 'Escribe un correo válido, por ejemplo nombre@correo.com';
+      return tr('Escribe un correo válido, por ejemplo nombre@correo.com');
     }
     return null;
   }
@@ -68,18 +74,20 @@ class Validadores {
   static String? fechaNacimiento(String? v) {
     final t = v?.trim() ?? '';
     if (t.isEmpty) return null; // opcional en la BD
-    if (t.length != 10) return 'Escribe la fecha como DD/MM/AAAA';
+    if (t.length != 10) return tr('Escribe la fecha como DD/MM/AAAA');
     final f = parseFecha(t);
-    if (f == null) return 'Esa fecha no existe. Revisa el día y el mes';
-    if (f.isAfter(DateTime.now())) return 'La fecha no puede ser futura';
-    if (f.year < 1900) return 'Revisa el año';
+    if (f == null) return tr('Esa fecha no existe. Revisa el día y el mes');
+    if (f.isAfter(DateTime.now())) return tr('La fecha no puede ser futura');
+    if (f.year < 1900) return tr('Revisa el año');
     return null;
   }
 
   static String? direccionOpcional(String? v) {
     final t = v?.trim() ?? '';
     if (t.isEmpty) return null;
-    if (t.length < 5) return 'Escribe la dirección completa (calle y número)';
+    if (t.length < 5) {
+      return tr('Escribe la dirección completa (calle y número)');
+    }
     return null;
   }
 
@@ -89,16 +97,16 @@ class Validadores {
 
   static String? password(String? v) {
     final p = v ?? '';
-    if (p.isEmpty) return 'La contraseña es obligatoria';
-    if (!tieneMinimo(p)) return 'Debe tener al menos 8 caracteres';
-    if (!tieneLetra(p)) return 'Agrega al menos una letra';
-    if (!tieneNumero(p)) return 'Agrega al menos un número';
+    if (p.isEmpty) return tr('La contraseña es obligatoria');
+    if (!tieneMinimo(p)) return tr('Debe tener al menos 8 caracteres');
+    if (!tieneLetra(p)) return tr('Agrega al menos una letra');
+    if (!tieneNumero(p)) return tr('Agrega al menos un número');
     return null;
   }
 
   static String? confirmacion(String? v, String original) {
-    if (v == null || v.isEmpty) return 'Repite tu contraseña';
-    if (v != original) return 'Las contraseñas no coinciden';
+    if (v == null || v.isEmpty) return tr('Repite tu contraseña');
+    if (v != original) return tr('Las contraseñas no coinciden');
     return null;
   }
 }

@@ -11,6 +11,8 @@ import '../models/producto.dart';
 import '../models/puesto.dart';
 import 'catalogo_repository.dart';
 
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
+
 /// Un producto que el cliente pide seguido ("Lo que siempre pides").
 class ProductoFrecuente {
   const ProductoFrecuente({
@@ -38,18 +40,18 @@ class CatalogoApiRepository implements CatalogoRepository {
           .get(ApiConfig.uri(ruta, baseUrlOverride: _baseUrl))
           .timeout(const Duration(seconds: 15));
       if (response.statusCode != 200) {
-        throw const CatalogoException('No pudimos cargar el catálogo.');
+        throw CatalogoException(tr('No pudimos cargar el catálogo.'));
       }
       return jsonDecode(response.body);
     } on CatalogoException {
       rethrow;
     } on TimeoutException {
-      throw const CatalogoException(
-        'La carga tardó demasiado. Inténtalo nuevamente.',
+      throw CatalogoException(
+        tr('La carga tardó demasiado. Inténtalo nuevamente.'),
       );
     } catch (_) {
-      throw const CatalogoException(
-        'No pudimos conectarnos para cargar el catálogo.',
+      throw CatalogoException(
+        tr('No pudimos conectarnos para cargar el catálogo.'),
       );
     }
   }
@@ -61,7 +63,7 @@ class CatalogoApiRepository implements CatalogoRepository {
   }) async {
     final decoded = await _get('/api/mercados/');
     if (decoded is! List) {
-      throw const CatalogoException('Lista de mercados inválida.');
+      throw CatalogoException(tr('Lista de mercados inválida.'));
     }
     final resultado = <MercadoCercano>[];
     for (final value in decoded) {
@@ -202,7 +204,7 @@ class CatalogoApiRepository implements CatalogoRepository {
         : '/api/puestos/?mercado_id=$mercadoId';
     final decoded = await _get(ruta);
     if (decoded is! List) {
-      throw const CatalogoException('Lista de puestos inválida.');
+      throw CatalogoException(tr('Lista de puestos inválida.'));
     }
     return [
       for (final value in decoded)
@@ -214,7 +216,7 @@ class CatalogoApiRepository implements CatalogoRepository {
   Future<List<Producto>> productosDePuesto(int puestoId) async {
     final decoded = await _get('/api/productos/?puesto_id=$puestoId');
     if (decoded is! List) {
-      throw const CatalogoException('Lista de productos inválida.');
+      throw CatalogoException(tr('Lista de productos inválida.'));
     }
     return [
       for (final value in decoded)
@@ -223,13 +225,12 @@ class CatalogoApiRepository implements CatalogoRepository {
   }
 
   @override
-  Future<void> actualizarProducto(Producto producto) =>
-      throw const CatalogoException(
-        'Usa el catálogo del vendedor para editar productos.',
-      );
+  Future<void> actualizarProducto(Producto producto) => throw CatalogoException(
+    tr('Usa el catálogo del vendedor para editar productos.'),
+  );
   @override
   Future<Puesto> cambiarAbierto(int puestoId, bool abierto) =>
-      throw const CatalogoException('Usa Mi puesto para cambiar su estado.');
+      throw CatalogoException(tr('Usa Mi puesto para cambiar su estado.'));
 
   static Producto productoDesdeJson(Map<String, dynamic> value) => Producto(
     id: (value['id'] as num).toInt(),
@@ -253,7 +254,7 @@ class CatalogoApiRepository implements CatalogoRepository {
     id: (value['id'] as num).toInt(),
     mercadoId: (value['mercado_id'] as num).toInt(),
     nombre: value['nombre'].toString(),
-    casero: value['casero']?.toString() ?? 'Casero',
+    casero: value['casero']?.toString() ?? tr('Casero'),
     categoria: _categoria(value['categoria']?.toString()),
     calificacion: ((value['calificacion'] as num?) ?? 0).toDouble(),
     resenas: ((value['resenas'] as num?) ?? 0).toInt(),

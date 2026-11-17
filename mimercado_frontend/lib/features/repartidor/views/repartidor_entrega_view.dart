@@ -8,6 +8,8 @@ import '../../../data/models/pedido.dart';
 import '../../casero/widgets/llamar_dialog.dart';
 import '../widgets/piezas_repartidor.dart';
 
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
+
 /// Entrega en dos pasos: 1) llegar a la dirección, 2) cobrar y pedir el código.
 class RepartidorEntregaView extends StatelessWidget {
   const RepartidorEntregaView({
@@ -42,12 +44,12 @@ class RepartidorEntregaView extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const AvisoPantalla(
+          AvisoPantalla(
             icono: Icons.route_outlined,
-            titulo: 'Primero completa el recojo en el mercado',
+            titulo: tr('Primero completa el recojo en el mercado'),
           ),
           AccionRepartidor(
-            'Volver a mi ruta',
+            tr('Volver a mi ruta'),
             () => context.go('/repartidor/ruta'),
             ocupado: ocupado,
           ),
@@ -58,7 +60,9 @@ class RepartidorEntregaView extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          llegue ? 'Paso 2 de 2 · Cobro y código' : 'Paso 1 de 2 · Llegada',
+          llegue
+              ? tr('Paso 2 de 2 · Cobro y código')
+              : tr('Paso 1 de 2 · Llegada'),
           style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w700,
@@ -75,7 +79,7 @@ class RepartidorEntregaView extends StatelessWidget {
     Text(pedido.direccion, style: const TextStyle(fontSize: 20)),
     if (pedido.referencia?.isNotEmpty ?? false)
       Text(
-        'Referencia: ${pedido.referencia}',
+        tr('Referencia: {0}', [pedido.referencia]),
         style: const TextStyle(fontSize: 17, color: AppColors.textoSecundario),
       ),
     Align(
@@ -88,14 +92,11 @@ class RepartidorEntregaView extends StatelessWidget {
           celular: pedido.clienteCelular,
         ),
         icon: const Icon(Icons.call),
-        label: const Text(
-          'Contactar al cliente',
-          style: TextStyle(fontSize: 17),
-        ),
+        label: Text(tr('Contactar al cliente'), style: TextStyle(fontSize: 17)),
       ),
     ),
     const SizedBox(height: 8),
-    AccionRepartidor('Llegué a la dirección', alLlegar, ocupado: ocupado),
+    AccionRepartidor(tr('Llegué a la dirección'), alLlegar, ocupado: ocupado),
   ];
 
   List<Widget> _cobro(BuildContext context) {
@@ -106,7 +107,7 @@ class RepartidorEntregaView extends StatelessWidget {
       TituloRepartidor(pedido.clienteNombre),
       if (enEfectivo) ...[
         Text(
-          'Cobra $total',
+          tr('Cobra {0}', [total]),
           style: const TextStyle(
             fontSize: 26,
             fontWeight: FontWeight.w800,
@@ -120,7 +121,7 @@ class RepartidorEntregaView extends StatelessWidget {
             value: efectivo,
             onChanged: ocupado ? null : (v) => alCambiarEfectivo(v == true),
             title: Text(
-              'Recibí $total en efectivo',
+              tr('Recibí {0} en efectivo', [total]),
               style: const TextStyle(fontSize: 19),
             ),
             controlAffinity: ListTileControlAffinity.leading,
@@ -132,9 +133,9 @@ class RepartidorEntregaView extends StatelessWidget {
           child: EtiquetaEstado(
             texto: pagado
                 ? datos['pago_simulado'] == true
-                      ? 'Pago de demostración confirmado'
-                      : 'El cliente ya pagó con Yape'
-                : 'El pago todavía está pendiente',
+                      ? tr('Pago de demostración confirmado')
+                      : tr('El cliente ya pagó con Yape')
+                : tr('El pago todavía está pendiente'),
             icono: pagado ? Icons.check_circle : Icons.payments_outlined,
             tipo: pagado ? TipoEstado.exito : TipoEstado.aviso,
           ),
@@ -149,15 +150,15 @@ class RepartidorEntregaView extends StatelessWidget {
         obscureText: true,
         inputFormatters: [FilteringTextInputFormatter.digitsOnly],
         style: const TextStyle(fontSize: 26),
-        decoration: const InputDecoration(
-          labelText: 'Código del cliente',
-          helperText: 'Los 4 números que te dicta el cliente',
+        decoration: InputDecoration(
+          labelText: tr('Código del cliente'),
+          helperText: tr('Los 4 números que te dicta el cliente'),
           helperStyle: TextStyle(fontSize: 16),
           border: OutlineInputBorder(),
         ),
       ),
       AccionRepartidor(
-        'Confirmar entrega',
+        tr('Confirmar entrega'),
         enEfectivo && !efectivo || !enEfectivo && !pagado ? null : alConfirmar,
         ocupado: ocupado,
       ),
@@ -165,8 +166,8 @@ class RepartidorEntregaView extends StatelessWidget {
         child: TextButton(
           style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
           onPressed: ocupado ? null : alVolverALlegada,
-          child: const Text(
-            'Ver la dirección otra vez',
+          child: Text(
+            tr('Ver la dirección otra vez'),
             style: TextStyle(fontSize: 17),
           ),
         ),

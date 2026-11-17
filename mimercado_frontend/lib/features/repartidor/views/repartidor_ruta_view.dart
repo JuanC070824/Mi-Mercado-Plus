@@ -4,6 +4,8 @@ import '../../../core/widgets/componentes_app.dart';
 import '../../../data/models/pedido.dart';
 import '../widgets/piezas_repartidor.dart';
 
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
+
 /// Recojo por paradas: solo la parada que toca tiene botón.
 class RepartidorRutaView extends StatelessWidget {
   const RepartidorRutaView({
@@ -37,18 +39,23 @@ class RepartidorRutaView extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          'Pedido de ${pedido.clienteNombre}',
+          tr('Pedido de {0}', [pedido.clienteNombre]),
           style: const TextStyle(
             fontSize: 17,
             color: AppColors.textoSecundario,
           ),
         ),
-        TituloRepartidor('Recogidos $recogidos de ${partes.length} puestos'),
+        TituloRepartidor(
+          tr('Recogidos {0} de {1} puestos', [recogidos, partes.length]),
+        ),
         LinearProgressIndicator(
           value: partes.isEmpty ? 0 : recogidos / partes.length,
           minHeight: 10,
           borderRadius: BorderRadius.circular(5),
-          semanticsLabel: 'Avance del recojo: $recogidos de ${partes.length}',
+          semanticsLabel: tr('Avance del recojo: {0} de {1}', [
+            recogidos,
+            partes.length,
+          ]),
         ),
         if (!listo)
           Align(
@@ -57,8 +64,8 @@ class RepartidorRutaView extends StatelessWidget {
               style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
               onPressed: ocupado ? null : alAvisar,
               icon: const Icon(Icons.notifications_active_outlined),
-              label: const Text(
-                'Avisar: estoy recogiendo',
+              label: Text(
+                tr('Avisar: estoy recogiendo'),
                 style: TextStyle(fontSize: 17),
               ),
             ),
@@ -73,7 +80,9 @@ class RepartidorRutaView extends StatelessWidget {
         const SizedBox(height: 8),
         if (!listo)
           Text(
-            faltan == 1 ? 'Falta 1 bolsa.' : 'Faltan $faltan bolsas.',
+            faltan == 1
+                ? tr('Falta 1 bolsa.')
+                : tr('Faltan {0} bolsas.', [faltan]),
             textAlign: TextAlign.center,
             style: const TextStyle(
               fontSize: 17,
@@ -81,7 +90,7 @@ class RepartidorRutaView extends StatelessWidget {
             ),
           ),
         AccionRepartidor(
-          'Ir a entregar',
+          tr('Ir a entregar'),
           listo ? alSalir : null,
           ocupado: ocupado,
         ),
@@ -126,7 +135,7 @@ class _Parada extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    'Atiende: ${parte.puesto.casero}',
+                    tr('Atiende: {0}', [parte.puesto.casero]),
                     style: const TextStyle(
                       fontSize: 16,
                       color: AppColors.textoSecundario,
@@ -136,19 +145,19 @@ class _Parada extends StatelessWidget {
                   Align(
                     alignment: AlignmentDirectional.centerStart,
                     child: recogida
-                        ? const EtiquetaEstado(
-                            texto: 'Recogida',
+                        ? EtiquetaEstado(
+                            texto: tr('Recogida'),
                             icono: Icons.done_all,
                             tipo: TipoEstado.exito,
                           )
                         : lista
-                        ? const EtiquetaEstado(
-                            texto: 'Lista para recoger',
+                        ? EtiquetaEstado(
+                            texto: tr('Lista para recoger'),
                             icono: Icons.shopping_bag_outlined,
                             tipo: TipoEstado.exito,
                           )
-                        : const EtiquetaEstado(
-                            texto: 'Preparando',
+                        : EtiquetaEstado(
+                            texto: tr('Preparando'),
                             icono: Icons.hourglass_top,
                           ),
                   ),
@@ -156,12 +165,16 @@ class _Parada extends StatelessWidget {
               ),
             ),
             if (habilitada && lista)
-              AccionRepartidor('Recogí la bolsa', alRecoger, ocupado: ocupado)
+              AccionRepartidor(
+                tr('Recogí la bolsa'),
+                alRecoger,
+                ocupado: ocupado,
+              )
             else if (habilitada)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.only(top: 8),
                 child: Text(
-                  'Espera a que el casero la tenga lista.',
+                  tr('Espera a que el casero la tenga lista.'),
                   style: TextStyle(fontSize: 17),
                 ),
               ),
