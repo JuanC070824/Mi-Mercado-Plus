@@ -36,6 +36,10 @@ class ErrorProveedor(APIException):
     default_detail = 'No pudimos verificar la operación con Mercado Pago. Consulta su estado antes de reintentar.'
 
 
+class SolicitudRechazada(ErrorProveedor):
+    default_detail = 'Mercado Pago no aceptó los datos del formulario. Revisa las credenciales de Checkout API y los datos de prueba.'
+
+
 def configuracion():
     return {
         'habilitado': settings.MERCADOPAGO_PRUEBAS_ENABLED,
@@ -43,6 +47,8 @@ def configuracion():
                            and settings.MERCADOPAGO_TEST_ACCESS_TOKEN
                            and settings.MERCADOPAGO_TEST_USER_ID),
         'entorno': 'prueba', 'conciliacion_habilitada': True,
+        'public_key': settings.MERCADOPAGO_TEST_PUBLIC_KEY,
+        'integrado_configurado': bool(settings.MERCADOPAGO_TEST_PUBLIC_KEY),
         'aviso': AVISO,
     }
 
@@ -52,22 +58,26 @@ def exigir_configuracion():
         raise ServicioNoDisponible()
 
 
-def solicitud(metodo, *, order_id=None, body=None, params=None, clave=None):
+def solicitud(metodo, *, order_id=None, body=None, params=None, clave=None, accion=None):
     exigir_configuracion()
     if order_id is not None and not TEST_ID.fullmatch(str(order_id)):
         raise ErrorProveedor('La integración solo admite orders de prueba ORDTST.')
+    if accion is not None and (accion != 'cancel' or not order_id or metodo != 'POST'):
+        raise ErrorProveedor('Operación no admitida.')
     headers = {'Authorization': f'Bearer {settings.MERCADOPAGO_TEST_ACCESS_TOKEN}',
                'Content-Type': 'application/json', 'Accept': 'application/json'}
     if clave:
         headers['X-Idempotency-Key'] = clave
     try:
         response = requests.request(
-            metodo, API_URL + (f'/{order_id}' if order_id else ''),
+            metodo, API_URL + (f'/{order_id}' if order_id else '') + (f'/{accion}' if accion else ''),
             headers=headers, json=body, params=params, timeout=(3, 10), allow_redirects=False)
         if response.status_code not in (200, 201):
             # No devolver cuerpos del proveedor: pueden contener datos privados.
             if response.status_code in (401, 403):
                 raise ServicioNoDisponible('Revisa las credenciales y permisos de Mercado Pago de prueba en el servidor.')
+            if metodo == 'POST' and response.status_code in (400, 422):
+                raise SolicitudRechazada()
             raise ErrorProveedor()
         data = response.json()
     except (requests.RequestException, ValueError) as exc:
@@ -116,7 +126,7 @@ def validar_order(data, reference, total):
         raise ErrorProveedor('Mercado Pago devolvió un importe inválido.')
     if (not TEST_ID.fullmatch(str(data.get('id', '')))
             or data.get('type') != 'online'
-            or data.get('processing_mode') != 'manual'
+            or data.get('processing_mode') not in ('manual', 'automatic')
             or data.get('currency') != 'PEN'
             or str(data.get('user_id')) != settings.MERCADOPAGO_TEST_USER_ID
             or data.get('external_reference') != reference
@@ -128,6 +138,15 @@ def validar_order(data, reference, total):
 
 
 def buscar_order(reference, total):
+    # El intento más reciente se conserva en BD; no depende del navegador.
+    vinculado = Pago.objects.filter(idempotencia=reference,
+        proveedor_transaccion_id__startswith=PREFIJO_PAGO).first()
+    if vinculado:
+        order_id = vinculado.proveedor_transaccion_id[len(PREFIJO_PAGO):]
+        if TEST_ID.fullmatch(order_id):
+            actual = solicitud('GET', order_id=order_id)
+            validar_order(actual, reference, total)
+            return actual
     ahora = timezone.now()
     data = solicitud('GET', params={
         'begin_date': (ahora - timezone.timedelta(days=29)).isoformat(),
@@ -183,6 +202,7 @@ def respuesta_pedido(data, total, pedido):
     respuesta.update(pedido_id=pedido.pk, pago_id=pago.pk if pago else None,
         registro_interno=pago is not None, pago_interno_aprobado=aprobado,
         reparto_habilitado=aprobado and pedido.estado != 'cancelado')
+    respuesta['formulario_integrado'] = bool(data and data.get('processing_mode') == 'automatic')
     return respuesta
 
 
@@ -206,6 +226,15 @@ def registrar_order(usuario, pedido_id, data):
                 raise ValidationError('El pedido fue cancelado; el pago requiere revisión manual.')
             proveedor_id = PREFIJO_PAGO + data['id']
             pago = Pago.objects.filter(proveedor_transaccion_id=proveedor_id).first()
+            if pago is None:
+                # Recuperación tras perder la respuesta de la creación: solo
+                # puede enlazarse la reserva exacta, nunca otra order existente.
+                pago = Pago.objects.filter(pedido_id=pedido.pk, idempotencia=reference,
+                    proveedor_transaccion_id='mp_test_pending_' + reference[9:],
+                    estado='procesando').first()
+                if pago:
+                    pago.proveedor_transaccion_id = proveedor_id
+                    pago.save(update_fields=['proveedor_transaccion_id'])
             if pago and (pago.pedido_id != pedido.pk or pago.cotizacion_id != quote.pk
                          or pago.monto != total or pago.idempotencia != reference):
                 raise ValidationError('La operación ya está vinculada a otro pago o cotización.')
@@ -244,6 +273,11 @@ def confirmar_pago(usuario, pedido_id):
     pedido, total, reference = contexto(usuario, pedido_id)
     data = buscar_order(reference, total)
     if data is None:
+        # Una solicitud puede haber llegado al proveedor aunque su respuesta se
+        # haya perdido. Conservar el bloqueo hasta recuperar esa operación.
+        if Pago.objects.filter(pedido_id=pedido.pk, estado='procesando').exists():
+            return {**respuesta_pedido(None, total, pedido), 'estado': 'processing',
+                    'registro_interno': True, 'pago_interno_aprobado': False}
         return respuesta_pedido(None, total, pedido)
     return registrar_order(usuario, pedido.pk, data)
 
@@ -329,8 +363,9 @@ def recibir_webhook(request):
     except (KeyError, InvalidOperation, ValueError):
         raise ErrorProveedor()
     validar_order(data, reference, total)
-    pago = Pago.objects.filter(proveedor_transaccion_id=PREFIJO_PAGO + order_id,
-                               idempotencia=reference).select_related('pedido__comprador').first()
+    pago = Pago.objects.filter(proveedor_transaccion_id__in=[PREFIJO_PAGO + order_id,
+                              'mp_test_pending_' + reference[9:]],
+                              idempotencia=reference).select_related('pedido__comprador').first()
     if pago is None:
         return {'recibido': True, 'registro_interno': False, 'reparto_habilitado': False,
                 'aviso': 'Order anterior al enlace interno. Confirma desde la cuenta compradora.'}

@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 
 from . import mercadopago_pruebas as mp
 from .services import require_buyer
+from .mercadopago_integrado import PagoIntegradoSerializer, pagar, cancelar_intento
 
 
 class CheckoutSerializer(serializers.Serializer):
@@ -15,10 +16,34 @@ class CheckoutSerializer(serializers.Serializer):
 
 
 @method_decorator(never_cache, name='dispatch')
+class PagoIntegradoMercadoPagoView(APIView):
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'mp_checkout'
+
+    def post(self, request):
+        require_buyer(request.user)
+        serializer = PagoIntegradoSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return Response(pagar(request.user, serializer.validated_data))
+
+
+@method_decorator(never_cache, name='dispatch')
 class ConfiguracionMercadoPagoView(APIView):
     def get(self, request):
         require_buyer(request.user)
         return Response(mp.configuracion())
+
+
+@method_decorator(never_cache, name='dispatch')
+class CancelarIntentoMercadoPagoView(APIView):
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'mp_checkout'
+
+    def post(self, request):
+        require_buyer(request.user)
+        serializer = CheckoutSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return Response(cancelar_intento(request.user, serializer.validated_data['pedido_id']))
 
 
 @method_decorator(never_cache, name='dispatch')

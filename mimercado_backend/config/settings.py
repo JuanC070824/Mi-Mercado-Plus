@@ -181,6 +181,7 @@ MOCK_YAPE_CODE = os.getenv('MOCK_YAPE_CODE', '123456')
 # Checkout Pro con Orders API. Solo pruebas; registra pagos sin alterar el esquema.
 MERCADOPAGO_PRUEBAS_ENABLED = os.getenv('MERCADOPAGO_PRUEBAS_ENABLED', 'false').lower() == 'true'
 MERCADOPAGO_TEST_ACCESS_TOKEN = os.getenv('MERCADOPAGO_TEST_ACCESS_TOKEN', '').strip()
+MERCADOPAGO_TEST_PUBLIC_KEY = os.getenv('MERCADOPAGO_TEST_PUBLIC_KEY', '').strip()
 MERCADOPAGO_TEST_USER_ID = os.getenv('MERCADOPAGO_TEST_USER_ID', '').strip()
 MERCADOPAGO_WEBHOOK_SECRET = os.getenv('MERCADOPAGO_WEBHOOK_SECRET', '').strip()
 MERCADOPAGO_RETURN_URL = os.getenv('MERCADOPAGO_RETURN_URL', '').strip()

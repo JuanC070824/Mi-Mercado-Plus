@@ -63,7 +63,11 @@ class MercadoPagoApiTests(TestCase):
         return self.post('/api/pagos/mercadopago/confirmar/', {'pedido_id': self.pedido, **extra})
 
     def buscar_responde(self, api, data):
-        api.side_effect = [{'data': [{'id': ORDER_ID, 'external_reference': self.reference}]}, data]
+        if Pago.objects.filter(idempotencia=self.reference,
+                               proveedor_transaccion_id=mp.PREFIJO_PAGO + ORDER_ID).exists():
+            api.side_effect = [data]
+        else:
+            api.side_effect = [{'data': [{'id': ORDER_ID, 'external_reference': self.reference}]}, data]
 
     def assert_sin_escrituras(self, queries):
         for query in queries:

@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
+import 'pago_mp_integrado.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -59,6 +61,7 @@ class _PagoMercadoPagoPruebasState extends State<PagoMercadoPagoPruebas>
   @override
   void initState() {
     super.initState();
+    if (kIsWeb && widget.abrirCheckout == null) return;
     WidgetsBinding.instance.addObserver(this);
     _refresco = Timer.periodic(const Duration(seconds: 15), (_) {
       if (mounted &&
@@ -205,6 +208,13 @@ class _PagoMercadoPagoPruebasState extends State<PagoMercadoPagoPruebas>
 
   @override
   Widget build(BuildContext context) {
+    if (kIsWeb && widget.abrirCheckout == null) {
+      return PagoMpIntegrado(
+        pedido: widget.pedido,
+        repository: _repo,
+        alConfirmarPago: widget.alConfirmarPago,
+      );
+    }
     final estilo = FilledButton.styleFrom(
       minimumSize: const Size(48, 56),
       padding: const EdgeInsets.all(16),

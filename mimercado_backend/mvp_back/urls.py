@@ -5,6 +5,8 @@ from . import administracion_views as a
 from . import mercadopago_views as mp
 
 urlpatterns=[
+    path('pagos/mercadopago/integrado/',mp.PagoIntegradoMercadoPagoView.as_view()),
+    path('pagos/mercadopago/cancelar-intento/',mp.CancelarIntentoMercadoPagoView.as_view()),
     path('pagos/mercadopago/configuracion/',mp.ConfiguracionMercadoPagoView.as_view()),
     path('pagos/mercadopago/checkout/',mp.CheckoutMercadoPagoView.as_view()),
     path('pagos/mercadopago/confirmar/',mp.ConfirmarMercadoPagoView.as_view()),

@@ -32,9 +32,24 @@ class MercadoPagoApiRepository {
   Future<Map<String, dynamic>> estado(int pedidoId) =>
       _solicitar('GET', '/api/pagos/mercadopago/pedidos/$pedidoId/estado/');
 
+  Future<Map<String, dynamic>> pagarIntegrado(
+    int pedidoId,
+    Map<String, dynamic> datos,
+  ) => _solicitar(
+    'POST',
+    '/api/pagos/mercadopago/integrado/',
+    body: {...datos, 'pedido_id': pedidoId},
+  );
+
   Future<Map<String, dynamic>> confirmar(int pedidoId) => _solicitar(
     'POST',
     '/api/pagos/mercadopago/confirmar/',
+    body: {'pedido_id': pedidoId},
+  );
+
+  Future<Map<String, dynamic>> cancelarIntento(int pedidoId) => _solicitar(
+    'POST',
+    '/api/pagos/mercadopago/cancelar-intento/',
     body: {'pedido_id': pedidoId},
   );
 
