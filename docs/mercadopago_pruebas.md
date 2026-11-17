@@ -22,7 +22,16 @@ checkout alojado por Mercado Pago.
   las comprobaciones de recogida, salida, propiedad y código de entrega.
 - El piloto aparece en el paso donde actualmente se muestra el simulador Yape,
   después de aceptar el precio final; con la bandera activa, la opción se muestra
-  como Mercado Pago de prueba. No añade un método a los catálogos de la BD.
+  como Pago en línea · Mercado Pago. No añade un método a los catálogos de la BD.
+- El pago en línea tiene una pantalla propia después de aceptar el precio final:
+  mientras no está aprobado, se muestra el paso de pago en lugar del seguimiento
+  del reparto. La order se prepara automáticamente y el botón muestra `Pagar S/ X`.
+- La presentación conserva un aviso breve `Demostración académica · sin dinero real`;
+  los nombres de variables, credenciales y validaciones siguen limitados a pruebas.
+- Efectivo y Plin permanecen como pagos al recibir. Plin no se envía a Mercado Pago:
+  el repartidor debe confirmar el cobro y el código del cliente antes de entregar.
+  Ese cobro manual se registra con método `plin` y canal `transferencia`, sin validar
+  automáticamente una operación bancaria de Plin.
 - Compatibilidad temporal: los CHECK de la base solo permiten métodos
   `efectivo/yape/plin` y canales heredados. Se conserva `metodo=yape` y
   `canal=culqi_sandbox` para este piloto; el proveedor efectivo se identifica
@@ -91,17 +100,19 @@ Este comando apunta al backend **local con estos cambios**. El backend desplegad
 actualmente en Render todavía no tiene estas rutas. No ejecutes migraciones ni
 comandos de carga de datos contra la base compartida para probar esta integración.
 
-1. Inicia sesión como comprador y abre un pedido propio con Mercado Pago de prueba y precio aceptado,
+1. Inicia sesión como comprador y abre un pedido propio con Pago en línea y precio aceptado,
    que cumpla las condiciones indicadas arriba. Las operaciones normales para
    crear/cotizar/aceptar pedidos siguen teniendo los efectos habituales en la BD.
-2. Pulsa **Preparar pago de prueba**. Esto crea o recupera la order del proveedor.
-3. Pulsa **Abrir Mercado Pago**; son dos clics para evitar el bloqueo de ventanas
-   emergentes después de una espera de red. También puedes copiar el enlace.
+2. Después de aceptar el precio final aparece **Paso 3 · Paga tu pedido**. La pantalla
+   prepara o recupera la order antes de habilitar el botón.
+3. Pulsa **Pagar S/ X** para abrir Mercado Pago con un clic directo, sin esperar
+   una solicitud HTTP antes de abrir la ventana. También puedes copiar el enlace.
 4. Usa una ventana de incógnito sin sesión personal de Mercado Pago, tarjetas y
    datos de prueba del panel. En esta prueba se logró la aprobación con el correo
    de la cuenta compradora de prueba de Mercado Pago, distinto del vendedor.
    Si el checkout pide sesión, usa ese comprador ficticio. Nunca uses tarjetas reales.
-5. Vuelve a `http://localhost:3000` y pulsa **Consultar estado del pago**.
+5. Vuelve a `http://localhost:3000`. Se comprueba el resultado al regresar; si hace
+   falta, pulsa **Ya pagué, verificar**.
    Solo `processed/accredited` con importe íntegro se presenta como aprobado
    y registrado internamente. Una espera, devolución parcial o rechazo no lo son.
    La pantalla también confirma al abrirse o volver del checkout y, mientras hay
@@ -158,6 +169,11 @@ flutter analyze
 
 Las pruebas de Flutter cubren autenticación y cuerpo de la solicitud, validación
 del enlace, apertura por clic, confirmación del registro y configuración incompleta.
+La transición del paso de pago al seguimiento se prueba con:
+
+```powershell
+flutter test test/pago_integrado_flow_test.dart --dart-define=API_URL=http://localhost:8000 --dart-define=MERCADOPAGO_PRUEBAS=true
+```
 
 ## Referencias oficiales
 
@@ -166,3 +182,26 @@ del enlace, apertura por clic, confirmación del registro y configuración incom
 - [Consultar una order](https://www.mercadopago.com.pe/developers/es/reference/online-payments/checkout-pro/get-order/get)
 - [Notificaciones y firma](https://www.mercadopago.com.pe/developers/es/docs/checkout-pro-orders/notifications)
 - [Prueba de compra con tarjeta](https://www.mercadopago.com.pe/developers/es/docs/checkout-pro-orders/integration-test/test-purchase-with-card?scope=prod)
+
+
+### Avisos y acumulados internos
+
+Mercado Pago aparece por defecto en Flutter. Ya no es necesario pasar
+`--dart-define=MERCADOPAGO_PRUEBAS=true`; el valor explícito `false` conserva
+la demostración anterior. Esto no activa cobros reales: el servidor sigue
+requiriendo sus credenciales y habilitación de prueba.
+
+Los vendedores ven el pago confirmado en Inicio y en el detalle del pedido.
+Inicio refresca cada 15 segundos mientras está visible. Su resumen de hoy
+incluye solamente pagos íntegros de la cotización aceptada; muestra además
+el neto acumulado de bolsas recogidas y el neto pagado pendiente de recoger.
+Las ganancias del repartidor se acumulan después de validar la entrega,
+siempre que exista un pago aprobado por el total. Se incluyen sus entregas
+completadas de anteriores asignaciones de mercado. Los importes se calculan
+desde los registros existentes, sin migraciones ni incrementos duplicables.
+
+Son avisos dentro de la aplicación y acumulados informativos: no hay push,
+transferencias bancarias ni distribución automática de fondos. Plin y efectivo
+solo aparecen pagados cuando el repartidor confirma el cobro al entregar.
+Los pagos reembolsados dejan de contribuir al acumulado cuando su estado
+interno se actualiza; no se implementa aquí una operación de reembolso.

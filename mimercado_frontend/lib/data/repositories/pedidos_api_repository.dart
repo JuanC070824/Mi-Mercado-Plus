@@ -153,6 +153,7 @@ class PedidosApiRepository implements PedidoRepository {
       _guardar('/api/repartidor/pedidos/$id/entregar/', {
         'codigo': codigo,
         'efectivo_confirmado': efectivo,
+        'pago_al_recibir_confirmado': efectivo,
       });
   Future<Map<String, dynamic>> configuracionPago() async =>
       Map<String, dynamic>.from(

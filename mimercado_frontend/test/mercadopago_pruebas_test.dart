@@ -112,26 +112,21 @@ void main() {
       aperturas++;
       return true;
     });
-    await tester.tap(find.text('Preparar pago de prueba'));
-    await tester.pumpAndSettle();
     expect(repo.creaciones, 1);
     expect(aperturas, 0);
-    await tester.tap(find.text('Abrir Mercado Pago'));
+    await tester.tap(find.text('Pagar S/ 13.00'));
     await tester.pumpAndSettle();
     expect(aperturas, 1);
     expect(repo.creaciones, 1);
     repo.aprobar = true;
-    await tester.tap(find.text('Consultar estado del pago'));
+    await tester.tap(find.text('Ya pagué, verificar'));
     await tester.pumpAndSettle();
+    expect(find.textContaining('Pago confirmado.'), findsOneWidget);
     expect(
-      find.textContaining('Pago de prueba confirmado y registrado.'),
+      find.textContaining('Continuamos con la preparación y el reparto'),
       findsOneWidget,
     );
-    expect(
-      find.textContaining('puede continuar con el repartidor'),
-      findsOneWidget,
-    );
-    expect(find.text('Abrir Mercado Pago'), findsNothing);
+    expect(find.text('Pagar S/ 13.00'), findsNothing);
   });
 
   testWidgets('configuración incompleta no permite crear checkout', (
@@ -139,8 +134,8 @@ void main() {
   ) async {
     final repo = _Repo()..configurado = false;
     await _mostrar(tester, repo, (_) async => true);
-    expect(find.text('Preparar pago de prueba'), findsNothing);
-    expect(find.textContaining('falta configurar'), findsOneWidget);
+    expect(find.text('Continuar al pago'), findsNothing);
+    expect(find.textContaining('no está disponible'), findsOneWidget);
     expect(repo.creaciones, 0);
   });
 }

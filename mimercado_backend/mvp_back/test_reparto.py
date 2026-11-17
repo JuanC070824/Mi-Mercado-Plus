@@ -38,6 +38,48 @@ class RepartoApiTests(TestCase):
         for parte in PedidoPuesto.objects.filter(pedido_id=order).order_by('id'):
             self.assertEqual(self.accion(order,'recoger',parte.pk).status_code,200)
         self.assertEqual(self.accion(order,'salir').status_code,200)
+    def test_saldos_y_avisos_con_pago_sin_duplicar(self):
+        order = self.quoted_order()
+        self.auth(self.seller)
+        inicio = self.client.get('/api/vendedor/inicio/').data
+        self.assertEqual(inicio['resumen']['recibes_centavos'], 0)
+        self.assertFalse(inicio['pedidos_activos'][0]['pago_confirmado'])
+        self.auth(self.user)
+        self.assertEqual(self.pay(order).status_code, 200)
+        self.assertEqual(self.pay(order).status_code, 200)
+        self.auth(self.seller)
+        inicio = self.client.get('/api/vendedor/inicio/').data
+        self.assertTrue(inicio['pedidos_activos'][0]['pago_confirmado'])
+        self.assertEqual(inicio['resumen']['pendiente_entregar_centavos'], 380)
+        self.assertEqual(inicio['resumen']['acumulado_centavos'], 0)
+        u, rm = self.driver()
+        entrega = self.aceptar(u, order)
+        self.assertEqual(self.client.get('/api/repartidor/inicio/').data['ganancia_acumulada_centavos'], 0)
+        self.recoger_todo(order)
+        self.auth(self.seller)
+        inicio = self.client.get('/api/vendedor/inicio/').data
+        self.assertEqual(inicio['resumen']['acumulado_centavos'], 380)
+        self.assertEqual(inicio['resumen']['pendiente_entregar_centavos'], 0)
+        self.auth(u)
+        from .operaciones import codigo_entrega
+        for _ in range(2):
+            self.assertEqual(self.post(f'/api/repartidor/pedidos/{order}/entregar/',
+                {'codigo': codigo_entrega(entrega)}).status_code, 200)
+        expected = int(Cotizacion.objects.get(pedido_id=order).ganancia_repartidor * 100)
+        self.assertEqual(self.client.get('/api/repartidor/inicio/').data['ganancia_acumulada_centavos'], expected)
+        Pago.objects.filter(pedido_id=order).update(estado='reembolsado')
+        self.assertEqual(self.client.get('/api/repartidor/inicio/').data['ganancia_acumulada_centavos'], 0)
+        self.auth(self.seller)
+        self.assertEqual(self.client.get('/api/vendedor/inicio/').data['resumen']['acumulado_centavos'], 0)
+
+    def test_pago_incompleto_no_genera_saldo(self):
+        order = self.preparado()
+        Pago.objects.filter(pedido_id=order).update(monto='1.00')
+        self.auth(self.seller)
+        inicio = self.client.get('/api/vendedor/inicio/').data
+        self.assertFalse(inicio['pedidos_activos'][0]['pago_confirmado'])
+        self.assertEqual(inicio['resumen']['pendiente_entregar_centavos'], 0)
+
     def test_no_hay_ofertas_antes_de_aceptar_precio_y_pago(self):
         order=self.order();u,rm=self.driver();self.auth(u)
         self.assertEqual(self.client.get('/api/repartidor/inicio/').data['ofertas'],[])
@@ -124,6 +166,22 @@ class RepartoApiTests(TestCase):
         self.assertEqual(self.post(url,{'codigo':op.codigo_entrega(entrega)}).status_code,400)
         for _ in range(2):self.assertEqual(self.post(url,{'codigo':op.codigo_entrega(entrega),'efectivo_confirmado':True}).status_code,200)
         self.assertEqual(Pago.objects.filter(pedido_id=order,estado='aprobado').count(),1)
+
+    def test_plin_al_recibir_exige_confirmacion_y_codigo_sin_pasarela(self):
+        order=self.quoted_order()
+        Pedido.objects.filter(pk=order).update(metodo_pago='plin')
+        u,rm=self.driver();entrega=self.aceptar(u,order)
+        self.recoger_todo(order)
+        url=f'/api/repartidor/pedidos/{order}/entregar/'
+        codigo=op.codigo_entrega(entrega)
+        self.assertEqual(self.post(url,{'codigo':codigo}).status_code,400)
+        self.assertFalse(Pago.objects.filter(pedido_id=order).exists())
+        self.assertEqual(self.post(url,{'codigo':'incorrecto','pago_al_recibir_confirmado':True}).status_code,400)
+        self.assertFalse(Pago.objects.filter(pedido_id=order).exists())
+        for _ in range(2):
+            self.assertEqual(self.post(url,{'codigo':codigo,'pago_al_recibir_confirmado':True}).status_code,200)
+        pago=Pago.objects.get(pedido_id=order)
+        self.assertEqual((pago.metodo,pago.canal,pago.estado),('plin','transferencia','aprobado'))
     def test_distancia_real_o_no_disponible(self):
         order=self.order();p=Pedido.objects.get(pk=order);self.assertIsNone(op.distancia(p))
         self.market.latitud=-12;self.market.longitud=-77;self.market.save()

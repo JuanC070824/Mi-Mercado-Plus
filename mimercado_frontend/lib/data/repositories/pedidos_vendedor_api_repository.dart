@@ -17,6 +17,8 @@ class PedidosVendedorApiRepository {
     : _client = client ?? http.Client(),
       _baseUrl = baseUrl;
   static final instancia = PedidosVendedorApiRepository();
+  final _datos = <int, Map<String, dynamic>>{};
+  Map<String, dynamic> datosDe(int id) => _datos[id] ?? const {};
   final http.Client _client;
   final String? _baseUrl;
   final ValueNotifier<int> _cambios = ValueNotifier(0);
@@ -83,6 +85,7 @@ class PedidosVendedorApiRepository {
   void _notificar() => _cambios.value++;
 
   Pedido pedidoDesdeJson(Map<String, dynamic> j) {
+    _datos[(j['id'] as num).toInt()] = j;
     final partes = <PedidoPuesto>[];
     for (final raw in (j['puestos'] as List? ?? const [])) {
       if (raw is! Map<String, dynamic>) continue;

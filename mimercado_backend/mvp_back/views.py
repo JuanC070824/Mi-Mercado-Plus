@@ -21,6 +21,7 @@ from .services import (put_item, guardar_item, cart_payload, change_item, checko
                        quote_total, lock_user)
 from .payments import pay_order
 from .money import cents
+from .finanzas import pagos_confirmados
 from .dni import (consultar_dni, firmar_consulta, leer_consulta,
                   DniNoEncontrado, DniServicioNoDisponible)
 
@@ -357,23 +358,26 @@ class VendedorInicioView(APIView):
             'responder_antes': parte.responder_antes,
         } for parte in activos[:20]]
 
+        partes = list(PedidoPuesto.objects.filter(puesto_id=puesto.pk).exclude(
+            estado__in=['rechazado', 'cancelado']).select_related('pedido'))
+        confirmados = pagos_confirmados([p.pedido_id for p in partes])
         hoy = timezone.localdate()
-        cotizaciones = list(CotizacionPuesto.objects.filter(
-            pedido_puesto__puesto_id=puesto.pk,
-            cotizacion__estado='aceptada',
-            pedido__creado_en__date=hoy,
-        ).values('id', 'tasa_comision'))
-        totales = {
-            fila['cotizacion_puesto_id']: fila['total'] or 0
-            for fila in CotizacionDetalle.objects.filter(
-                cotizacion_puesto_id__in=[fila['id'] for fila in cotizaciones],
-            ).values('cotizacion_puesto_id').annotate(total=Sum('subtotal'))
-        }
-        venta = sum(totales.values())
-        comision = sum(
-            totales.get(fila['id'], 0) * fila['tasa_comision']
-            for fila in cotizaciones
-        )
+        venta = comision = acumulado = pendiente = 0
+        for parte in partes:
+            pago = confirmados.get(parte.pedido_id, {})
+            monto = pago.get('puestos', {}).get(parte.pk, {})
+            neto = monto.get('recibes_centavos', 0)
+            if parte.estado == 'recogido':
+                acumulado += neto
+            else:
+                pendiente += neto
+            if timezone.localtime(parte.pedido.creado_en).date() == hoy:
+                venta += monto.get('ventas_centavos', 0)
+                comision += monto.get('comision_centavos', 0)
+        for pedido in pedidos:
+            pago = confirmados.get(pedido['id'], {})
+            pedido['pago_confirmado'] = bool(pago)
+            pedido['pago_metodo'] = pago.get('pago_metodo')
 
         return Response({
             'tiene_puesto': True,
@@ -400,9 +404,11 @@ class VendedorInicioView(APIView):
             },
             'pedidos_activos': pedidos,
             'resumen': {
-                'ventas_centavos': round(venta * 100),
-                'comision_centavos': round(comision * 100),
-                'recibes_centavos': round((venta - comision) * 100),
+                'ventas_centavos': venta,
+                'comision_centavos': comision,
+                'recibes_centavos': venta - comision,
+                'acumulado_centavos': acumulado,
+                'pendiente_entregar_centavos': pendiente,
             },
         })
 
@@ -553,6 +559,7 @@ def pedidos_payload(pedidos, quotes=None, partes_por_pedido=None):
             'pedido_detalle_id':d.pedido_detalle_id,'nombre_final':d.nombre_final,
             'cantidad_real':str(d.cantidad_real),'precio_unitario_centavos':cents(d.precio_unitario),
         })
+    confirmados=pagos_confirmados(ids)
     historial_por_pedido=defaultdict(list)
     for h in HistorialEstado.objects.filter(pedido_id__in=ids).order_by('creado_en','id'):
         historial_por_pedido[h.pedido_id].append(
@@ -581,6 +588,8 @@ def pedidos_payload(pedidos, quotes=None, partes_por_pedido=None):
             'cliente_nombre':' '.join(filter(None,[pedido.comprador.nombres,pedido.comprador.apellido_paterno])),
             'cliente_celular':pedido.celular_contacto,'mercado_id':pedido.mercado_id,
             'estado':pedido.estado,'metodo_pago':pedido.metodo_pago,
+            'pago_confirmado':pedido.pk in confirmados,
+            'pago_metodo':confirmados.get(pedido.pk,{}).get('pago_metodo'),
             'direccion':pedido.direccion_entrega,'referencia':pedido.referencia_entrega,
             'puestos':partes,'costo_envio_centavos':cents(quote.costo_envio if quote else 0),
             'historial':historial_por_pedido[pedido.pk],'codigo_entrega':'','cotizacion':cotizacion,

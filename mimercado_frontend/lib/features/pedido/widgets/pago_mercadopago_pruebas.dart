@@ -15,12 +15,17 @@ class PagoMercadoPagoPruebas extends StatefulWidget {
     required this.pedido,
     this.repository,
     this.abrirCheckout,
+    this.alConfirmarPago,
   });
 
-  static const habilitado = bool.fromEnvironment('MERCADOPAGO_PRUEBAS');
+  static const habilitado = bool.fromEnvironment(
+    'MERCADOPAGO_PRUEBAS',
+    defaultValue: true,
+  );
   final Pedido pedido;
   final MercadoPagoApiRepository? repository;
   final Future<bool> Function(Uri)? abrirCheckout;
+  final VoidCallback? alConfirmarPago;
 
   @override
   State<PagoMercadoPagoPruebas> createState() => _PagoMercadoPagoPruebasState();
@@ -34,6 +39,7 @@ class _PagoMercadoPagoPruebasState extends State<PagoMercadoPagoPruebas>
   bool _ocupado = false;
   String? _error;
   Timer? _refresco;
+  bool _confirmacionNotificada = false;
 
   bool get _listo =>
       _config?['configurado'] == true && _config?['entorno'] == 'prueba';
@@ -115,15 +121,29 @@ class _PagoMercadoPagoPruebasState extends State<PagoMercadoPagoPruebas>
     if (_listo) {
       final estado = await _repo.confirmar(widget.pedido.id);
       if (mounted) setState(() => _estado = estado);
+      _notificarConfirmacion(estado);
+      if (mounted && !_terminal) await _prepararDatos();
     }
   });
 
   Future<void> _consultar() => _hacer(() async {
     final estado = await _repo.confirmar(widget.pedido.id);
     if (mounted) setState(() => _estado = estado);
+    _notificarConfirmacion(estado);
   });
 
-  Future<void> _preparar() => _hacer(() async {
+  void _notificarConfirmacion(Map<String, dynamic> estado) {
+    if (mounted &&
+        estado['pago_interno_aprobado'] == true &&
+        !_confirmacionNotificada) {
+      _confirmacionNotificada = true;
+      widget.alConfirmarPago?.call();
+    }
+  }
+
+  Future<void> _preparar() => _hacer(_prepararDatos);
+
+  Future<void> _prepararDatos() async {
     final datos = await _repo.crearCheckout(widget.pedido.id);
     final link = datos['checkout_url'];
     final uri = link == null
@@ -135,7 +155,8 @@ class _PagoMercadoPagoPruebasState extends State<PagoMercadoPagoPruebas>
         _checkout = uri;
       });
     }
-  });
+    _notificarConfirmacion(datos);
+  }
 
   // Un segundo clic explícito abre el enlace ya creado. Evita que el navegador
   // bloquee una ventana nueva por esperar primero una respuesta HTTP.
@@ -160,26 +181,24 @@ class _PagoMercadoPagoPruebasState extends State<PagoMercadoPagoPruebas>
 
   String get _mensaje {
     if (_aprobado && _estado?['pago_interno_aprobado'] == true) {
-      return 'Pago de prueba confirmado y registrado. El pedido puede continuar con el repartidor cuando las bolsas estén preparadas.';
+      return 'Pago confirmado. Continuamos con la preparación y el reparto de tu pedido.';
     }
     if (_aprobado) {
       return 'Pago aprobado en Mercado Pago. Consulta de nuevo para completar su registro interno; no vuelvas a pagar.';
     }
     return switch (_estado?['estado']) {
       'created' =>
-        'Checkout preparado. Completa el pago de prueba y vuelve a esta pestaña para consultar el resultado.',
+        'El importe final está listo. Completa el pago para continuar con el reparto.',
       'processing' || 'action_required' =>
         'El pago requiere confirmación o una acción en Mercado Pago. Consulta su estado antes de volver a intentarlo.',
-      'failed' =>
-        'Mercado Pago rechazó la prueba. Puedes revisar el detalle en su panel.',
+      'failed' => 'El pago fue rechazado. Revisa el resultado en Mercado Pago.',
       'canceled' || 'expired' =>
-        'La prueba se canceló o venció. Revisa el panel de Mercado Pago.',
+        'El pago se canceló o venció. Revisa el resultado en Mercado Pago.',
       'refunded' || 'charged_back' =>
-        'La prueba tiene una devolución o contracargo. No se considera aprobada.',
+        'El pago tiene una devolución o contracargo y no se considera aprobado.',
       'processed' =>
-        'La order se procesó, pero no está íntegramente acreditada. Revisa el panel de Mercado Pago.',
-      'sin_iniciar' =>
-        'Todavía no has iniciado una prueba para este precio final.',
+        'El importe todavía no está completamente acreditado. Revisa el resultado en Mercado Pago.',
+      'sin_iniciar' => 'Completa el pago del precio final para continuar.',
       _ => 'Consulta el estado para comprobar el resultado en Mercado Pago.',
     };
   }
@@ -196,7 +215,7 @@ class _PagoMercadoPagoPruebasState extends State<PagoMercadoPagoPruebas>
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const Text(
-            'Mercado Pago de prueba',
+            'Paga con Mercado Pago',
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
           ),
           Text(
@@ -204,7 +223,7 @@ class _PagoMercadoPagoPruebasState extends State<PagoMercadoPagoPruebas>
             style: const TextStyle(fontSize: 27, fontWeight: FontWeight.w800),
           ),
           const Text(
-            'Usa únicamente la cuenta compradora, las tarjetas y los datos de prueba de Mercado Pago. Al verificar la aprobación se registra el pago y continúa el reparto.',
+            'Demostración académica · sin dinero real',
             style: TextStyle(fontSize: 17),
           ),
           const SizedBox(height: 12),
@@ -214,7 +233,7 @@ class _PagoMercadoPagoPruebasState extends State<PagoMercadoPagoPruebas>
             ),
           if (_config != null && !_listo)
             const Text(
-              'La prueba está desactivada o falta configurar sus credenciales en el servidor.',
+              'El pago en línea no está disponible en este momento. Inténtalo de nuevo.',
               style: TextStyle(fontSize: 17),
             ),
           if (_estado != null)
@@ -231,8 +250,8 @@ class _PagoMercadoPagoPruebasState extends State<PagoMercadoPagoPruebas>
                   : (_checkout == null ? _preparar : _abrir),
               child: Text(
                 _checkout == null
-                    ? 'Preparar pago de prueba'
-                    : 'Abrir Mercado Pago',
+                    ? 'Continuar al pago'
+                    : 'Pagar ${soles(widget.pedido.cotizacion?.totalCliente ?? 0)}',
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 20),
               ),
@@ -247,18 +266,15 @@ class _PagoMercadoPagoPruebasState extends State<PagoMercadoPagoPruebas>
                         ClipboardData(text: _checkout.toString()),
                       );
                       if (context.mounted) {
-                        avisar(
-                          context,
-                          'Enlace copiado. Ábrelo en una ventana de incógnito.',
-                        );
+                        avisar(context, 'Enlace de pago copiado.');
                       }
                     },
-              child: const Text('Copiar enlace de prueba'),
+              child: const Text('Copiar enlace de pago'),
             ),
           if (_listo)
             TextButton(
               onPressed: _ocupado ? null : _consultar,
-              child: const Text('Consultar estado del pago'),
+              child: const Text('Ya pagué, verificar'),
             ),
           if (_error != null)
             Semantics(
@@ -271,7 +287,7 @@ class _PagoMercadoPagoPruebasState extends State<PagoMercadoPagoPruebas>
           if (_config == null || !_listo)
             TextButton(
               onPressed: _ocupado ? null : _cargar,
-              child: const Text('Reintentar configuración'),
+              child: const Text('Reintentar'),
             ),
         ],
       ),

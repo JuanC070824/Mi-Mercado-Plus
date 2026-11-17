@@ -1,3 +1,4 @@
+import '../../../core/widgets/aviso_pago_pedido.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -65,6 +66,10 @@ class RepartidorEntregaView extends StatelessWidget {
             color: AppColors.textoSecundario,
           ),
         ),
+        AvisoPagoPedido(
+          datos: datos,
+          ganancia: (datos['ganancia_repartidor_centavos'] as num?)?.toInt(),
+        ),
         ...llegue ? _cobro(context) : _llegada(context),
       ],
     );
@@ -101,10 +106,11 @@ class RepartidorEntregaView extends StatelessWidget {
   List<Widget> _cobro(BuildContext context) {
     final pagado = datos['pago_aprobado'] == true;
     final enEfectivo = pedido.metodoPago == MetodoPago.efectivo;
+    final alRecibir = enEfectivo || pedido.metodoPago == MetodoPago.plin;
     final total = soles(pedido.cotizacion?.totalCliente ?? 0);
     return [
       TituloRepartidor(pedido.clienteNombre),
-      if (enEfectivo) ...[
+      if (alRecibir) ...[
         Text(
           'Cobra $total',
           style: const TextStyle(
@@ -120,7 +126,9 @@ class RepartidorEntregaView extends StatelessWidget {
             value: efectivo,
             onChanged: ocupado ? null : (v) => alCambiarEfectivo(v == true),
             title: Text(
-              'Recibí $total en efectivo',
+              enEfectivo
+                  ? 'Recibí $total en efectivo'
+                  : 'Recibí $total por Plin',
               style: const TextStyle(fontSize: 19),
             ),
             controlAffinity: ListTileControlAffinity.leading,
@@ -132,7 +140,7 @@ class RepartidorEntregaView extends StatelessWidget {
           child: EtiquetaEstado(
             texto: pagado
                 ? datos['pago_proveedor'] == 'mercadopago_prueba'
-                      ? 'Mercado Pago de prueba confirmado'
+                      ? 'Pago confirmado con Mercado Pago'
                       : datos['pago_simulado'] == true
                       ? 'Pago de demostración confirmado'
                       : 'El cliente ya pagó con Yape'
@@ -160,7 +168,7 @@ class RepartidorEntregaView extends StatelessWidget {
       ),
       AccionRepartidor(
         'Confirmar entrega',
-        enEfectivo && !efectivo || !enEfectivo && !pagado ? null : alConfirmar,
+        alRecibir && !efectivo || !alRecibir && !pagado ? null : alConfirmar,
         ocupado: ocupado,
       ),
       Align(

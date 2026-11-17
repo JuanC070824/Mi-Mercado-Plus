@@ -1,3 +1,4 @@
+import '../../../core/config/api_config.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../data/repositories/pedidos_api_repository.dart';
@@ -148,7 +149,15 @@ class _HojaPrecioState extends State<_HojaPrecio> {
         ),
         const SizedBox(height: 20),
         BotonPrincipal(
-          texto: 'Aceptar y continuar',
+          texto:
+              (ApiConfig.configurada &&
+                      const bool.fromEnvironment(
+                        'MERCADOPAGO_PRUEBAS',
+                        defaultValue: true,
+                      )) &&
+                  p.metodoPago == MetodoPago.yape
+              ? 'Aceptar precio y continuar al pago'
+              : 'Aceptar y continuar',
           cargando: _aceptando,
           onPressed: _aceptar,
         ),

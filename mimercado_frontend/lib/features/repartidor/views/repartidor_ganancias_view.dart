@@ -46,6 +46,33 @@ class RepartidorGananciasView extends StatelessWidget {
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       ResumenGananciasRepartidor(inicio: inicio),
+      const SizedBox(height: 12),
+      TarjetaApp(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Ganancias acumuladas',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+            ),
+            Text(
+              soles(
+                ((inicio['ganancia_acumulada_centavos'] as num?) ?? 0)
+                        .toDouble() /
+                    100,
+              ),
+              style: const TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.w800,
+                color: AppColors.azul,
+              ),
+            ),
+            const Text(
+              'Entregas completadas con pago confirmado. Registro interno; no representa un depósito bancario.',
+            ),
+          ],
+        ),
+      ),
       for (final j in inicio['historial_hoy'] as List? ?? [])
         Padding(
           padding: const EdgeInsets.only(top: 12),

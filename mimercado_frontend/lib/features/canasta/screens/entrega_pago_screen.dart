@@ -185,12 +185,23 @@ class _EntregaPagoScreenState extends State<EntregaPagoScreen> {
           OpcionElegible(
             titulo:
                 m == MetodoPago.yape &&
-                    const bool.fromEnvironment('MERCADOPAGO_PRUEBAS')
-                ? 'Mercado Pago de prueba'
+                    (ApiConfig.configurada &&
+                        const bool.fromEnvironment(
+                          'MERCADOPAGO_PRUEBAS',
+                          defaultValue: true,
+                        ))
+                ? 'Pago en línea · Mercado Pago'
                 : m.etiqueta,
             detalle: switch (m) {
               MetodoPago.efectivo => 'Pagas al repartidor cuando llegue',
-              MetodoPago.yape => 'Te guiamos paso a paso',
+              MetodoPago.yape =>
+                (ApiConfig.configurada &&
+                        const bool.fromEnvironment(
+                          'MERCADOPAGO_PRUEBAS',
+                          defaultValue: true,
+                        ))
+                    ? 'Paga después de aceptar el precio final; es necesario para iniciar el reparto'
+                    : 'Te guiamos paso a paso',
               MetodoPago.plin => 'Pagas al repartidor con Plin cuando llegue',
             },
             icono: switch (m) {
@@ -228,8 +239,12 @@ class _EntregaPagoScreenState extends State<EntregaPagoScreen> {
         ],
         BotonPrincipal(
           texto: _metodo == MetodoPago.yape
-              ? (const bool.fromEnvironment('MERCADOPAGO_PRUEBAS')
-                    ? 'Continuar con Mercado Pago'
+              ? ((ApiConfig.configurada &&
+                        const bool.fromEnvironment(
+                          'MERCADOPAGO_PRUEBAS',
+                          defaultValue: true,
+                        ))
+                    ? 'Enviar pedido y esperar el precio final'
                     : 'Continuar con Yape')
               : 'Confirmar pedido',
           cargando: _enviando,

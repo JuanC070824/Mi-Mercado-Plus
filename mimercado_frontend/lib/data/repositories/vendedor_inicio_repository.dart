@@ -85,6 +85,8 @@ class PedidoActivoVendedor {
     required this.estado,
     required this.creadoEn,
     this.responderAntes,
+    this.pagoConfirmado = false,
+    this.pagoMetodo,
   });
 
   final int id;
@@ -93,6 +95,8 @@ class PedidoActivoVendedor {
   final String estado;
   final DateTime creadoEn;
   final DateTime? responderAntes;
+  final bool pagoConfirmado;
+  final String? pagoMetodo;
 }
 
 class ResumenVendedor {
@@ -100,10 +104,14 @@ class ResumenVendedor {
     required this.ventas,
     required this.comision,
     required this.recibes,
+    this.acumulado = 0,
+    this.pendienteEntregar = 0,
   });
   final int ventas;
   final int comision;
   final int recibes;
+  final int acumulado;
+  final int pendienteEntregar;
 }
 
 class VendedorInicioApiRepository {
@@ -155,12 +163,16 @@ class VendedorInicioApiRepository {
           estado: _texto(pedido['estado']),
           creadoEn: DateTime.parse(_texto(pedido['creado_en'])),
           responderAntes: _fechaOpcional(pedido['responder_antes']),
+          pagoConfirmado: pedido['pago_confirmado'] == true,
+          pagoMetodo: pedido['pago_metodo'] as String?,
         );
       }).toList(),
       resumen: ResumenVendedor(
         ventas: _entero(resumen['ventas_centavos']),
         comision: _entero(resumen['comision_centavos']),
         recibes: _entero(resumen['recibes_centavos']),
+        acumulado: _entero(resumen['acumulado_centavos'] ?? 0),
+        pendienteEntregar: _entero(resumen['pendiente_entregar_centavos'] ?? 0),
       ),
     );
   }

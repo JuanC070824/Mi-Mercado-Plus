@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../core/config/api_config.dart';
 import '../../../data/repositories/pedidos_api_repository.dart';
+import '../../../data/repositories/mercadopago_api_repository.dart';
 import '../widgets/pago_yape_simulado.dart';
 import '../widgets/pago_mercadopago_pruebas.dart';
 import 'package:go_router/go_router.dart';
@@ -22,15 +23,22 @@ import '../widgets/precio_final_sheet.dart';
 /// C5 pesando · C5b confirmar precio final · C6 recojo · C7 en camino ·
 /// C7b repartidor afuera · C8 calificar. C9 (historial) desde el enlace.
 class MiPedidoScreen extends StatefulWidget {
-  const MiPedidoScreen({super.key, required this.usuario});
+  const MiPedidoScreen({
+    super.key,
+    required this.usuario,
+    this.repository,
+    this.pagosRepository,
+  });
   final Usuario usuario;
+  final PedidoRepository? repository;
+  final MercadoPagoApiRepository? pagosRepository;
 
   @override
   State<MiPedidoScreen> createState() => _MiPedidoScreenState();
 }
 
 class _MiPedidoScreenState extends State<MiPedidoScreen> {
-  final PedidoRepository _repo = pedidosApp;
+  late final PedidoRepository _repo = widget.repository ?? pedidosApp;
   Timer? _refresco;
   bool _consultando = false;
 
@@ -113,7 +121,12 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
   Future<void> _verPrecio(Pedido p) async {
     final acepto = await mostrarPrecioFinal(context, p);
     if (acepto && mounted) {
-      avisar(context, '¡Listo! Tus caseros ya empaquetan tu pedido.');
+      avisar(
+        context,
+        PagoMercadoPagoPruebas.habilitado && p.metodoPago == MetodoPago.yape
+            ? 'Precio aceptado. Continúa con el pago para que salga tu pedido.'
+            : '¡Listo! Tus caseros ya empaquetan tu pedido.',
+      );
     }
   }
 
@@ -145,6 +158,39 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
     if (p == null) return _sinPedido();
     if (p.estado == EstadoPedido.entregado) return _calificar(p); // C8
     final aceptado = p.cotizacion?.estado == EstadoCotizacion.aceptada;
+    final online =
+        ApiConfig.configurada &&
+        PagoMercadoPagoPruebas.habilitado &&
+        p.metodoPago == MetodoPago.yape;
+    final pagado =
+        _repo is PedidosApiRepository &&
+        _repo.datosDe(p.id)['pago_aprobado'] == true;
+    if (online && aceptado && !pagado && p.estado != EstadoPedido.cancelado) {
+      return RefreshIndicator(
+        onRefresh: _cargar,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+          children: [
+            const Text(
+              'Paso 3 · Paga tu pedido',
+              style: TextStyle(fontSize: 25, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Ya aceptaste el precio final. El pago es necesario para asignar un repartidor y continuar con la entrega.',
+              style: TextStyle(fontSize: 18),
+            ),
+            const SizedBox(height: 16),
+            PagoMercadoPagoPruebas(
+              key: ValueKey('mercadopago_${p.id}'),
+              pedido: p,
+              repository: widget.pagosRepository,
+              alConfirmarPago: _cargar,
+            ),
+          ],
+        ),
+      );
+    }
     final llego =
         p.estado == EstadoPedido.enCamino &&
         p.historial.isNotEmpty &&
@@ -165,9 +211,10 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
               p.metodoPago == MetodoPago.yape) ...[
             const SizedBox(height: 16),
             if (PagoMercadoPagoPruebas.habilitado)
-              PagoMercadoPagoPruebas(
-                key: ValueKey('mercadopago_${p.id}'),
-                pedido: p,
+              const EtiquetaEstado(
+                texto: 'Pago confirmado con Mercado Pago',
+                icono: Icons.check_circle,
+                tipo: TipoEstado.exito,
               )
             else
               PagoYapeSimulado(pedido: p, usuario: widget.usuario),
@@ -437,7 +484,7 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
             ? (_repo is PedidosApiRepository &&
                       _repo.datosDe(p.id)['pago_proveedor'] ==
                           'mercadopago_prueba'
-                  ? 'Mercado Pago de prueba confirmado'
+                  ? 'Pago confirmado con Mercado Pago'
                   : 'Ya pagaste con Yape')
             : 'Ten listo ${soles(total)} para pagar en ${p.metodoPago.etiqueta.toLowerCase()}',
         icono: p.metodoPago == MetodoPago.yape
