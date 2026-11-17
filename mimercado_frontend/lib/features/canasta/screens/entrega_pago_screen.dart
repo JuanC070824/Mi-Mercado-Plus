@@ -18,6 +18,8 @@ import '../widgets/acciones_canasta.dart';
 import '../widgets/opcion_elegible.dart';
 import '../widgets/pasos_compra.dart';
 
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
+
 /// C4 · Entrega y pago (Paso 2 de 3).
 class EntregaPagoScreen extends StatefulWidget {
   const EntregaPagoScreen({super.key, required this.usuario});
@@ -84,7 +86,7 @@ class _EntregaPagoScreenState extends State<EntregaPagoScreen> {
     return Scaffold(
       body: Column(
         children: [
-          const EncabezadoSimple(titulo: '¿Dónde y cómo te entregamos?'),
+          EncabezadoSimple(titulo: tr('¿Dónde y cómo te entregamos?')),
           Expanded(
             child: ValueListenableBuilder<Canasta>(
               valueListenable: canastaApp.canasta,
@@ -93,8 +95,8 @@ class _EntregaPagoScreenState extends State<EntregaPagoScreen> {
                 if (canasta.vacia) {
                   return AvisoPantalla(
                     icono: Icons.shopping_basket_outlined,
-                    titulo: 'Tu canasta está vacía',
-                    textoBoton: 'Ir al mercado',
+                    titulo: tr('Tu canasta está vacía'),
+                    textoBoton: tr('Ir al mercado'),
                     alTocar: () => context.go('/inicio'),
                   );
                 }
@@ -114,7 +116,7 @@ class _EntregaPagoScreenState extends State<EntregaPagoScreen> {
       children: [
         const PasosCompra(paso: 2),
         const SizedBox(height: 20),
-        const TituloSeccion('Dirección'),
+        TituloSeccion(tr('Dirección')),
         const SizedBox(height: 8),
         TarjetaApp(
           child: Row(
@@ -123,8 +125,10 @@ class _EntregaPagoScreenState extends State<EntregaPagoScreen> {
               const SizedBox(width: 12),
               Expanded(
                 child: dir == null
-                    ? const Text(
-                        'Aún no tienes una dirección. Agrégala en tu perfil.',
+                    ? Text(
+                        tr(
+                          'Aún no tienes una dirección. Agrégala en tu perfil.',
+                        ),
                         style: TextStyle(fontSize: 18),
                       )
                     : Column(
@@ -140,7 +144,7 @@ class _EntregaPagoScreenState extends State<EntregaPagoScreen> {
                           ),
                           if (dir.referencia != null)
                             Text(
-                              'Referencia: ${dir.referencia}',
+                              tr('Referencia: {0}', [dir.referencia]),
                               style: const TextStyle(
                                 fontSize: 16,
                                 color: AppColors.textoSecundario,
@@ -153,7 +157,7 @@ class _EntregaPagoScreenState extends State<EntregaPagoScreen> {
                 onPressed: () => context.go('/perfil'),
                 style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
                 child: Text(
-                  dir == null ? 'Agregar' : 'Cambiar',
+                  dir == null ? tr('Agregar') : tr('Cambiar'),
                   style: const TextStyle(fontSize: 18),
                 ),
               ),
@@ -161,33 +165,35 @@ class _EntregaPagoScreenState extends State<EntregaPagoScreen> {
           ),
         ),
         const SizedBox(height: 20),
-        const TituloSeccion('¿Cuándo?'),
+        TituloSeccion(tr('¿Cuándo?')),
         const SizedBox(height: 8),
         OpcionElegible(
-          titulo: 'Lo antes posible',
-          detalle: 'Llega en unos 40 minutos',
+          titulo: tr('Lo antes posible'),
+          detalle: tr('Llega en unos 40 minutos'),
           icono: Icons.bolt,
           elegida: true,
           onTap: () {},
         ),
         const SizedBox(height: 8),
-        const OpcionElegible(
-          titulo: 'Programar para más tarde',
-          detalle: 'Disponible muy pronto',
+        OpcionElegible(
+          titulo: tr('Programar para más tarde'),
+          detalle: tr('Disponible muy pronto'),
           icono: Icons.event_outlined,
           elegida: false,
           onTap: null,
         ),
         const SizedBox(height: 20),
-        const TituloSeccion('¿Cómo pagas?'),
+        TituloSeccion(tr('¿Cómo pagas?')),
         const SizedBox(height: 8),
         for (final m in MetodoPago.values) ...[
           OpcionElegible(
             titulo: m.etiqueta,
             detalle: switch (m) {
-              MetodoPago.efectivo => 'Pagas al repartidor cuando llegue',
-              MetodoPago.yape => 'Te guiamos paso a paso',
-              MetodoPago.plin => 'Pagas al repartidor con Plin cuando llegue',
+              MetodoPago.efectivo => tr('Pagas al repartidor cuando llegue'),
+              MetodoPago.yape => tr('Te guiamos paso a paso'),
+              MetodoPago.plin => tr(
+                'Pagas al repartidor con Plin cuando llegue',
+              ),
             },
             icono: switch (m) {
               MetodoPago.efectivo => Icons.payments_outlined,
@@ -200,17 +206,17 @@ class _EntregaPagoScreenState extends State<EntregaPagoScreen> {
           const SizedBox(height: 8),
         ],
         const SizedBox(height: 12),
-        const TituloSeccion('Resumen'),
+        TituloSeccion(tr('Resumen')),
         const SizedBox(height: 8),
         TarjetaApp(
           child: Column(
             children: [
               for (final g in c.grupos)
                 FilaMonto(etiqueta: g.puesto.nombre, monto: g.subtotal),
-              FilaMonto(etiqueta: 'Envío', monto: c.envio),
+              FilaMonto(etiqueta: tr('Envío'), monto: c.envio),
               const Divider(color: AppColors.divisor),
               FilaMonto(
-                etiqueta: 'Total estimado',
+                etiqueta: tr('Total estimado'),
                 monto: c.totalEstimado,
                 destacado: true,
               ),
@@ -224,8 +230,8 @@ class _EntregaPagoScreenState extends State<EntregaPagoScreen> {
         ],
         BotonPrincipal(
           texto: _metodo == MetodoPago.yape
-              ? 'Continuar con Yape'
-              : 'Confirmar pedido',
+              ? tr('Continuar con Yape')
+              : tr('Confirmar pedido'),
           cargando: _enviando,
           onPressed: dir == null ? null : _confirmar,
         ),

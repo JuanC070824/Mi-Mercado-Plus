@@ -22,6 +22,8 @@ import '../widgets/lo_que_siempre_pides.dart';
 import '../../canasta/widgets/acciones_canasta.dart';
 import '../widgets/selector_mercado_sheet.dart';
 
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
+
 class InicioScreen extends StatefulWidget {
   const InicioScreen({super.key, required this.usuario, this.voz});
   final Usuario usuario;
@@ -106,8 +108,9 @@ class _InicioScreenState extends State<InicioScreen> {
       if (!mounted || id != _consultaId) return;
       setState(() {
         _cargando = false;
-        _errorCarga =
-            'No pudimos cargar los caseros. Revisa tu conexión e inténtalo de nuevo.';
+        _errorCarga = tr(
+          'No pudimos cargar los caseros. Revisa tu conexión e inténtalo de nuevo.',
+        );
       });
     }
   }
@@ -129,7 +132,9 @@ class _InicioScreenState extends State<InicioScreen> {
       f.puesto,
       () => canastaApp.agregar(f.puesto, f.producto),
     );
-    if (ok && mounted) _aviso('Agregamos ${f.producto.nombre} a tu canasta.');
+    if (ok && mounted) {
+      _aviso(tr('Agregamos {0} a tu canasta.', [f.producto.nombre]));
+    }
   }
 
   void _aviso(String texto) {
@@ -155,11 +160,11 @@ class _InicioScreenState extends State<InicioScreen> {
     if (mercadoCanasta != null && mercadoCanasta != r.mercado.id) {
       final seguir = await confirmar(
         context,
-        titulo: '¿Cambiar de mercado?',
-        texto:
-            'Tu canasta tiene productos de otro mercado. '
-            'Si cambias de mercado, se vaciará tu canasta.',
-        textoSi: 'Sí, vaciar y cambiar',
+        titulo: tr('¿Cambiar de mercado?'),
+        texto: tr(
+          'Tu canasta tiene productos de otro mercado. Si cambias de mercado, se vaciará tu canasta.',
+        ),
+        textoSi: tr('Sí, vaciar y cambiar'),
       );
       if (!seguir || !mounted) return false;
       await canasta.vaciar();
@@ -176,7 +181,7 @@ class _InicioScreenState extends State<InicioScreen> {
   Future<void> _tocarCategoria(CategoriaPuesto c) async {
     if (_seleccion == null) {
       final ok = await _elegirMercado(
-        mensaje: 'Elige tu mercado para ver ${c.nombre.toLowerCase()}.',
+        mensaje: tr('Elige tu mercado para ver {0}.', [c.nombre.toLowerCase()]),
       );
       if (!ok) return;
       setState(() => _categoria = c);
@@ -188,8 +193,9 @@ class _InicioScreenState extends State<InicioScreen> {
 
   Future<void> _pedirMercadoParaBuscar() async {
     final ok = await _elegirMercado(
-      mensaje:
-          'Primero elige tu mercado: la búsqueda funciona dentro del mercado que selecciones.',
+      mensaje: tr(
+        'Primero elige tu mercado: la búsqueda funciona dentro del mercado que selecciones.',
+      ),
     );
     if (ok) _cargarPuestos();
   }
@@ -200,7 +206,9 @@ class _InicioScreenState extends State<InicioScreen> {
     if (!await voz.preparar()) {
       if (mounted) {
         _aviso(
-          'No pudimos usar el micrófono. Revisa el permiso o escribe tu búsqueda.',
+          tr(
+            'No pudimos usar el micrófono. Revisa el permiso o escribe tu búsqueda.',
+          ),
         );
       }
       return;
@@ -263,8 +271,8 @@ class _InicioScreenState extends State<InicioScreen> {
                       const SizedBox(height: 28),
                       Semantics(
                         header: true,
-                        child: const Text(
-                          '¿Qué necesitas hoy?',
+                        child: Text(
+                          tr('¿Qué necesitas hoy?'),
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.w800,
@@ -328,20 +336,26 @@ class _InicioScreenState extends State<InicioScreen> {
 
   String _titulo() {
     final texto = _busqueda.text.trim();
-    if (texto.isNotEmpty) return 'Resultados para “$texto”';
+    if (texto.isNotEmpty) return tr('Resultados para “{0}”', [texto]);
     if (_categoria != null) return _categoria!.nombre;
-    return 'Tus caseros más queridos';
+    return tr('Tus caseros más queridos');
   }
 
   String _subtitulo() {
     final sel = _seleccion;
-    if (_cargando) return 'Buscando…';
+    if (_cargando) return tr('Buscando…');
     if (sel == null) {
-      return 'De todos los mercados. Elige uno para filtrar por rubro y buscar.';
+      return tr(
+        'De todos los mercados. Elige uno para filtrar por rubro y buscar.',
+      );
     }
-    if (!_hayFiltros) return 'En ${sel.mercado.nombre}';
+    if (!_hayFiltros) return tr('En {0}', [sel.mercado.nombre]);
     final n = _puestos.length;
-    return '$n ${n == 1 ? 'casero encontrado' : 'caseros encontrados'} en ${sel.mercado.nombre}';
+    return tr('{0} {1} en {2}', [
+      n,
+      n == 1 ? tr('casero encontrado') : tr('caseros encontrados'),
+      sel.mercado.nombre,
+    ]);
   }
 
   Widget _seccionCaseros() {
@@ -349,10 +363,12 @@ class _InicioScreenState extends State<InicioScreen> {
 
     final Widget contenido;
     if (_cargando) {
-      contenido = const Padding(
+      contenido = Padding(
         padding: EdgeInsets.symmetric(vertical: 32),
         child: Center(
-          child: CircularProgressIndicator(semanticsLabel: 'Cargando caseros'),
+          child: CircularProgressIndicator(
+            semanticsLabel: tr('Cargando caseros'),
+          ),
         ),
       );
     } else if (_errorCarga != null) {
@@ -360,7 +376,7 @@ class _InicioScreenState extends State<InicioScreen> {
         children: [
           MensajeError(_errorCarga!),
           const SizedBox(height: 12),
-          BotonSecundario(texto: 'Reintentar', onPressed: _cargarPuestos),
+          BotonSecundario(texto: tr('Reintentar'), onPressed: _cargarPuestos),
         ],
       );
     } else if (_puestos.isEmpty) {
@@ -369,13 +385,20 @@ class _InicioScreenState extends State<InicioScreen> {
           Semantics(
             liveRegion: true,
             child: Text(
-              'No encontramos caseros${sel == null ? '' : ' en ${sel.mercado.nombre}'} '
-              'con esos datos. Prueba con otro rubro o con otra palabra.',
+              tr(
+                'No encontramos caseros{0} con esos datos. Prueba con otro rubro o con otra palabra.',
+                [
+                  sel == null ? '' : tr(' en {0}', [sel.mercado.nombre]),
+                ],
+              ),
               style: const TextStyle(fontSize: 18, color: AppColors.texto),
             ),
           ),
           const SizedBox(height: 12),
-          BotonSecundario(texto: 'Quitar filtros', onPressed: _quitarFiltros),
+          BotonSecundario(
+            texto: tr('Quitar filtros'),
+            onPressed: _quitarFiltros,
+          ),
         ],
       );
     } else {
@@ -417,8 +440,8 @@ class _InicioScreenState extends State<InicioScreen> {
               TextButton(
                 onPressed: _quitarFiltros,
                 style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
-                child: const Text(
-                  'Quitar filtros',
+                child: Text(
+                  tr('Quitar filtros'),
                   style: TextStyle(fontSize: 17, color: AppColors.azul),
                 ),
               ),
@@ -456,9 +479,11 @@ class _TarjetaMiCanasta extends StatelessWidget {
           padding: const EdgeInsets.only(top: 4),
           child: Semantics(
             button: true,
-            label:
-                'Mi canasta: $n ${n == 1 ? 'producto' : 'productos'}, '
-                '${soles(c.totalProductos)}. Ver canasta',
+            label: tr('Mi canasta: {0} {1}, {2}. Ver canasta', [
+              n,
+              n == 1 ? tr('producto') : tr('productos'),
+              soles(c.totalProductos),
+            ]),
             excludeSemantics: true,
             child: InkWell(
               onTap: () => context.go('/canasta'),
@@ -480,7 +505,10 @@ class _TarjetaMiCanasta extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Mi canasta · $n ${n == 1 ? 'producto' : 'productos'}',
+                            tr('Mi canasta · {0} {1}', [
+                              n,
+                              n == 1 ? tr('producto') : tr('productos'),
+                            ]),
                             style: const TextStyle(
                               fontSize: 18,
                               color: AppColors.texto,

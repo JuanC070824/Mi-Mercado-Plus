@@ -3,6 +3,8 @@ import '../../../core/theme/app_colors.dart';
 import '../../../data/models/mercado.dart';
 import '../../../data/models/puesto.dart';
 
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
+
 /// Imagen del rubro; si el archivo no existe, muestra un ícono.
 class ImagenCategoria extends StatelessWidget {
   const ImagenCategoria(this.categoria, {super.key, this.tamano = 64});
@@ -134,8 +136,11 @@ class BarraMercado extends StatelessWidget {
       onTap: onTap,
       excludeSemantics: true,
       label: m == null
-          ? 'Selecciona tu mercado'
-          : 'Mercado seleccionado: ${m.nombre}. ${distanciaTexto ?? ''} Toca para cambiar.',
+          ? tr('Selecciona tu mercado')
+          : tr('Mercado seleccionado: {0}. {1} Toca para cambiar.', [
+              m.nombre,
+              distanciaTexto ?? '',
+            ]),
       child: Material(
         color: AppColors.blanco,
         clipBehavior: Clip.antiAlias,
@@ -160,8 +165,8 @@ class BarraMercado extends StatelessWidget {
                   ],
                   Expanded(
                     child: m == null
-                        ? const Text(
-                            'Selecciona tu mercado',
+                        ? Text(
+                            tr('Selecciona tu mercado'),
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.w600,
@@ -198,8 +203,8 @@ class BarraMercado extends StatelessWidget {
                           color: AppColors.azul,
                           size: 28,
                         )
-                      : const Text(
-                          'Cambiar',
+                      : Text(
+                          tr('Cambiar'),
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
@@ -234,16 +239,20 @@ class TarjetaCasero extends StatelessWidget {
     final p = puesto;
     final nota = p.calificacion.toStringAsFixed(1);
     final textoResenas =
-        '${p.resenas} ${p.resenas == 1 ? 'reseña' : 'reseñas'}';
+        '${p.resenas} ${p.resenas == 1 ? tr('reseña') : tr('reseñas')}';
 
     return Semantics(
       button: true,
       onTap: onTap,
       excludeSemantics: true,
-      label:
-          '${p.nombre}. Casero ${p.casero}. Calificación $nota de 5, '
-          '$textoResenas. ${p.abierto ? 'Abierto' : 'Cerrado'}.'
-          '${nombreMercado == null ? '' : ' $nombreMercado.'}',
+      label: tr('{0}. Casero {1}. Calificación {2} de 5, {3}. {4}.{5}', [
+        p.nombre,
+        p.casero,
+        nota,
+        textoResenas,
+        p.abierto ? tr('Abierto') : tr('Cerrado'),
+        nombreMercado == null ? '' : ' $nombreMercado.',
+      ]),
       child: Material(
         color: AppColors.blanco,
         clipBehavior: Clip.antiAlias,
@@ -283,7 +292,7 @@ class TarjetaCasero extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        'Casero: ${p.casero}',
+                        tr('Casero: {0}', [p.casero]),
                         style: const TextStyle(
                           fontSize: 17,
                           color: AppColors.textoSecundario,
@@ -345,7 +354,7 @@ class TarjetaCasero extends StatelessWidget {
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                p.abierto ? 'Abierto' : 'Cerrado',
+                                p.abierto ? tr('Abierto') : tr('Cerrado'),
                                 style: TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w700,

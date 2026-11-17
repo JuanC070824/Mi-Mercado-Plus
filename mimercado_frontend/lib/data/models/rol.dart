@@ -1,3 +1,5 @@
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
+
 enum Rol {
   cliente('Cliente', 'comprador'),
   repartidor('Repartidor', 'repartidor'),
@@ -9,8 +11,11 @@ enum Rol {
   /// Los tres perfiles que se eligen en la bienvenida.
   static const publicos = [cliente, repartidor, comerciante];
 
-  const Rol(this.etiqueta, this.codigoBd);
-  final String etiqueta;
+  const Rol(this._etiqueta, this.codigoBd);
+  final String _etiqueta;
+
+  /// Se traduce al idioma elegido cada vez que se muestra.
+  String get etiqueta => tr(_etiqueta);
 
   /// Coincide con roles.codigo en la base de datos.
   final String codigoBd;

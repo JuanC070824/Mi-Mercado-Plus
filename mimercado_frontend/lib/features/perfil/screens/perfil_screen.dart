@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/state/accesibilidad_state.dart';
+import '../../../core/widgets/selector_idioma.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/ubicacion_service.dart';
 import '../../../core/utils/validators.dart';
@@ -16,6 +17,8 @@ import '../../casero/widgets/preferencias_vendedor.dart';
 import '../../repartidor/widgets/movilidad_repartidor.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../data/repositories/auth_api_repository.dart';
+
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
 
 enum _EstadoUbicacion { inicial, buscando, listo, error }
 
@@ -65,7 +68,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
   String _gReferencia = '';
 
   // Dirección
-  String _etiqueta = 'Casa';
+  String _etiqueta = tr('Casa');
   bool _cargandoDir = true;
   double? _latitud;
   double? _longitud;
@@ -157,7 +160,9 @@ class _PerfilScreenState extends State<PerfilScreen> {
     final t = v?.trim() ?? '';
     if (t.isEmpty) {
       return _gDireccion.isNotEmpty
-          ? 'La dirección no puede quedar vacía. Escribe otra o usa tu ubicación.'
+          ? tr(
+              'La dirección no puede quedar vacía. Escribe otra o usa tu ubicación.',
+            )
           : null;
     }
     return Validadores.direccionOpcional(t);
@@ -165,7 +170,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
 
   String? _validarReferencia(String? v) {
     if ((v ?? '').trim().isNotEmpty && _ctrlDireccion.text.trim().isEmpty) {
-      return 'Primero escribe tu dirección.';
+      return tr('Primero escribe tu dirección.');
     }
     return null;
   }
@@ -187,8 +192,12 @@ class _PerfilScreenState extends State<PerfilScreen> {
         _textoConCoordenadas = _ctrlDireccion.text.trim();
         _estadoUbicacion = _EstadoUbicacion.listo;
         _mensajeUbicacion = u.direccion != null
-            ? 'Encontramos tu ubicación. Revisa la dirección y corrígela si hace falta.'
-            : 'Guardamos tu ubicación, pero no pudimos obtener la calle. Escríbela tú.';
+            ? tr(
+                'Encontramos tu ubicación. Revisa la dirección y corrígela si hace falta.',
+              )
+            : tr(
+                'Guardamos tu ubicación, pero no pudimos obtener la calle. Escríbela tú.',
+              );
       });
     } on UbicacionException catch (e) {
       if (!mounted) return;
@@ -205,8 +214,9 @@ class _PerfilScreenState extends State<PerfilScreen> {
     setState(() => _errorGuardar = null);
     if (!_formKey.currentState!.validate()) {
       setState(
-        () => _errorGuardar =
-            'Revisa los campos marcados en rojo para continuar.',
+        () => _errorGuardar = tr(
+          'Revisa los campos marcados en rojo para continuar.',
+        ),
       );
       return;
     }
@@ -266,12 +276,14 @@ class _PerfilScreenState extends State<PerfilScreen> {
         _estadoUbicacion = _EstadoUbicacion.inicial;
         _mensajeUbicacion = null;
       });
-      _aviso('Cambios guardados.');
+      _aviso(tr('Cambios guardados.'));
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _guardando = false;
-        _errorGuardar = 'No pudimos guardar tus cambios. Inténtalo de nuevo.';
+        _errorGuardar = tr(
+          'No pudimos guardar tus cambios. Inténtalo de nuevo.',
+        );
       });
     }
   }
@@ -284,13 +296,15 @@ class _PerfilScreenState extends State<PerfilScreen> {
       barrierDismissible: false,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Confirma el cambio de celular'),
+          title: Text(tr('Confirma el cambio de celular')),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Usarás el nuevo número para iniciar sesión. Escribe tu contraseña actual para continuar.',
+              Text(
+                tr(
+                  'Usarás el nuevo número para iniciar sesión. Escribe tu contraseña actual para continuar.',
+                ),
               ),
               const SizedBox(height: 16),
               TextField(
@@ -298,14 +312,14 @@ class _PerfilScreenState extends State<PerfilScreen> {
                 obscureText: true,
                 autofocus: true,
                 decoration: InputDecoration(
-                  labelText: 'Contraseña actual',
+                  labelText: tr('Contraseña actual'),
                   errorText: error,
                   border: const OutlineInputBorder(),
                 ),
                 onSubmitted: (_) {
                   if (controller.text.isEmpty) {
                     setDialogState(
-                      () => error = 'Escribe tu contraseña actual.',
+                      () => error = tr('Escribe tu contraseña actual.'),
                     );
                   } else {
                     Navigator.of(dialogContext).pop(controller.text);
@@ -317,17 +331,19 @@ class _PerfilScreenState extends State<PerfilScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancelar'),
+              child: Text(tr('Cancelar')),
             ),
             FilledButton(
               onPressed: () {
                 if (controller.text.isEmpty) {
-                  setDialogState(() => error = 'Escribe tu contraseña actual.');
+                  setDialogState(
+                    () => error = tr('Escribe tu contraseña actual.'),
+                  );
                 } else {
                   Navigator.of(dialogContext).pop(controller.text);
                 }
               },
-              child: const Text('Confirmar'),
+              child: Text(tr('Confirmar')),
             ),
           ],
         ),
@@ -346,7 +362,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
       );
     } catch (_) {
       if (!mounted) return;
-      _aviso('No pudimos guardar tus preferencias.');
+      _aviso(tr('No pudimos guardar tus preferencias.'));
     }
   }
 
@@ -368,8 +384,8 @@ class _PerfilScreenState extends State<PerfilScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.fondo,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-        title: const Text(
-          '¿Seguro que quieres cerrar sesión?',
+        title: Text(
+          tr('¿Seguro que quieres cerrar sesión?'),
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.w800,
@@ -380,14 +396,15 @@ class _PerfilScreenState extends State<PerfilScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-              'Saldrás de tu cuenta y tendrás que ingresar de nuevo con tu '
-              'celular y tu contraseña.',
+            Text(
+              tr(
+                'Saldrás de tu cuenta y tendrás que ingresar de nuevo con tu celular y tu contraseña.',
+              ),
               style: TextStyle(fontSize: 18, color: AppColors.texto),
             ),
             const SizedBox(height: 20),
             BotonSecundario(
-              texto: 'Cancelar',
+              texto: tr('Cancelar'),
               onPressed: () => Navigator.of(ctx).pop(false),
             ),
             const SizedBox(height: 12),
@@ -400,8 +417,8 @@ class _PerfilScreenState extends State<PerfilScreen> {
                   foregroundColor: AppColors.blanco,
                   shape: const StadiumBorder(),
                 ),
-                child: const Text(
-                  'Sí, cerrar sesión',
+                child: Text(
+                  tr('Sí, cerrar sesión'),
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
                 ),
               ),
@@ -472,8 +489,8 @@ class _PerfilScreenState extends State<PerfilScreen> {
                               ),
                               shape: const StadiumBorder(),
                             ),
-                            child: const Text(
-                              'Cerrar sesión',
+                            child: Text(
+                              tr('Cerrar sesión'),
                               style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.w700,
@@ -497,36 +514,38 @@ class _PerfilScreenState extends State<PerfilScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const _TituloSeccion('Mi información', Icons.badge_outlined),
+        _TituloSeccion(tr('Mi información'), Icons.badge_outlined),
         const SizedBox(height: 4),
-        const Text(
-          'Tu nombre es el que viene en tu DNI. Si hay un error, escribe a Soporte.',
+        Text(
+          tr(
+            'Tu nombre es el que viene en tu DNI. Si hay un error, escribe a Soporte.',
+          ),
           style: TextStyle(fontSize: 17, color: AppColors.textoSecundario),
         ),
         const SizedBox(height: 14),
         CampoTextoApp(
-          etiqueta: 'Nombres',
+          etiqueta: tr('Nombres'),
           controller: _ctrlNombres,
           soloLectura: true,
         ),
         const SizedBox(height: 14),
         CampoTextoApp(
-          etiqueta: 'Apellido paterno',
+          etiqueta: tr('Apellido paterno'),
           controller: _ctrlPaterno,
-          hint: 'No registrado',
+          hint: tr('No registrado'),
           soloLectura: true,
         ),
         const SizedBox(height: 14),
         CampoTextoApp(
-          etiqueta: 'Apellido materno',
+          etiqueta: tr('Apellido materno'),
           controller: _ctrlMaterno,
-          hint: 'No registrado',
+          hint: tr('No registrado'),
           soloLectura: true,
         ),
         const SizedBox(height: 14),
         CampoTextoApp(
-          etiqueta: 'Celular',
-          hint: '9 dígitos',
+          etiqueta: tr('Celular'),
+          hint: tr('9 dígitos'),
           prefijo: '+51 ',
           controller: _ctrlCelular,
           teclado: TextInputType.phone,
@@ -538,7 +557,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
         ),
         const SizedBox(height: 14),
         CampoTextoApp(
-          etiqueta: 'Correo (opcional)',
+          etiqueta: tr('Correo (opcional)'),
           hint: 'nombre@correo.com',
           controller: _ctrlCorreo,
           teclado: TextInputType.emailAddress,
@@ -553,11 +572,11 @@ class _PerfilScreenState extends State<PerfilScreen> {
   Widget _seccionDireccion() {
     final Widget contenido;
     if (_cargandoDir) {
-      contenido = const Padding(
+      contenido = Padding(
         padding: EdgeInsets.symmetric(vertical: 24),
         child: Center(
           child: CircularProgressIndicator(
-            semanticsLabel: 'Cargando dirección',
+            semanticsLabel: tr('Cargando dirección'),
           ),
         ),
       );
@@ -581,16 +600,16 @@ class _PerfilScreenState extends State<PerfilScreen> {
             ),
           const SizedBox(height: 14),
           CampoTextoApp(
-            etiqueta: 'Dirección principal',
-            hint: 'Av. Principal 123, Surquillo',
+            etiqueta: tr('Dirección principal'),
+            hint: tr('Av. Principal 123, Surquillo'),
             controller: _ctrlDireccion,
             icono: Icons.home_outlined,
             validator: _validarDireccion,
           ),
           const SizedBox(height: 14),
           CampoTextoApp(
-            etiqueta: 'Referencia (opcional)',
-            hint: 'Ej.: portón verde, cerca a la juguería',
+            etiqueta: tr('Referencia (opcional)'),
+            hint: tr('Ej.: portón verde, cerca a la juguería'),
             controller: _ctrlReferencia,
             maxLongitud: 120,
             mostrarContador: true,
@@ -605,7 +624,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const _TituloSeccion('Dirección', Icons.home_outlined),
+        _TituloSeccion(tr('Dirección'), Icons.home_outlined),
         const SizedBox(height: 12),
         contenido,
       ],
@@ -619,18 +638,20 @@ class _PerfilScreenState extends State<PerfilScreen> {
       child: OutlinedButton.icon(
         onPressed: buscando ? null : _usarUbicacion,
         icon: buscando
-            ? const SizedBox(
+            ? SizedBox(
                 width: 22,
                 height: 22,
                 child: CircularProgressIndicator(
                   strokeWidth: 3,
                   color: AppColors.azul,
-                  semanticsLabel: 'Buscando ubicación',
+                  semanticsLabel: tr('Buscando ubicación'),
                 ),
               )
             : const Icon(Icons.my_location),
         label: Text(
-          buscando ? 'Buscando tu ubicación…' : 'Usar mi ubicación actual',
+          buscando
+              ? tr('Buscando tu ubicación…')
+              : tr('Usar mi ubicación actual'),
           style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
         ),
         style: OutlinedButton.styleFrom(
@@ -664,7 +685,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
                 const SizedBox(height: 12),
               ],
               BotonPrincipal(
-                texto: 'Guardar cambios',
+                texto: tr('Guardar cambios'),
                 cargando: _guardando,
                 onPressed: _guardarCambios,
               ),
@@ -678,20 +699,29 @@ class _PerfilScreenState extends State<PerfilScreen> {
   Widget _seccionPreferencias() {
     if (widget.usuario.rol == Rol.comerciante ||
         widget.usuario.rol == Rol.repartidor) {
-      return PreferenciasVendedor(
-        usuario: widget.usuario,
-        onActualizado: widget.onUsuarioActualizado,
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const FilaIdioma(),
+          const SizedBox(height: 16),
+          PreferenciasVendedor(
+            usuario: widget.usuario,
+            onActualizado: widget.onUsuarioActualizado,
+          ),
+        ],
       );
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const _TituloSeccion('Preferencias', Icons.tune),
+        _TituloSeccion(tr('Preferencias'), Icons.tune),
+        const SizedBox(height: 12),
+        const FilaIdioma(),
         const SizedBox(height: 12),
         ValueListenableBuilder<bool>(
           valueListenable: AccesibilidadState.letraGrande,
           builder: (context, grande, _) => _FilaPreferencia(
-            titulo: 'Letra grande',
+            titulo: tr('Letra grande'),
             icono: Icons.format_size,
             valor: grande,
             onChanged: (_) => AccesibilidadState.alternarLetra(),
@@ -699,14 +729,14 @@ class _PerfilScreenState extends State<PerfilScreen> {
         ),
         const SizedBox(height: 12),
         _FilaPreferencia(
-          titulo: 'Sonido',
+          titulo: tr('Sonido'),
           icono: Icons.volume_up_outlined,
           valor: _sonido,
           onChanged: _cambiarSonido,
         ),
         const SizedBox(height: 12),
         _FilaPreferencia(
-          titulo: 'Vibración',
+          titulo: tr('Vibración'),
           icono: Icons.vibration,
           valor: _vibracion,
           onChanged: _cambiarVibracion,
@@ -742,7 +772,7 @@ class _EncabezadoPerfil extends StatelessWidget {
                 children: [
                   if (mostrarAtras)
                     IconButton(
-                      tooltip: 'Volver a Mi puesto',
+                      tooltip: tr('Volver a Mi puesto'),
                       onPressed: () => context.pop(),
                       icon: const Icon(
                         Icons.arrow_back,
@@ -759,8 +789,8 @@ class _EncabezadoPerfil extends StatelessWidget {
                       Icons.headset_mic_outlined,
                       color: AppColors.blanco,
                     ),
-                    label: const Text(
-                      'Soporte',
+                    label: Text(
+                      tr('Soporte'),
                       style: TextStyle(
                         color: AppColors.blanco,
                         fontSize: 16,
@@ -771,21 +801,21 @@ class _EncabezadoPerfil extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 4),
-              const CircleAvatar(
+              CircleAvatar(
                 radius: 60,
                 backgroundColor: AppColors.fondo,
                 child: Icon(
                   Icons.account_circle_outlined,
                   size: 96,
                   color: AppColors.azul,
-                  semanticLabel: 'Ícono de perfil',
+                  semanticLabel: tr('Ícono de perfil'),
                 ),
               ),
               const SizedBox(height: 12),
               Semantics(
                 header: true,
-                child: const Text(
-                  'Mi Perfil',
+                child: Text(
+                  tr('Mi Perfil'),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: AppColors.blanco,
@@ -949,7 +979,7 @@ class _FilaPreferencia extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          valor ? 'Activada' : 'Desactivada',
+                          valor ? tr('Activada') : tr('Desactivada'),
                           style: const TextStyle(
                             fontSize: 16,
                             color: AppColors.textoSecundario,

@@ -11,6 +11,8 @@ import '../../../data/repositories/canasta_api_repository.dart';
 import '../../../data/repositories/canasta_repository.dart';
 import '../../../data/repositories/pedidos_api_repository.dart';
 
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
+
 /// C9 · Mis pedidos (historial).
 class HistorialScreen extends StatefulWidget {
   const HistorialScreen({super.key, required this.usuario, this.canasta});
@@ -39,8 +41,8 @@ class _HistorialScreenState extends State<HistorialScreen> {
       avisar(
         context,
         omitidos.isEmpty
-            ? 'Listo, pusimos tus productos en la canasta.'
-            : 'Pusimos lo disponible. No hay: ${omitidos.join(', ')}.',
+            ? tr('Listo, pusimos tus productos en la canasta.')
+            : tr('Pusimos lo disponible. No hay: {0}.', [omitidos.join(', ')]),
       );
       context.go('/canasta');
     } on CanastaException catch (e) {
@@ -55,20 +57,20 @@ class _HistorialScreenState extends State<HistorialScreen> {
     return Scaffold(
       body: Column(
         children: [
-          const EncabezadoSimple(titulo: 'Mis pedidos'),
+          EncabezadoSimple(titulo: tr('Mis pedidos')),
           Expanded(
             child: FutureBuilder<List<Pedido>>(
               future: _pedidos,
               builder: (context, snap) {
                 if (snap.connectionState != ConnectionState.done) {
-                  return const CargandoApp(texto: 'Cargando tus pedidos…');
+                  return CargandoApp(texto: tr('Cargando tus pedidos…'));
                 }
                 if (snap.hasError) {
                   return AvisoPantalla(
                     icono: Icons.wifi_off,
-                    titulo: 'No pudimos cargar tus pedidos',
+                    titulo: tr('No pudimos cargar tus pedidos'),
                     esError: true,
-                    textoBoton: 'Reintentar',
+                    textoBoton: tr('Reintentar'),
                     alTocar: () => setState(() {
                       _pedidos = pedidosApp.pedidosCliente(
                         widget.usuario.celular,
@@ -78,9 +80,9 @@ class _HistorialScreenState extends State<HistorialScreen> {
                 }
                 final lista = snap.data!;
                 if (lista.isEmpty) {
-                  return const AvisoPantalla(
+                  return AvisoPantalla(
                     icono: Icons.receipt_long_outlined,
-                    titulo: 'Aún no tienes pedidos',
+                    titulo: tr('Aún no tienes pedidos'),
                   );
                 }
                 return ListView.separated(
@@ -142,8 +144,8 @@ class _TarjetaHistorial extends StatelessWidget {
                       child: CircularProgressIndicator(strokeWidth: 2.5),
                     )
                   : const Icon(Icons.replay),
-              label: const Text(
-                'Volver a pedir',
+              label: Text(
+                tr('Volver a pedir'),
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
               ),
             ),
@@ -160,7 +162,7 @@ class _TarjetaHistorial extends StatelessWidget {
         children: [
           Expanded(
             child: Text(
-              'Mi pedido',
+              tr('Mi pedido'),
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
             ),
           ),

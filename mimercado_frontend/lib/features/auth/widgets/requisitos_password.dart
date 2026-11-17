@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/validators.dart';
 
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
+
 //ESTOS WIDGETS SOLO LOS USA LA CARPETA AUTH, NO SON COMO LOS QUE SE VEN EN LA CARPETA CORE QUE ES GENERAL
 
 class RequisitosPassword extends StatelessWidget {
@@ -17,9 +19,9 @@ class RequisitosPassword extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _Requisito('Mínimo 8 caracteres', Validadores.tieneMinimo(p)),
-            _Requisito('Al menos una letra', Validadores.tieneLetra(p)),
-            _Requisito('Al menos un número', Validadores.tieneNumero(p)),
+            _Requisito(tr('Mínimo 8 caracteres'), Validadores.tieneMinimo(p)),
+            _Requisito(tr('Al menos una letra'), Validadores.tieneLetra(p)),
+            _Requisito(tr('Al menos un número'), Validadores.tieneNumero(p)),
           ],
         );
       },
@@ -36,7 +38,7 @@ class _Requisito extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = cumplido ? AppColors.exito : AppColors.textoSecundario;
     return Semantics(
-      label: '$texto: ${cumplido ? 'cumplido' : 'pendiente'}',
+      label: '$texto: ${cumplido ? tr('cumplido') : tr('pendiente')}',
       child: ExcludeSemantics(
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 2),
