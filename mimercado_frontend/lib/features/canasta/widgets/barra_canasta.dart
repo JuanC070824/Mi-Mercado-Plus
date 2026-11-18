@@ -5,8 +5,6 @@ import '../../../core/utils/formato.dart';
 import '../../../data/models/canasta.dart';
 import '../../../data/repositories/repositorios_app.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 /// Barra fija "Tu canasta · S/ X · Ver canasta". No se muestra si está vacía.
 class BarraCanasta extends StatelessWidget {
   const BarraCanasta({super.key});
@@ -36,10 +34,7 @@ class BarraCanasta extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          tr('Tu canasta · {0} {1}', [
-                            n,
-                            n == 1 ? tr('producto') : tr('productos'),
-                          ]),
+                          'Tu canasta · $n ${n == 1 ? 'producto' : 'productos'}',
                           style: const TextStyle(
                             fontSize: 16,
                             color: AppColors.textoSecundario,
@@ -65,8 +60,8 @@ class BarraCanasta extends StatelessWidget {
                     shape: const StadiumBorder(),
                   ),
                   icon: const Icon(Icons.shopping_basket_rounded),
-                  label: Text(
-                    tr('Ver canasta'),
+                  label: const Text(
+                    'Ver canasta',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                   ),
                 ),

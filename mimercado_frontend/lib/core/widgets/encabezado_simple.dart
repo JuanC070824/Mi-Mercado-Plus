@@ -3,8 +3,6 @@ import 'package:go_router/go_router.dart';
 import '../theme/app_colors.dart';
 import 'soporte_dialog.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 /// Franja azul compacta para las pantallas internas: volver, título y Soporte.
 /// (EncabezadoAzul, con el logo grande, queda para login, registro y relleno).
 class EncabezadoSimple extends StatelessWidget {
@@ -36,7 +34,7 @@ class EncabezadoSimple extends StatelessWidget {
             children: [
               if (mostrarAtras)
                 IconButton(
-                  tooltip: tr('Volver'),
+                  tooltip: 'Volver',
                   iconSize: 28,
                   constraints: const BoxConstraints(
                     minWidth: 48,
@@ -85,8 +83,8 @@ class EncabezadoSimple extends StatelessWidget {
                   minimumSize: const Size(48, 48),
                 ),
                 icon: const Icon(Icons.headset_mic_outlined),
-                label: Text(
-                  tr('Soporte'),
+                label: const Text(
+                  'Soporte',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                 ),
               ),

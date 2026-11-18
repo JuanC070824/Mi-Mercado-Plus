@@ -1,4 +1,4 @@
-import 'package:mimercado_frontend/core/i18n/idioma.dart'; //Se usa para simular los pagos en línea
+//Se usa para simular los pagos en línea
 
 /// Resultado de un pago. Nunca guarda el código de aprobación de Yape.
 class ResultadoPago {
@@ -31,10 +31,9 @@ class PagoRepositoryMock implements PagoRepository {
   @override
   String? validarCodigoYape(String? codigo) {
     final c = (codigo ?? '').trim();
-    if (c.isEmpty) return tr('Escribe el código de aprobación de Yape.');
-    if (!RegExp(r'^\d{6}$').hasMatch(c)) {
-      return tr('El código debe tener 6 números.');
-    }
+    if (c.isEmpty) return 'Escribe el código de aprobación de Yape.';
+    if (!RegExp(r'^\d{6}$').hasMatch(c))
+      return 'El código debe tener 6 números.';
     return null;
   }
 
@@ -46,19 +45,19 @@ class PagoRepositoryMock implements PagoRepository {
   }) async {
     await Future.delayed(const Duration(milliseconds: 1500));
     if (!RegExp(r'^9\d{8}$').hasMatch(celular)) {
-      return ResultadoPago.rechazado(
-        tr('El celular de Yape debe tener 9 números y empezar con 9.'),
+      return const ResultadoPago.rechazado(
+        'El celular de Yape debe tener 9 números y empezar con 9.',
       );
     }
     final errorCodigo = validarCodigoYape(codigo);
     if (errorCodigo != null) return ResultadoPago.rechazado(errorCodigo);
     if (codigo == codigoDePrueba) {
-      return ResultadoPago.rechazado(
-        tr('El código no es válido o ya venció. Genera uno nuevo en Yape.'),
+      return const ResultadoPago.rechazado(
+        'El código no es válido o ya venció. Genera uno nuevo en Yape.',
       );
     }
     if (monto <= 0) {
-      return ResultadoPago.rechazado(tr('No hay nada que cobrar.'));
+      return const ResultadoPago.rechazado('No hay nada que cobrar.');
     }
     return const ResultadoPago.aprobado();
   }

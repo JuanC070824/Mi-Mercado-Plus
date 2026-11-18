@@ -4,8 +4,6 @@ import '../models/canasta.dart';
 import '../models/producto.dart';
 import '../models/puesto.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 /// Error de la canasta con un mensaje listo para mostrar al usuario.
 class CanastaException implements Exception {
   const CanastaException(this.mensaje);
@@ -83,23 +81,18 @@ class CanastaRepositoryMock implements CanastaRepository {
     // Solo se valida al aumentar: quitar siempre está permitido.
     if (nueva > anterior) {
       if (c.mercadoId != null && c.mercadoId != puesto.mercadoId) {
-        throw CanastaException(
-          tr(
-            'Tu canasta tiene productos de otro mercado. Termina ese pedido o vacía tu canasta para comprar aquí.',
-          ),
+        throw const CanastaException(
+          'Tu canasta tiene productos de otro mercado. '
+          'Termina ese pedido o vacía tu canasta para comprar aquí.',
         );
       }
       if (!puesto.abierto) {
         throw CanastaException(
-          tr('{0} está cerrado ahora. Prueba con otro puesto.', [
-            puesto.nombre,
-          ]),
+          '${puesto.nombre} está cerrado ahora. Prueba con otro puesto.',
         );
       }
       if (!producto.disponible) {
-        throw CanastaException(
-          tr('{0} está agotado por hoy.', [producto.nombre]),
-        );
+        throw CanastaException('${producto.nombre} está agotado por hoy.');
       }
     }
 
@@ -145,18 +138,16 @@ class CanastaRepositoryMock implements CanastaRepository {
     await Future.delayed(const Duration(milliseconds: 150));
     final limpio = texto.trim();
     if (limpio.length > maxListaMandado) {
-      throw CanastaException(
-        tr(
-          'La lista de mandado puede tener hasta {0} letras. Acórtala un poco.',
-          [maxListaMandado],
-        ),
+      throw const CanastaException(
+        'La lista de mandado puede tener hasta $maxListaMandado letras. '
+        'Acórtala un poco.',
       );
     }
     final c = _canasta.value;
     final g = c.grupo(puestoId);
     if (g == null) {
-      throw CanastaException(
-        tr('Primero agrega un producto de este puesto a tu canasta.'),
+      throw const CanastaException(
+        'Primero agrega un producto de este puesto a tu canasta.',
       );
     }
     final actualizado = GrupoPuesto(

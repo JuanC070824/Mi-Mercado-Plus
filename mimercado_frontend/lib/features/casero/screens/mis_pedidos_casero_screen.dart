@@ -9,8 +9,6 @@ import '../../../data/repositories/pedidos_vendedor_api_repository.dart';
 import '../../../data/repositories/pedido_repository.dart';
 import '../widgets/tarjeta_pedido_casero.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 /// V6 · Mis pedidos del casero: Nuevos / En curso / Entregados.
 class MisPedidosCaseroScreen extends StatefulWidget {
   const MisPedidosCaseroScreen({
@@ -70,7 +68,7 @@ class _MisPedidosCaseroScreenState extends State<MisPedidosCaseroScreen> {
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _error = tr('No pudimos cargar tus pedidos. Inténtalo de nuevo.');
+        _error = 'No pudimos cargar tus pedidos. Inténtalo de nuevo.';
         _cargando = false;
       });
     }
@@ -126,12 +124,9 @@ class _MisPedidosCaseroScreenState extends State<MisPedidosCaseroScreen> {
                 ),
                 unselectedLabelStyle: const TextStyle(fontSize: 17),
                 tabs: [
-                  Tab(height: 64, text: tr('Nuevos ({0})', [nuevos.length])),
-                  Tab(height: 64, text: tr('En curso ({0})', [enCurso.length])),
-                  Tab(
-                    height: 64,
-                    text: tr('Entregados ({0})', [entregados.length]),
-                  ),
+                  Tab(height: 64, text: 'Nuevos (${nuevos.length})'),
+                  Tab(height: 64, text: 'En curso (${enCurso.length})'),
+                  Tab(height: 64, text: 'Entregados (${entregados.length})'),
                 ],
               ),
             ),
@@ -141,22 +136,19 @@ class _MisPedidosCaseroScreenState extends State<MisPedidosCaseroScreen> {
                   : _error != null
                   ? AvisoPantalla(
                       icono: Icons.wifi_off_outlined,
-                      titulo: tr('No pudimos cargar tus pedidos'),
+                      titulo: 'No pudimos cargar tus pedidos',
                       texto: _error,
                       esError: true,
-                      textoBoton: tr('Reintentar'),
+                      textoBoton: 'Reintentar',
                       alTocar: _cargar,
                     )
                   : TabBarView(
                       children: [
-                        _listaPedidos(nuevos, tr('No tienes pedidos nuevos.')),
-                        _listaPedidos(
-                          enCurso,
-                          tr('No tienes pedidos en curso.'),
-                        ),
+                        _listaPedidos(nuevos, 'No tienes pedidos nuevos.'),
+                        _listaPedidos(enCurso, 'No tienes pedidos en curso.'),
                         _listaPedidos(
                           entregados,
-                          tr('Aún no entregas bolsas al repartidor.'),
+                          'Aún no entregas bolsas al repartidor.',
                           entregados: true,
                         ),
                       ],
@@ -177,7 +169,7 @@ class _MisPedidosCaseroScreenState extends State<MisPedidosCaseroScreen> {
       return AvisoPantalla(
         icono: Icons.inbox_outlined,
         titulo: vacio,
-        textoBoton: tr('Actualizar'),
+        textoBoton: 'Actualizar',
         alTocar: _cargar,
       );
     }
@@ -190,10 +182,8 @@ class _MisPedidosCaseroScreenState extends State<MisPedidosCaseroScreen> {
         separatorBuilder: (_, _) => const SizedBox(height: 12),
         itemBuilder: (context, indice) {
           if (entregados && indice == 0) {
-            return Text(
-              tr(
-                'Bolsas entregadas al repartidor. La entrega al cliente se confirma después.',
-              ),
+            return const Text(
+              'Bolsas entregadas al repartidor. La entrega al cliente se confirma después.',
               style: TextStyle(fontSize: 16, color: AppColors.textoSecundario),
             );
           }
@@ -229,8 +219,8 @@ class _EncabezadoPedidos extends StatelessWidget {
             children: [
               Semantics(
                 header: true,
-                child: Text(
-                  tr('Mis pedidos'),
+                child: const Text(
+                  'Mis pedidos',
                   style: TextStyle(
                     color: AppColors.blanco,
                     fontSize: 22,
@@ -245,7 +235,7 @@ class _EncabezadoPedidos extends StatelessWidget {
                   minimumSize: const Size(48, 48),
                 ),
                 icon: const Icon(Icons.headset_mic_outlined),
-                label: Text(tr('Soporte'), style: TextStyle(fontSize: 16)),
+                label: const Text('Soporte', style: TextStyle(fontSize: 16)),
               ),
             ],
           ),

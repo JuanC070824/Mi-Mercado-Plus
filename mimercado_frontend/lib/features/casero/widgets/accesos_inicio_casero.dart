@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/componentes_app.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 /// Accesos de Inicio con los mismos destinos que el menú del vendedor.
 class AccesosInicioCasero extends StatelessWidget {
   const AccesosInicioCasero({
@@ -21,7 +19,7 @@ class AccesosInicioCasero extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        TituloSeccion(tr('Accesos rápidos')),
+        const TituloSeccion('Accesos rápidos'),
         const SizedBox(height: 8),
         LayoutBuilder(
           builder: (context, constraints) {
@@ -39,7 +37,7 @@ class AccesosInicioCasero extends StatelessWidget {
                 SizedBox(
                   width: ancho,
                   child: _Acceso(
-                    texto: tr('Mis pedidos'),
+                    texto: 'Mis pedidos',
                     icono: Icons.assignment_outlined,
                     onPressed: onVerPedidos,
                   ),
@@ -47,7 +45,7 @@ class AccesosInicioCasero extends StatelessWidget {
                 SizedBox(
                   width: ancho,
                   child: _Acceso(
-                    texto: tr('Mi catálogo'),
+                    texto: 'Mi catálogo',
                     icono: Icons.shopping_basket_outlined,
                     onPressed: onVerCatalogo,
                   ),

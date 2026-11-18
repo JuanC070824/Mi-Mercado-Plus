@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/formato.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 // Piezas que comparten las vistas y los diálogos del repartidor.
 
 ButtonStyle get estiloBotonRepartidor => FilledButton.styleFrom(
@@ -66,14 +64,12 @@ String gananciaDe(Map<String, dynamic> datos) => soles(
 /// "1.2 km", o null si el servidor no envió la distancia.
 String? distanciaCortaDe(Map<String, dynamic> datos) {
   final d = datos['distancia_km'];
-  return d is num ? tr('{0} km', [d.toStringAsFixed(1)]) : null;
+  return d is num ? '${d.toStringAsFixed(1)} km' : null;
 }
 
 String distanciaDe(Map<String, dynamic> datos) {
   final d = datos['distancia_km'];
   return d is num
-      ? tr('Distancia aproximada: {0} km en línea recta', [
-          d.toStringAsFixed(1),
-        ])
-      : tr('Distancia no disponible: consulta la dirección de entrega.');
+      ? 'Distancia aproximada: ${d.toStringAsFixed(1)} km en línea recta'
+      : 'Distancia no disponible: consulta la dirección de entrega.';
 }

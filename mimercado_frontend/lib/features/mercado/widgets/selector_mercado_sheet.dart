@@ -4,8 +4,6 @@ import '../../../core/utils/ubicacion_service.dart';
 import '../../../data/models/mercado.dart';
 import '../../../data/repositories/catalogo_repository.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 class SeleccionMercado {
   const SeleccionMercado(this.item, {this.latitud, this.longitud});
 
@@ -99,14 +97,14 @@ class _SelectorMercadoState extends State<_SelectorMercado> {
         _lista = l;
         _buscandoGps = false;
         _avisoEsError = false;
-        _aviso = tr('Ordenamos los mercados del más cercano al más lejano.');
+        _aviso = 'Ordenamos los mercados del más cercano al más lejano.';
       });
     } on UbicacionException catch (e) {
       if (!mounted) return;
       setState(() {
         _buscandoGps = false;
         _avisoEsError = true;
-        _aviso = tr('{0} Puedes elegir tu mercado de la lista.', [e.mensaje]);
+        _aviso = '${e.mensaje} Puedes elegir tu mercado de la lista.';
       });
     }
   }
@@ -127,8 +125,8 @@ class _SelectorMercadoState extends State<_SelectorMercado> {
             children: [
               Semantics(
                 header: true,
-                child: Text(
-                  tr('Elige tu mercado'),
+                child: const Text(
+                  'Elige tu mercado',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: AppColors.azul,
@@ -140,7 +138,7 @@ class _SelectorMercadoState extends State<_SelectorMercado> {
               const SizedBox(height: 6),
               Text(
                 widget.mensaje ??
-                    tr('Tu pedido se arma con caseros de un solo mercado.'),
+                    'Tu pedido se arma con caseros de un solo mercado.',
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 18,
@@ -153,22 +151,22 @@ class _SelectorMercadoState extends State<_SelectorMercado> {
                 child: OutlinedButton.icon(
                   onPressed: _buscandoGps ? null : _usarUbicacion,
                   icon: _buscandoGps
-                      ? SizedBox(
+                      ? const SizedBox(
                           width: 22,
                           height: 22,
                           child: CircularProgressIndicator(
                             strokeWidth: 3,
                             color: AppColors.azul,
-                            semanticsLabel: tr('Buscando ubicación'),
+                            semanticsLabel: 'Buscando ubicación',
                           ),
                         )
                       : const Icon(Icons.my_location),
                   label: Text(
                     _buscandoGps
-                        ? tr('Buscando tu ubicación…')
+                        ? 'Buscando tu ubicación…'
                         : (_lat == null
-                              ? tr('Usar mi ubicación')
-                              : tr('Actualizar mi ubicación')),
+                              ? 'Usar mi ubicación'
+                              : 'Actualizar mi ubicación'),
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
@@ -189,11 +187,11 @@ class _SelectorMercadoState extends State<_SelectorMercado> {
                 ),
               const SizedBox(height: 16),
               if (lista == null)
-                Center(
+                const Center(
                   child: Padding(
                     padding: EdgeInsets.all(16),
                     child: CircularProgressIndicator(
-                      semanticsLabel: tr('Cargando mercados'),
+                      semanticsLabel: 'Cargando mercados',
                     ),
                   ),
                 )
@@ -212,8 +210,8 @@ class _SelectorMercadoState extends State<_SelectorMercado> {
               const SizedBox(height: 8),
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: Text(
-                  tr('Cancelar'),
+                child: const Text(
+                  'Cancelar',
                   style: TextStyle(fontSize: 18, color: AppColors.azul),
                 ),
               ),
@@ -312,8 +310,8 @@ class _FilaMercado extends StatelessWidget {
                                 color: AppColors.azul,
                                 borderRadius: BorderRadius.circular(14),
                               ),
-                              child: Text(
-                                tr('Más cercano'),
+                              child: const Text(
+                                'Más cercano',
                                 style: TextStyle(
                                   color: AppColors.blanco,
                                   fontSize: 14,

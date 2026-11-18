@@ -1,7 +1,7 @@
 from collections import defaultdict
 from django.contrib.auth.hashers import make_password, check_password
 from django.db import transaction, IntegrityError
-from django.db.models import Q, Avg, Count, Sum, Max, prefetch_related_objects
+from django.db.models import Q, Count, Sum, Max, prefetch_related_objects
 from django.utils import timezone
 from django.conf import settings
 from rest_framework.views import APIView
@@ -9,16 +9,13 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError, NotFound, PermissionDenied
 from rest_framework.throttling import ScopedRateThrottle
-from . import recuperacion
 from . import serializers as s
 from .models import (Usuario, UsuarioRol, Producto, Mercado, Puesto, Direccion,
                      Pedido, PedidoPuesto, PedidoDetalle, Cotizacion,
                      CotizacionPuesto, CotizacionDetalle, RepartidorMercado,
-                     Categoria, UnidadMedida, HistorialEstado, EntregaParada, HorarioPuesto,
-                     Carrito, CarritoItem, ResenaPuesto)
-from .authentication import issue_token, tiene_rol
-from .services import (put_item, guardar_item, cart_payload, change_item, checkout, require_buyer, accept_quote,
-                       quote_total, lock_user)
+                     Categoria, UnidadMedida, HistorialEstado, EntregaParada, HorarioPuesto)
+from .authentication import issue_token
+from .services import put_item, cart_payload, change_item, checkout, require_buyer, accept_quote, quote_total, lock_user
 from .payments import pay_order
 from .money import cents
 from .dni import (consultar_dni, firmar_consulta, leer_consulta,
@@ -121,45 +118,6 @@ class DniView(APIView):
             'registro_token':firmar_consulta(identidad),
         })
 
-class RecuperarView(APIView):
-    """Paso 1 de RF-04: el DNI debe ser del titular de la cuenta (mismos nombres que al registrarse)."""
-    permission_classes=[AllowAny]
-    authentication_classes=[]
-    throttle_classes=[ScopedRateThrottle]
-    throttle_scope='recuperar'
-    def post(self,request):
-        data=validated(s.RecuperarSerializer,request.data)
-        user=Usuario.objects.filter(celular=data['celular'],estado='activo').first()
-        try:
-            identidad=consultar_dni(data['dni'])
-        except DniNoEncontrado:
-            identidad=None
-        except DniServicioNoDisponible as exc:
-            return Response({'detail':str(exc)},status=503)
-        # Mismo mensaje si no existe la cuenta o si el DNI no coincide: no revela qué celulares están registrados.
-        if user is None or identidad is None or not recuperacion.es_titular(user,identidad):
-            return Response({'detail':'El celular y el DNI no corresponden a una misma cuenta.'},status=400)
-        respuesta={'detail':'Escribe el código de 6 números para crear tu nueva contraseña.',
-                   'vence_en_minutos':recuperacion.VENTANA_SEGUNDOS//60}
-        # Sin SMS ni correo configurados, el código se muestra en pantalla (como el pago de demostración).
-        if settings.RECUPERACION_MODO=='demo':respuesta['codigo_demostracion']=recuperacion.generar_codigo(user)
-        return Response(respuesta)
-
-class RestablecerView(APIView):
-    """Paso 2 de RF-04: cambiar la contraseña cierra todas las sesiones e invalida el código."""
-    permission_classes=[AllowAny]
-    authentication_classes=[]
-    throttle_classes=[ScopedRateThrottle]
-    throttle_scope='recuperar'
-    def post(self,request):
-        data=validated(s.RestablecerSerializer,request.data)
-        user=Usuario.objects.filter(celular=data['celular'],estado='activo').first()
-        if user is None or not recuperacion.codigo_valido(user,data['codigo']):
-            return Response({'detail':'El código no es válido o ya venció. Pide uno nuevo.'},status=400)
-        user.password_hash=make_password(data['password'])
-        user.save(update_fields=['password_hash'])
-        return Response({'detail':'Listo, tu contraseña se cambió. Ya puedes ingresar.'})
-
 class LoginView(APIView):
     permission_classes=[AllowAny]
     authentication_classes=[]
@@ -247,7 +205,8 @@ class CategoriasView(APIView):
 
 class VendedorPuestoView(APIView):
     def _validar_vendedor(self,request):
-        if not tiene_rol(request.user,'vendedor'):
+        if not UsuarioRol.objects.filter(
+            usuario_id=request.user.pk,rol_codigo='vendedor').exists():
             raise PermissionDenied('Esta cuenta no tiene el perfil de vendedor.')
 
     def _actual(self,request):
@@ -319,7 +278,10 @@ class VendedorPuestoView(APIView):
 
 class VendedorInicioView(APIView):
     def _puesto(self, request):
-        if not tiene_rol(request.user,'vendedor'):
+        if not UsuarioRol.objects.filter(
+            usuario_id=request.user.pk,
+            rol_codigo='vendedor',
+        ).exists():
             raise PermissionDenied('Esta cuenta no tiene el perfil de vendedor.')
         return Puesto.objects.select_related('mercado', 'categoria').filter(
             vendedor_id=request.user.pk,
@@ -431,7 +393,7 @@ class ProductosView(APIView):
 
 
 def puesto_vendedor_actual(user):
-    if not tiene_rol(user,'vendedor'):
+    if not UsuarioRol.objects.filter(usuario_id=user.pk,rol_codigo='vendedor').exists():
         raise PermissionDenied('Esta cuenta no tiene el perfil de vendedor.')
     puesto=Puesto.objects.filter(vendedor_id=user.pk,estado='activo').order_by('id').first()
     if puesto is None:raise NotFound('Primero crea tu puesto en Mi puesto.')
@@ -501,15 +463,6 @@ def puesto_payload(puesto):
     }
 
 
-def partes_de_pedidos(ids):
-    """{pedido_id: [sus PedidoPuesto con puesto]}, en una sola consulta."""
-    partes=defaultdict(list)
-    for parte in PedidoPuesto.objects.filter(pedido_id__in=ids).select_related(
-            'puesto__vendedor','puesto__categoria').order_by('id'):
-        partes[parte.pedido_id].append(parte)
-    return partes
-
-
 def ultima_cotizacion_por_pedido(ids):
     """{pedido_id: cotización de mayor versión}, en una sola consulta."""
     quotes={}
@@ -518,7 +471,7 @@ def ultima_cotizacion_por_pedido(ids):
     return quotes
 
 
-def pedidos_payload(pedidos, quotes=None, partes_por_pedido=None):
+def pedidos_payload(pedidos, quotes=None):
     """Arma varios pedidos con un número fijo de consultas, no unas 9 por pedido.
 
     Con Aiven cada consulta es un viaje de red: armar el historial pedido por
@@ -530,8 +483,10 @@ def pedidos_payload(pedidos, quotes=None, partes_por_pedido=None):
     prefetch_related_objects(pedidos,'comprador')
     paradas={fila['pedido_puesto_id']:fila['orden'] for fila in
              EntregaParada.objects.filter(pedido_id__in=ids).order_by('id').values('pedido_puesto_id','orden')}
-    if partes_por_pedido is None:
-        partes_por_pedido=partes_de_pedidos(ids)
+    partes_por_pedido=defaultdict(list)
+    for parte in PedidoPuesto.objects.filter(pedido_id__in=ids).select_related(
+            'puesto__vendedor','puesto__categoria').order_by('id'):
+        partes_por_pedido[parte.pedido_id].append(parte)
     detalles_por_parte=defaultdict(list)
     for d in PedidoDetalle.objects.filter(
             pedido_puesto_id__in=[x.pk for v in partes_por_pedido.values() for x in v]).order_by('id'):
@@ -777,63 +732,6 @@ class PedidoView(APIView):
             quotes.append({'id':quote.pk,'version':quote.version,'estado':quote.estado,'total_centavos':total})
         return Response({'id':order.pk,'codigo':order.codigo,'estado':order.estado,
                          'metodo_pago':order.metodo_pago,'cotizaciones':quotes})
-
-class RecomendacionesView(APIView):
-    """RF-20: primero los caseros donde más compra el cliente, luego los mejor calificados."""
-    def get(self,request):
-        require_buyer(request.user)
-        puestos=Puesto.objects.filter(estado='activo',mercado__estado='activo').select_related('vendedor','categoria')
-        productos=PedidoDetalle.objects.filter(pedido_puesto__pedido__comprador_id=request.user.pk,
-            producto__activo=True).exclude(pedido_puesto__estado__in=['rechazado','cancelado'])
-        mercado_id=request.query_params.get('mercado_id')
-        if mercado_id:
-            if not mercado_id.isdecimal():raise ValidationError('El filtro debe ser entero.')
-            puestos=puestos.filter(mercado_id=int(mercado_id))
-            productos=productos.filter(producto__puesto__mercado_id=int(mercado_id))
-        puestos=list(puestos)
-        compras={r['puesto_id']:r['n'] for r in PedidoPuesto.objects.filter(
-            pedido__comprador_id=request.user.pk,puesto_id__in=[p.pk for p in puestos]).exclude(
-            estado__in=['rechazado','cancelado']).values('puesto_id').annotate(n=Count('id'))}
-        resenas={r['pedido_puesto__puesto_id']:(r['prom'],r['n']) for r in ResenaPuesto.objects.filter(
-            pedido_puesto__puesto_id__in=[p.pk for p in puestos]).values('pedido_puesto__puesto_id').annotate(
-            prom=Avg('estrellas'),n=Count('id'))}
-        def orden(p):
-            prom,n=resenas.get(p.pk,(0,0))
-            return (-compras.get(p.pk,0),not p.abierto,-(prom or 0),-n,p.nombre)
-        top=sorted(puestos,key=orden)[:5]
-        veces={r['producto_id']:r['n'] for r in productos.values('producto_id').annotate(n=Count('id')).order_by('-n','producto_id')[:5]}
-        repetidos=sorted(Producto.objects.filter(pk__in=veces).select_related('puesto__vendedor','puesto__categoria'),
-                         key=lambda p:-veces[p.pk])
-        return Response({
-            'puestos':[{**puesto_payload(p),'calificacion':round(float(resenas.get(p.pk,(0,0))[0] or 0),1),
-                        'resenas':resenas.get(p.pk,(0,0))[1],'compras':compras.get(p.pk,0)} for p in top],
-            # Con su puesto: la app los agrega a la canasta en un toque ("Lo que siempre pides").
-            'productos':[{**producto_payload(p),'veces':veces[p.pk],'puesto':puesto_payload(p.puesto)} for p in repetidos]})
-
-class VolverAPedirView(APIView):
-    """Pone en la canasta los productos de un pedido anterior que sigan disponibles."""
-    @transaction.atomic
-    def post(self,request,order_id):
-        require_buyer(request.user)
-        lock_user(request.user)
-        pedido=Pedido.objects.filter(pk=order_id,comprador_id=request.user.pk).first()
-        if pedido is None:raise NotFound('Pedido no encontrado.')
-        carrito=Carrito.objects.filter(comprador_id=request.user.pk,estado='abierto').first()
-        if carrito and carrito.mercado_id!=pedido.mercado_id and CarritoItem.objects.filter(carrito_puesto__carrito_id=carrito.pk).exists():
-            raise ValidationError('Tu canasta tiene productos de otro mercado. Vacíala para volver a pedir.')
-        if carrito and carrito.mercado_id!=pedido.mercado_id:
-            carrito.estado='abandonado';carrito.save(update_fields=['estado'])
-            carrito=None
-        agregados,omitidos=[],[]
-        for d in PedidoDetalle.objects.filter(pedido_puesto__pedido_id=pedido.pk).exclude(
-                pedido_puesto__estado__in=['rechazado','cancelado']).select_related('producto__puesto__mercado').order_by('id'):
-            try:
-                if d.producto is None:raise ValidationError('Era un producto de la lista de mandado.')
-                carrito=guardar_item(request.user,d.producto,d.cantidad_solicitada,cart=carrito)
-                agregados.append(d.nombre_solicitado)
-            except ValidationError:
-                omitidos.append(d.nombre_solicitado)
-        return Response({'agregados':agregados,'omitidos':omitidos,'carrito':cart_payload(request.user,cart=carrito,verificado=True)})
 
 class AceptarCotizacionView(APIView):
     def post(self,request,order_id,quote_id):

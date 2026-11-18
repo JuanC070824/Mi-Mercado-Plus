@@ -11,8 +11,6 @@ import '../../../data/repositories/pedido_repository.dart';
 import '../../../data/repositories/pedido_cliente_api_repository.dart';
 import '../../../core/config/api_config.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 /// Ejecuta un cambio en la canasta mostrando el error al usuario si falla.
 /// Si la canasta es de otro mercado, pregunta antes de vaciarla.
 /// Devuelve true si el cambio se hizo.
@@ -26,11 +24,11 @@ Future<bool> cambiarCanasta(
   if (actual.mercadoId != null && actual.mercadoId != puesto.mercadoId) {
     final seguir = await confirmar(
       context,
-      titulo: tr('¿Empezar una canasta nueva?'),
-      texto: tr(
-        'Tu canasta tiene productos de otro mercado y un repartidor solo recoge en un mercado. Si sigues, vaciamos tu canasta y empiezas aquí.',
-      ),
-      textoSi: tr('Vaciar y seguir'),
+      titulo: '¿Empezar una canasta nueva?',
+      texto:
+          'Tu canasta tiene productos de otro mercado y un repartidor solo '
+          'recoge en un mercado. Si sigues, vaciamos tu canasta y empiezas aquí.',
+      textoSi: 'Vaciar y seguir',
     );
     if (!seguir) return false;
     await repo.vaciar();

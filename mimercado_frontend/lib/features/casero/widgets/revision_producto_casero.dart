@@ -5,8 +5,6 @@ import '../../../core/utils/formato.dart';
 import '../../../core/widgets/componentes_app.dart';
 import '../../../data/models/pedido.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 class RevisionProductoCasero extends StatelessWidget {
   const RevisionProductoCasero({
     super.key,
@@ -51,9 +49,7 @@ class RevisionProductoCasero extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            tr('Pidió: {0}', [
-              cantidadConUnidad(detalle.cantidadSolicitada, detalle.unidad),
-            ]),
+            'Pidió: ${cantidadConUnidad(detalle.cantidadSolicitada, detalle.unidad)}',
             style: const TextStyle(
               fontSize: 17,
               color: AppColors.textoSecundario,
@@ -69,8 +65,8 @@ class RevisionProductoCasero extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          Text(
-            tr('Cambiar disponibilidad'),
+          const Text(
+            'Cambiar disponibilidad',
             style: TextStyle(
               fontSize: 17,
               color: AppColors.azul,
@@ -105,7 +101,7 @@ Future<Disponibilidad?> elegirDisponibilidadProducto(
             Semantics(
               header: true,
               child: Text(
-                tr('Disponibilidad de {0}', [detalle.nombre]),
+                'Disponibilidad de ${detalle.nombre}',
                 style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w800,
@@ -130,15 +126,12 @@ Future<Disponibilidad?> elegirDisponibilidadProducto(
                         style: const TextStyle(fontSize: 19),
                       ),
                       subtitle: Text(switch (estado) {
-                        Disponibilidad.disponible => tr(
+                        Disponibilidad.disponible =>
                           'Entregarás el producto solicitado.',
-                        ),
-                        Disponibilidad.sinStock => tr(
+                        Disponibilidad.sinStock =>
                           'Este producto no se incluirá al pesar.',
-                        ),
-                        _ => tr(
+                        _ =>
                           'Indica el reemplazo al pesar. El cliente confirmará el precio final.',
-                        ),
                       }, style: const TextStyle(fontSize: 16)),
                       contentPadding: EdgeInsets.zero,
                     ),
@@ -156,8 +149,8 @@ Future<Disponibilidad?> elegirDisponibilidadProducto(
               onPressed: elegida == null || elegida == detalle.disponibilidad
                   ? null
                   : () => Navigator.of(ctx).pop(elegida),
-              child: Text(
-                tr('Guardar disponibilidad'),
+              child: const Text(
+                'Guardar disponibilidad',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
               ),
@@ -166,7 +159,7 @@ Future<Disponibilidad?> elegirDisponibilidadProducto(
             TextButton(
               style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
               onPressed: () => Navigator.of(ctx).pop(),
-              child: Text(tr('Cancelar'), style: TextStyle(fontSize: 18)),
+              child: const Text('Cancelar', style: TextStyle(fontSize: 18)),
             ),
           ],
         ),
