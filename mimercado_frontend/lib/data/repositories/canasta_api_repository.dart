@@ -12,6 +12,8 @@ import '../models/puesto.dart';
 import 'canasta_repository.dart';
 import 'catalogo_api_repository.dart';
 
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
+
 class CanastaApiRepository implements CanastaRepository {
   CanastaApiRepository({http.Client? client, String? baseUrl})
     : _client = client ?? http.Client(),
@@ -107,16 +109,14 @@ class CanastaApiRepository implements CanastaRepository {
   @override
   Future<Canasta> guardarListaMandado(int puestoId, String texto) async {
     if (texto.trim().length > 300) {
-      throw const CanastaException(
-        'La lista de mandado puede tener hasta 300 letras.',
+      throw CanastaException(
+        tr('La lista de mandado puede tener hasta 300 letras.'),
       );
     }
     final c = _canasta.value;
     final grupo = c.grupo(puestoId);
     if (grupo == null) {
-      throw const CanastaException(
-        'Primero agrega un producto de este puesto.',
-      );
+      throw CanastaException(tr('Primero agrega un producto de este puesto.'));
     }
     _canasta.value = Canasta(
       grupos: [
@@ -153,7 +153,7 @@ class CanastaApiRepository implements CanastaRepository {
         id: (raw['puesto_id'] as num).toInt(),
         mercadoId: (raw['mercado_id'] as num).toInt(),
         nombre: raw['nombre'].toString(),
-        casero: raw['casero']?.toString() ?? 'Casero',
+        casero: raw['casero']?.toString() ?? tr('Casero'),
         categoria: _categoria(raw['categoria']?.toString()),
         calificacion: 0,
         resenas: 0,
@@ -208,7 +208,7 @@ class CanastaApiRepository implements CanastaRepository {
     Map<String, dynamic>? body,
   }) async {
     final token = SesionState.token;
-    if (token == null) throw const CanastaException('Tu sesión venció.');
+    if (token == null) throw CanastaException(tr('Tu sesión venció.'));
     try {
       final req =
           http.Request(metodo, ApiConfig.uri(ruta, baseUrlOverride: _baseUrl))
@@ -226,16 +226,16 @@ class CanastaApiRepository implements CanastaRepository {
           : <String, dynamic>{};
       if (res.statusCode < 200 || res.statusCode >= 300) {
         throw CanastaException(
-          data['detail']?.toString() ?? 'No pudimos actualizar tu canasta.',
+          data['detail']?.toString() ?? tr('No pudimos actualizar tu canasta.'),
         );
       }
       return data;
     } on CanastaException {
       rethrow;
     } on TimeoutException {
-      throw const CanastaException('El servidor tardó demasiado.');
+      throw CanastaException(tr('El servidor tardó demasiado.'));
     } catch (_) {
-      throw const CanastaException('No pudimos conectarnos con MiMercado+.');
+      throw CanastaException(tr('No pudimos conectarnos con MiMercado+.'));
     }
   }
 }

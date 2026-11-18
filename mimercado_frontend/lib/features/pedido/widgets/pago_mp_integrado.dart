@@ -8,6 +8,8 @@ import '../../../data/repositories/mercadopago_api_repository.dart';
 import '../../../data/repositories/pedido_repository.dart';
 import 'formulario_mp.dart';
 
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
+
 class PagoMpIntegrado extends StatefulWidget {
   const PagoMpIntegrado({
     super.key,
@@ -97,7 +99,9 @@ class _PagoMpIntegradoState extends State<PagoMpIntegrado> {
 
   String _mensajeError(Object error) => error is PedidoException
       ? error.mensaje
-      : 'No pudimos consultar Mercado Pago. Verifica el estado antes de volver a pagar.';
+      : tr(
+          'No pudimos consultar Mercado Pago. Verifica el estado antes de volver a pagar.',
+        );
   Future<void> _verificar() async {
     if (_verificando || _enviando) return;
     setState(() => _verificando = true);
@@ -121,7 +125,7 @@ class _PagoMpIntegradoState extends State<PagoMpIntegrado> {
       return {
         'approved': false,
         'retry': false,
-        'message': 'Ya hay un pago en proceso. Verifica su estado.',
+        'message': tr('Ya hay un pago en proceso. Verifica su estado.'),
       };
     }
     setState(() {
@@ -135,7 +139,7 @@ class _PagoMpIntegradoState extends State<PagoMpIntegrado> {
       return {
         'approved': _pagado,
         'retry': !_pendiente && !_pagado,
-        'message': _pagado ? 'Pago confirmado.' : _textoEstado,
+        'message': _pagado ? tr('Pago confirmado.') : _textoEstado,
       };
     } catch (error) {
       // Un timeout no equivale a un rechazo: consultar y bloquear otro cobro.
@@ -175,18 +179,26 @@ class _PagoMpIntegradoState extends State<PagoMpIntegrado> {
 
   String get _textoEstado {
     if (_devuelto)
-      return 'El pago tiene una devolución o contracargo. Requiere revisión.';
+      return tr(
+        'El pago tiene una devolución o contracargo. Requiere revisión.',
+      );
     if (_pagado)
-      return 'Pago confirmado. Tu pedido continúa con la preparación y el reparto.';
+      return tr(
+        'Pago confirmado. Tu pedido continúa con la preparación y el reparto.',
+      );
     if (_pendiente)
-      return 'Estamos verificando un pago iniciado. No vuelvas a pagar; consulta su estado.';
+      return tr(
+        'Estamos verificando un pago iniciado. No vuelvas a pagar; consulta su estado.',
+      );
     return switch (_estado?['estado']) {
-      'failed' =>
+      'failed' => tr(
         'El pago fue rechazado. Puedes revisar los datos y volver a intentarlo.',
-      'canceled' || 'expired' => 'El intento anterior se canceló o venció.',
-      'refunded' || 'charged_back' =>
+      ),
+      'canceled' || 'expired' => tr('El intento anterior se canceló o venció.'),
+      'refunded' || 'charged_back' => tr(
         'El pago fue devuelto o tiene un contracargo. Requiere revisión.',
-      _ => 'Completa el formulario aquí para pagar tu pedido.',
+      ),
+      _ => tr('Completa el formulario aquí para pagar tu pedido.'),
     };
   }
 
@@ -196,25 +208,27 @@ class _PagoMpIntegradoState extends State<PagoMpIntegrado> {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          'Paga con Mercado Pago',
+        Text(
+          tr('Paga con Mercado Pago'),
           style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
         ),
         Text(
           soles(widget.pedido.cotizacion?.totalCliente ?? 0),
           style: const TextStyle(fontSize: 27, fontWeight: FontWeight.w800),
         ),
-        const Text('Demostración académica · sin dinero real'),
+        Text(tr('Demostración académica · sin dinero real')),
         const SizedBox(height: 12),
         if (_cargando || _enviando || _verificando)
           const LinearProgressIndicator(),
         if (!_cargando && !_configurado) ...[
-          const Text(
-            'Falta configurar la Public Key y las credenciales de prueba en el servidor.',
+          Text(
+            tr(
+              'Falta configurar la Public Key y las credenciales de prueba en el servidor.',
+            ),
           ),
           TextButton(
             onPressed: _cargar,
-            child: const Text('Reintentar configuración'),
+            child: Text(tr('Reintentar configuración')),
           ),
         ],
         if (_configurado && !_cargando) ...[
@@ -243,19 +257,21 @@ class _PagoMpIntegradoState extends State<PagoMpIntegrado> {
                       if (mounted && !_pendiente && !_pagado)
                         setState(() => _versionFormulario++);
                     },
-              child: const Text('Verificar estado del pago'),
+              child: Text(tr('Verificar estado del pago')),
             ),
           if (!_pagado &&
               const {
                 'created',
                 'action_required',
               }.contains(_estado?['estado'])) ...[
-            const Text(
-              'Puedes cancelar este intento pendiente para usar un nuevo formulario. Tu pedido se conserva.',
+            Text(
+              tr(
+                'Puedes cancelar este intento pendiente para usar un nuevo formulario. Tu pedido se conserva.',
+              ),
             ),
             TextButton(
               onPressed: _enviando || _verificando ? null : _cancelarIntento,
-              child: const Text('Cancelar este intento de pago'),
+              child: Text(tr('Cancelar este intento de pago')),
             ),
           ],
         ],

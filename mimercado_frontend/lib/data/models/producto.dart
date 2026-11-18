@@ -1,3 +1,5 @@
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
+
 // Contrato §2.1 (tarea M1 de Michael). Se adelanta aquí porque PedidoDetalle
 // necesita UnidadMedida; si Michael sube su versión, se queda la suya.
 
@@ -8,8 +10,11 @@ enum UnidadMedida {
   atado('atado', 1),
   litro('L', 0.5);
 
-  const UnidadMedida(this.simbolo, this.paso);
-  final String simbolo;
+  const UnidadMedida(this._simbolo, this.paso);
+  final String _simbolo;
+
+  /// Se traduce al idioma elegido cada vez que se muestra.
+  String get simbolo => tr(_simbolo);
   final double paso;
 }
 

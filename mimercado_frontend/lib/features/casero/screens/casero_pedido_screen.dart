@@ -18,6 +18,8 @@ import '../widgets/encabezado_pedido_casero.dart';
 import '../widgets/revision_producto_casero.dart';
 import '../widgets/cotizacion_casero.dart';
 
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
+
 /// Detalle de un pedido para el casero. Muestra lo que toca hacer según el
 /// estado de SU parte: aceptar/rechazar (V1b/V1c), revisar (V2), pesar (V3),
 /// empaquetar (V4) y entregar al repartidor (V5).
@@ -111,7 +113,7 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen>
         _actualizando = false;
         _errorCarga = error is PedidoException
             ? error.mensaje
-            : 'No pudimos cargar el pedido. Inténtalo de nuevo.';
+            : tr('No pudimos cargar el pedido. Inténtalo de nuevo.');
       });
     }
   }
@@ -158,7 +160,7 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen>
     return Scaffold(
       body: Column(
         children: [
-          const EncabezadoPedidoCasero(titulo: 'Detalle del pedido'),
+          EncabezadoPedidoCasero(titulo: tr('Detalle del pedido')),
           Expanded(child: _cuerpo()),
         ],
       ),
@@ -170,20 +172,20 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen>
     if (_errorCarga != null) {
       return AvisoPantalla(
         icono: Icons.wifi_off_outlined,
-        titulo: 'No pudimos actualizar el pedido',
+        titulo: tr('No pudimos actualizar el pedido'),
         texto: _errorCarga,
         esError: true,
-        textoBoton: 'Reintentar',
+        textoBoton: tr('Reintentar'),
         alTocar: _cargar,
       );
     }
     final p = _pedido;
     final parte = p?.parteDePuesto(_puestoId);
     if (p == null || parte == null) {
-      return const AvisoPantalla(
+      return AvisoPantalla(
         icono: Icons.search_off,
-        titulo: 'No encontramos este pedido',
-        texto: 'Puede que el cliente lo haya cancelado.',
+        titulo: tr('No encontramos este pedido'),
+        texto: tr('Puede que el cliente lo haya cancelado.'),
       );
     }
     return ListView(
@@ -206,12 +208,14 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen>
           icon: const Icon(Icons.refresh),
           style: OutlinedButton.styleFrom(minimumSize: const Size(48, 48)),
           label: Text(
-            _actualizando ? 'Actualizando…' : 'Actualizar pedido',
+            _actualizando ? tr('Actualizando…') : tr('Actualizar pedido'),
             style: const TextStyle(fontSize: 18),
           ),
         ),
-        const Text(
-          'Se actualiza cada 15 segundos mientras esta pantalla está visible.',
+        Text(
+          tr(
+            'Se actualiza cada 15 segundos mientras esta pantalla está visible.',
+          ),
           style: TextStyle(fontSize: 16),
         ),
         const SizedBox(height: 12),
@@ -243,7 +247,7 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen>
                 ),
               ),
               IconButton.outlined(
-                tooltip: 'Llamar a ${p.clienteNombre}',
+                tooltip: tr('Llamar a {0}', [p.clienteNombre]),
                 constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
                 onPressed: () => mostrarLlamar(
                   context,
@@ -280,21 +284,21 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen>
     switch (parte.estado) {
       case EstadoPedidoPuesto.pendiente:
         return [
-          const TituloSeccion('Productos que pide'),
+          TituloSeccion(tr('Productos que pide')),
           const SizedBox(height: 8),
           ListaProductosParte(parte: parte),
           const SizedBox(height: 8),
           Text(
-            'Estimado: ${soles(parte.subtotalEstimado)}',
+            tr('Estimado: {0}', [soles(parte.subtotalEstimado)]),
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 20),
           BotonPrincipal(
-            texto: 'Aceptar pedido',
+            texto: tr('Aceptar pedido'),
             cargando: _ocupado,
             onPressed: () => _hacer(
               () => _repo.aceptarSubpedido(parte.id),
-              exito: 'Aceptaste el pedido. Ahora revisa los productos.',
+              exito: tr('Aceptaste el pedido. Ahora revisa los productos.'),
             ),
           ),
           const SizedBox(height: 12),
@@ -309,7 +313,7 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen>
                 ? null
                 : () => rechazarConMotivo(context, parte, repository: _repo),
             icon: const Icon(Icons.close),
-            label: const Text('Rechazar', style: TextStyle(fontSize: 20)),
+            label: Text(tr('Rechazar'), style: TextStyle(fontSize: 20)),
           ),
         ];
       case EstadoPedidoPuesto.rechazado:
@@ -317,10 +321,10 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen>
         return [
           AvisoPantalla(
             icono: Icons.block,
-            titulo: 'No atendiste este pedido',
+            titulo: tr('No atendiste este pedido'),
             texto: parte.motivoRechazo == null
                 ? null
-                : 'Motivo: ${parte.motivoRechazo}',
+                : tr('Motivo: {0}', [parte.motivoRechazo]),
           ),
         ];
       case EstadoPedidoPuesto.aceptado:
@@ -334,10 +338,10 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen>
         return _entregar(p, parte); // V5
       case EstadoPedidoPuesto.recogido:
         return [
-          const AvisoPantalla(
+          AvisoPantalla(
             icono: Icons.done_all,
-            titulo: '¡Bolsa entregada al repartidor!',
-            texto: 'Tu parte de este pedido ya terminó. Gracias, casero.',
+            titulo: tr('¡Bolsa entregada al repartidor!'),
+            texto: tr('Tu parte de este pedido ya terminó. Gracias, casero.'),
           ),
         ];
     }
@@ -363,19 +367,21 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen>
         _compartido(p, parte),
         const SizedBox(height: 16),
       ],
-      const TituloSeccion('Revisa cada producto'),
+      TituloSeccion(tr('Revisa cada producto')),
       const SizedBox(height: 4),
       Text(
-        'Elige la disponibilidad y confirma antes de guardar. '
-        'Revisados: $revisados de ${parte.detalles.length}.',
+        tr(
+          'Elige la disponibilidad y confirma antes de guardar. Revisados: {0} de {1}.',
+          [revisados, parte.detalles.length],
+        ),
         style: const TextStyle(fontSize: 17, color: AppColors.textoSecundario),
       ),
       const SizedBox(height: 12),
       if (_ocupado || _actualizando) ...[
         Semantics(
           liveRegion: true,
-          child: const Text(
-            'Guardando y comprobando la disponibilidad…',
+          child: Text(
+            tr('Guardando y comprobando la disponibilidad…'),
             style: TextStyle(fontSize: 18),
           ),
         ),
@@ -398,13 +404,15 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Lista de mandado',
+                Text(
+                  tr('Lista de mandado'),
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
                 ),
                 Text(parte.listaMandado!, style: const TextStyle(fontSize: 18)),
-                const Text(
-                  'Revisa también esta lista antes de enviar el precio final.',
+                Text(
+                  tr(
+                    'Revisa también esta lista antes de enviar el precio final.',
+                  ),
                   style: TextStyle(
                     fontSize: 16,
                     color: AppColors.textoSecundario,
@@ -416,9 +424,9 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen>
         ),
       ],
       const SizedBox(height: 16),
-      const TituloSeccion('Mensajes para copiar'),
-      const Text(
-        'Copia un mensaje para enviarlo desde tu aplicación de mensajes.',
+      TituloSeccion(tr('Mensajes para copiar')),
+      Text(
+        tr('Copia un mensaje para enviarlo desde tu aplicación de mensajes.'),
         style: TextStyle(fontSize: 16, color: AppColors.textoSecundario),
       ),
       const SizedBox(height: 8),
@@ -426,10 +434,10 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen>
         spacing: 8,
         runSpacing: 8,
         children: [
-          for (final m in const [
-            'Ya estoy pesando tu pedido',
-            'No tengo un producto, ¿te ofrezco otro?',
-            'Tu pedido sale en 10 minutos',
+          for (final m in [
+            tr('Ya estoy pesando tu pedido'),
+            tr('No tengo un producto, ¿te ofrezco otro?'),
+            tr('Tu pedido sale en 10 minutos'),
           ])
             OutlinedButton.icon(
               icon: const Icon(Icons.copy, size: 20),
@@ -443,7 +451,9 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen>
                 if (mounted) {
                   avisar(
                     context,
-                    'Mensaje copiado. Envíalo al cliente desde tu aplicación de mensajes.',
+                    tr(
+                      'Mensaje copiado. Envíalo al cliente desde tu aplicación de mensajes.',
+                    ),
                   );
                 }
               },
@@ -473,10 +483,12 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen>
       const SizedBox(height: 20),
       EtiquetaEstado(
         texto: todosRevisados && !conProductos
-            ? 'No hay productos disponibles. Revisa las opciones o rechaza el pedido.'
+            ? tr(
+                'No hay productos disponibles. Revisa las opciones o rechaza el pedido.',
+              )
             : todosRevisados
-            ? 'Listo para pesar'
-            : 'Revisa todos los productos para poder pesar',
+            ? tr('Listo para pesar')
+            : tr('Revisa todos los productos para poder pesar'),
         icono: todosRevisados && conProductos
             ? Icons.check_circle
             : Icons.info_outline,
@@ -495,8 +507,8 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen>
         onPressed: listo
             ? () => context.push('/casero/inicio/pedido/${p.id}/pesar')
             : null,
-        child: const Text(
-          'Pesar y poner precio',
+        child: Text(
+          tr('Pesar y poner precio'),
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
         ),
@@ -508,15 +520,17 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen>
           onPressed: _ocupado || _actualizando
               ? null
               : () => rechazarConMotivo(context, parte, repository: _repo),
-          child: const Text('Rechazar pedido', style: TextStyle(fontSize: 18)),
+          child: Text(tr('Rechazar pedido'), style: TextStyle(fontSize: 18)),
         ),
       ],
     ];
   }
 
   List<Widget> _empaquetar(Pedido p, PedidoPuesto parte) => [
-    const EtiquetaEstado(
-      texto: 'El cliente aceptó el precio final. Ya puedes preparar la bolsa.',
+    EtiquetaEstado(
+      texto: tr(
+        'El cliente aceptó el precio final. Ya puedes preparar la bolsa.',
+      ),
       icono: Icons.check_circle,
       tipo: TipoEstado.exito,
     ),
@@ -532,7 +546,10 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen>
     ],
     const SizedBox(height: 16),
     Text(
-      'Empaqueta los productos y etiqueta la bolsa con el nombre de ${p.clienteNombre} y de tu puesto.',
+      tr(
+        'Empaqueta los productos y etiqueta la bolsa con el nombre de {0} y de tu puesto.',
+        [p.clienteNombre],
+      ),
       style: const TextStyle(fontSize: 19),
     ),
     const SizedBox(height: 12),
@@ -542,8 +559,8 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen>
           ? null
           : () => _confirmarAccion(parte, entregar: false),
       icon: const Icon(Icons.inventory_2_outlined),
-      label: const Text(
-        'Ya empaqueté: marcar listo',
+      label: Text(
+        tr('Ya empaqueté: marcar listo'),
         textAlign: TextAlign.center,
         style: TextStyle(fontSize: 20),
       ),
@@ -577,8 +594,8 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen>
               children: [
                 Text(
                   entregar
-                      ? 'Confirmar entrega de la bolsa'
-                      : 'Confirmar bolsa lista',
+                      ? tr('Confirmar entrega de la bolsa')
+                      : tr('Confirmar bolsa lista'),
                   style: const TextStyle(
                     fontSize: 23,
                     fontWeight: FontWeight.w800,
@@ -586,7 +603,10 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen>
                 ),
                 const SizedBox(height: 12),
                 SelectableText(
-                  'Pedido de ${_pedido!.clienteNombre}\n${parte.puesto.nombre}',
+                  tr('Pedido de {0}\n{1}', [
+                    _pedido!.clienteNombre,
+                    parte.puesto.nombre,
+                  ]),
                   style: const TextStyle(
                     fontSize: 26,
                     fontWeight: FontWeight.w800,
@@ -596,8 +616,12 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen>
                 const SizedBox(height: 12),
                 Text(
                   entregar
-                      ? 'Confirma únicamente después de entregar esta bolsa al repartidor. La entrega al cliente la registra el repartidor.'
-                      : 'Verifica que todos los productos estén empaquetados y que la bolsa tenga el nombre del cliente y de tu puesto.',
+                      ? tr(
+                          'Confirma únicamente después de entregar esta bolsa al repartidor. La entrega al cliente la registra el repartidor.',
+                        )
+                      : tr(
+                          'Verifica que todos los productos estén empaquetados y que la bolsa tenga el nombre del cliente y de tu puesto.',
+                        ),
                   style: const TextStyle(fontSize: 18),
                 ),
                 const SizedBox(height: 16),
@@ -605,7 +629,9 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen>
                   style: _estiloAccion,
                   onPressed: () => Navigator.of(ctx).pop(true),
                   child: Text(
-                    entregar ? 'Sí, entregué la bolsa' : 'Sí, está lista',
+                    entregar
+                        ? tr('Sí, entregué la bolsa')
+                        : tr('Sí, está lista'),
                     textAlign: TextAlign.center,
                     style: const TextStyle(fontSize: 20),
                   ),
@@ -613,8 +639,8 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen>
                 TextButton(
                   style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
                   onPressed: () => Navigator.of(ctx).pop(false),
-                  child: const Text(
-                    'Volver a revisar',
+                  child: Text(
+                    tr('Volver a revisar'),
                     style: TextStyle(fontSize: 18),
                   ),
                 ),
@@ -632,8 +658,8 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen>
           ? _repo.entregarARepartidor(parte.id)
           : _repo.marcarListo(parte.id),
       exito: entregar
-          ? 'Bolsa entregada al repartidor.'
-          : 'Bolsa lista. Espera al repartidor.',
+          ? tr('Bolsa entregada al repartidor.')
+          : tr('Bolsa lista. Espera al repartidor.'),
     );
   }
 
@@ -645,15 +671,16 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen>
         items.every((i) => _enBolsa.contains(i.pedidoDetalleId));
     final bloqueado = _ocupado || _actualizando || _confirmando;
     return [
-      const EtiquetaEstado(
-        texto:
-            'Espera al repartidor y comprueba que la bolsa sea para este cliente antes de entregarla.',
+      EtiquetaEstado(
+        texto: tr(
+          'Espera al repartidor y comprueba que la bolsa sea para este cliente antes de entregarla.',
+        ),
         icono: Icons.delivery_dining,
       ),
       const SizedBox(height: 12),
       SeguimientoPuestoCasero(estado: parte.estado),
       const SizedBox(height: 16),
-      const Text('Bolsa para entregar', style: TextStyle(fontSize: 18)),
+      Text(tr('Bolsa para entregar'), style: TextStyle(fontSize: 18)),
       SelectableText(
         '${p.clienteNombre}\n${parte.puesto.nombre}',
         style: const TextStyle(
@@ -663,7 +690,7 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen>
         ),
       ),
       const SizedBox(height: 16),
-      const TituloSeccion('Revisa la bolsa'),
+      TituloSeccion(tr('Revisa la bolsa')),
       for (final d in items)
         CheckboxListTile(
           value: _enBolsa.contains(d.pedidoDetalleId),
@@ -682,8 +709,10 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen>
           contentPadding: EdgeInsets.zero,
         ),
       if (!completo)
-        const Text(
-          'Marca todos los productos para poder entregar la bolsa. Si no aparece la lista, actualiza el pedido.',
+        Text(
+          tr(
+            'Marca todos los productos para poder entregar la bolsa. Si no aparece la lista, actualiza el pedido.',
+          ),
           style: TextStyle(fontSize: 17),
         ),
       const SizedBox(height: 16),
@@ -693,7 +722,7 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen>
             ? () => _confirmarAccion(parte, entregar: true)
             : null,
         child: Text(
-          _ocupado ? 'Guardando entrega…' : 'Ya se lo entregué',
+          _ocupado ? tr('Guardando entrega…') : tr('Ya se lo entregué'),
           textAlign: TextAlign.center,
           style: const TextStyle(fontSize: 20),
         ),
@@ -707,8 +736,12 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen>
     return [
       EtiquetaEstado(
         texto: borrador
-            ? 'Tu precio está guardado. Esperamos que los otros puestos envíen sus precios.'
-            : 'Precio enviado. Esperamos que el cliente acepte el precio de todo su pedido antes de preparar la bolsa.',
+            ? tr(
+                'Tu precio está guardado. Esperamos que los otros puestos envíen sus precios.',
+              )
+            : tr(
+                'Precio enviado. Esperamos que el cliente acepte el precio de todo su pedido antes de preparar la bolsa.',
+              ),
         icono: Icons.hourglass_top,
         tipo: TipoEstado.aviso,
       ),
@@ -729,8 +762,8 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Pedido compartido',
+          Text(
+            tr('Pedido compartido'),
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 6),

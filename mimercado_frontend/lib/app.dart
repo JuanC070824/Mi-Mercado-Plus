@@ -1,5 +1,6 @@
 import 'package:device_preview/device_preview.dart';
 import 'package:flutter/material.dart';
+import 'core/i18n/idioma.dart';
 import 'core/router/app_router.dart';
 import 'core/state/accesibilidad_state.dart';
 import 'core/theme/app_theme.dart';
@@ -10,8 +11,18 @@ class MiMercadoApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Al cambiar de idioma se reconstruye toda la app (la clave fuerza a
+    // recrear las pantallas para que todos los textos salgan traducidos).
+    return ValueListenableBuilder<Idioma>(
+      valueListenable: IdiomaState.actual,
+      builder: (context, idioma, _) => _app(idioma),
+    );
+  }
+
+  Widget _app(Idioma idioma) {
     return MaterialApp.router(
-      locale: const Locale('es', 'PE'),
+      key: ValueKey(idioma),
+      locale: idioma.localeMaterial,
       supportedLocales: const [Locale('es', 'PE')],
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,

@@ -5,6 +5,8 @@ import '../utils/formato.dart';
 import 'botones_app.dart';
 import 'mensaje_error.dart';
 
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
+
 // Piezas que se repiten en las pantallas de cliente, casero y repartidor.
 
 /// Tarjeta blanca con borde (radio 18, padding 16).
@@ -274,7 +276,7 @@ class CargandoApp extends StatelessWidget {
           children: [
             CircularProgressIndicator(semanticsLabel: texto),
             const SizedBox(height: 16),
-            Text(texto, style: const TextStyle(fontSize: 18)),
+            Text(tr(texto), style: const TextStyle(fontSize: 18)),
           ],
         ),
       ),
@@ -381,7 +383,7 @@ Future<bool> confirmar(
   required String titulo,
   required String texto,
   required String textoSi,
-  String textoNo = 'No, volver',
+  String? textoNo,
 }) async {
   final r = await showDialog<bool>(
     context: context,
@@ -396,7 +398,10 @@ Future<bool> confirmar(
         TextButton(
           style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
           onPressed: () => Navigator.of(ctx).pop(false),
-          child: Text(textoNo, style: const TextStyle(fontSize: 18)),
+          child: Text(
+            textoNo ?? tr('No, volver'),
+            style: const TextStyle(fontSize: 18),
+          ),
         ),
         FilledButton(
           style: FilledButton.styleFrom(
