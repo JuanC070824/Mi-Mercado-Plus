@@ -4,8 +4,6 @@ import '../../../core/widgets/componentes_app.dart';
 import '../../../data/models/pedido.dart';
 import 'piezas_repartidor.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 /// Oferta compacta: lo justo para decidir. El detalle va en el diálogo.
 class TarjetaOfertaRepartidor extends StatelessWidget {
   const TarjetaOfertaRepartidor({
@@ -43,7 +41,7 @@ class TarjetaOfertaRepartidor extends StatelessWidget {
                   ),
                   Text(
                     [
-                      '$puestos ${puestos == 1 ? tr('puesto') : tr('puestos')}',
+                      '$puestos ${puestos == 1 ? 'puesto' : 'puestos'}',
                       ?km,
                     ].join(' · '),
                     style: const TextStyle(
@@ -53,7 +51,7 @@ class TarjetaOfertaRepartidor extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    tr('Ganas {0}', [gananciaDe(datos)]),
+                    'Ganas ${gananciaDe(datos)}',
                     style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w800,
@@ -64,7 +62,7 @@ class TarjetaOfertaRepartidor extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 4),
-            AccionRepartidor(tr('Ver y aceptar'), alVer, ocupado: ocupado),
+            AccionRepartidor('Ver y aceptar', alVer, ocupado: ocupado),
           ],
         ),
       ),

@@ -5,8 +5,6 @@ import '../../../core/utils/formato.dart';
 import '../../../core/widgets/componentes_app.dart';
 import '../../../data/models/cotizacion.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 /// Los importes corresponden al puesto, sin sumar envío ni otros vendedores.
 class ResumenPrecioCasero extends StatelessWidget {
   const ResumenPrecioCasero({
@@ -26,16 +24,16 @@ class ResumenPrecioCasero extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            tr('Resumen de tu puesto'),
+          const Text(
+            'Resumen de tu puesto',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 12),
           for (final fila in [
-            (tr('Estimado inicial'), estimado),
-            (tr('Precio final'), puesto.bruto),
-            (tr('Comisión MiMercado+ (5 %)'), puesto.comision),
-            (tr('Recibes'), puesto.neto),
+            ('Estimado inicial', estimado),
+            ('Precio final', puesto.bruto),
+            ('Comisión MiMercado+ (5 %)', puesto.comision),
+            ('Recibes', puesto.neto),
           ])
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 6),
@@ -58,8 +56,8 @@ class ResumenPrecioCasero extends StatelessWidget {
               ),
             ),
           const SizedBox(height: 8),
-          Text(
-            tr('El envío y los demás puestos se calculan por separado.'),
+          const Text(
+            'El envío y los demás puestos se calculan por separado.',
             style: TextStyle(fontSize: 16, color: AppColors.textoSecundario),
           ),
         ],

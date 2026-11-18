@@ -12,8 +12,6 @@ import '../models/repartidor.dart';
 import 'pedido_repository.dart';
 import 'pedidos_vendedor_api_repository.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 /// Comparte pedidos reales entre comprador, vendedor y repartidor.
 class PedidosApiRepository implements PedidoRepository {
   PedidosApiRepository({http.Client? client, this.baseUrl})
@@ -46,7 +44,7 @@ class PedidosApiRepository implements PedidoRepository {
   }) async {
     final token = SesionState.token;
     if (token == null) {
-      throw PedidoException(tr('Tu sesión venció. Vuelve a ingresar.'));
+      throw const PedidoException('Tu sesión venció. Vuelve a ingresar.');
     }
     try {
       final request =
@@ -60,10 +58,8 @@ class PedidosApiRepository implements PedidoRepository {
         await _client.send(request).timeout(const Duration(seconds: 25)),
       );
       if (response.statusCode >= 500) {
-        throw PedidoException(
-          tr(
-            'No pudimos confirmar la operación. Actualiza antes de volver a intentarlo.',
-          ),
+        throw const PedidoException(
+          'No pudimos confirmar la operación. Actualiza antes de volver a intentarlo.',
         );
       }
       final data = jsonDecode(response.body);
@@ -75,23 +71,19 @@ class PedidosApiRepository implements PedidoRepository {
         throw PedidoException(
           data is Map && data['detail'] is String
               ? data['detail'] as String
-              : tr('No pudimos guardar el cambio. Revisa los datos.'),
+              : 'No pudimos guardar el cambio. Revisa los datos.',
         );
       }
       return data;
     } on PedidoException {
       rethrow;
     } on TimeoutException {
-      throw PedidoException(
-        tr(
-          'La respuesta está tardando. Actualiza para comprobar si el cambio se guardó.',
-        ),
+      throw const PedidoException(
+        'La respuesta está tardando. Actualiza para comprobar si el cambio se guardó.',
       );
     } catch (_) {
-      throw PedidoException(
-        tr(
-          'No pudimos conectarnos. Revisa tu conexión e inténtalo nuevamente.',
-        ),
+      throw const PedidoException(
+        'No pudimos conectarnos. Revisa tu conexión e inténtalo nuevamente.',
       );
     }
   }
@@ -190,10 +182,8 @@ class PedidosApiRepository implements PedidoRepository {
       },
     );
     if (respuesta['success'] != true) {
-      throw PedidoException(
-        tr(
-          'Estamos confirmando tu pago. Actualiza el pedido antes de volver a pagar.',
-        ),
+      throw const PedidoException(
+        'Estamos confirmando tu pago. Actualiza el pedido antes de volver a pagar.',
       );
     }
     _intentos.remove(id);
@@ -247,8 +237,8 @@ class PedidosApiRepository implements PedidoRepository {
     if (!_datos.containsKey(id)) await pedidosCliente('');
     final quote = _datos[id]?['cotizacion'];
     if (quote is! Map || quote['id'] is! num) {
-      throw PedidoException(
-        tr('Actualiza el pedido para revisar el precio final.'),
+      throw const PedidoException(
+        'Actualiza el pedido para revisar el precio final.',
       );
     }
     await _guardar('/api/pedidos/$id/cotizaciones/${quote['id']}/aceptar/', {});
@@ -345,7 +335,7 @@ class PedidosApiRepository implements PedidoRepository {
     DateTime? programadoPara,
   }) async {
     if (direccion.id == null) {
-      throw PedidoException(tr('Guarda tu dirección antes de pedir.'));
+      throw const PedidoException('Guarda tu dirección antes de pedir.');
     }
     final data = await solicitar(
       'POST',

@@ -19,8 +19,6 @@ import '../widgets/dialogos_repartidor.dart';
 import '../widgets/mercado_repartidor.dart';
 import '../widgets/piezas_repartidor.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 /// Flujo conectado al servidor. No muestra pedidos ni distancias inventados.
 /// Esta pantalla solo carga, refresca y ejecuta acciones; cada vista dibuja.
 class RepartidorOperacionesScreen extends StatefulWidget {
@@ -250,11 +248,8 @@ class _RepartidorOperacionesScreenState
 
   Future<void> _confirmarRecojo(Pedido p, PedidoPuesto pp) async {
     if (await _confirmar(
-          tr('Confirmar recojo'),
-          tr('¿Tienes la bolsa de {0} para {1}?', [
-            pp.puesto.nombre,
-            p.clienteNombre,
-          ]),
+          'Confirmar recojo',
+          '¿Tienes la bolsa de ${pp.puesto.nombre} para ${p.clienteNombre}?',
         ) &&
         mounted) {
       await _hacer(() => _repo.accionRepartidor(p.id, 'recoger', parte: pp.id));
@@ -272,15 +267,13 @@ class _RepartidorOperacionesScreenState
     if (_ocupado) return;
     if (!RegExp(r'^\d{4}$').hasMatch(_codigo.text.trim())) {
       setState(
-        () => _error = tr('Escribe los 4 números que te indica el cliente.'),
+        () => _error = 'Escribe los 4 números que te indica el cliente.',
       );
       return;
     }
     if (!await _confirmar(
-          tr('Confirmar pedido entregado'),
-          tr('Confirma después de entregar todas las bolsas a {0}.', [
-            p.clienteNombre,
-          ]),
+          'Confirmar pedido entregado',
+          'Confirma después de entregar todas las bolsas a ${p.clienteNombre}.',
         ) ||
         !mounted) {
       return;
@@ -309,7 +302,7 @@ class _RepartidorOperacionesScreenState
       await _repo.avisarLlegada(p.id);
       _llegados.add(p.id);
       _verLlegada = false;
-    }, mensaje: tr('El cliente puede ver que llegaste.'));
+    }, mensaje: 'El cliente puede ver que llegaste.');
   }
 
   Widget _vista() {
@@ -317,9 +310,9 @@ class _RepartidorOperacionesScreenState
     if (inicio == null) {
       return AvisoPantalla(
         icono: Icons.wifi_off,
-        titulo: tr('No pudimos cargar tus pedidos'),
-        texto: tr('Revisa tu conexión.'),
-        textoBoton: tr('Reintentar'),
+        titulo: 'No pudimos cargar tus pedidos',
+        texto: 'Revisa tu conexión.',
+        textoBoton: 'Reintentar',
         alTocar: _ocupado || _leyendo ? null : _cargar,
       );
     }
@@ -339,9 +332,8 @@ class _RepartidorOperacionesScreenState
                 placa,
                 descripcion: descripcion,
               ),
-              mensaje: tr(
-                'Solicitud registrada. Espera la autorización de tu mercado.',
-              ),
+              mensaje:
+                  'Solicitud registrada. Espera la autorización de tu mercado.',
             ),
           ),
         ],
@@ -371,13 +363,13 @@ class _RepartidorOperacionesScreenState
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          AvisoPantalla(
+          const AvisoPantalla(
             icono: Icons.route_outlined,
-            titulo: tr('No tienes una entrega en curso'),
-            texto: tr('Acepta un pedido en Inicio para ver tu ruta.'),
+            titulo: 'No tienes una entrega en curso',
+            texto: 'Acepta un pedido en Inicio para ver tu ruta.',
           ),
           AccionRepartidor(
-            tr('Ver pedidos'),
+            'Ver pedidos',
             () => context.go('/repartidor/inicio'),
             ocupado: _ocupado,
           ),
@@ -404,7 +396,7 @@ class _RepartidorOperacionesScreenState
       alRecoger: (pp) => _confirmarRecojo(actual, pp),
       alAvisar: () => _hacer(
         () => _repo.accionRepartidor(actual.id, 'recogiendo'),
-        mensaje: tr('El aviso quedó en el seguimiento del cliente.'),
+        mensaje: 'El aviso quedó en el seguimiento del cliente.',
       ),
       alSalir: () => _salir(actual),
     );
@@ -418,10 +410,10 @@ class _RepartidorOperacionesScreenState
         children: [
           EncabezadoPedidoCasero(
             titulo: switch (widget.vista) {
-              'ruta' => tr('Ruta de recojo'),
-              'entrega' => tr('Entregar al cliente'),
-              'ganancias' => tr('Mis ganancias'),
-              _ => tr('Hola, {0}', [widget.usuario.nombres.split(' ').first]),
+              'ruta' => 'Ruta de recojo',
+              'entrega' => 'Entregar al cliente',
+              'ganancias' => 'Mis ganancias',
+              _ => 'Hola, ${widget.usuario.nombres.split(' ').first}',
             },
             subtitulo: _inicio?['mercado']?['nombre']?.toString(),
             mostrarAtras: false,
@@ -437,10 +429,10 @@ class _RepartidorOperacionesScreenState
                       physics: const AlwaysScrollableScrollPhysics(),
                       children: [
                         if (_ocupado)
-                          Padding(
+                          const Padding(
                             padding: EdgeInsets.only(bottom: 12),
                             child: LinearProgressIndicator(
-                              semanticsLabel: tr('Guardando y comprobando…'),
+                              semanticsLabel: 'Guardando y comprobando…',
                             ),
                           ),
                         if (_error != null) ...[

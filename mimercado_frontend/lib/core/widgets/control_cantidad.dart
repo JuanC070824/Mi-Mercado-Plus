@@ -3,8 +3,6 @@ import '../../data/models/producto.dart';
 import '../theme/app_colors.dart';
 import '../utils/formato.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 /// Control "−  1.5 kg  +" con botones de 48 dp.
 /// Lo usan la canasta del cliente (C2, C3) y la balanza del casero (V3).
 class ControlCantidad extends StatelessWidget {
@@ -31,7 +29,7 @@ class ControlCantidad extends StatelessWidget {
       children: [
         _BotonRedondo(
           icono: Icons.remove,
-          etiqueta: tr('Quitar {0} de {1}', [paso, nombre]),
+          etiqueta: 'Quitar $paso de $nombre',
           relleno: false,
           onPressed: onRestar,
         ),
@@ -54,7 +52,7 @@ class ControlCantidad extends StatelessWidget {
         ),
         _BotonRedondo(
           icono: Icons.add,
-          etiqueta: tr('Agregar {0} de {1}', [paso, nombre]),
+          etiqueta: 'Agregar $paso de $nombre',
           relleno: true,
           onPressed: onSumar,
         ),

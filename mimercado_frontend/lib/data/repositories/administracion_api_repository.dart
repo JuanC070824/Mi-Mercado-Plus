@@ -6,8 +6,6 @@ import 'package:http/http.dart' as http;
 import '../../core/config/api_config.dart';
 import '../../core/state/sesion_state.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 class AdministracionException implements Exception {
   const AdministracionException(this.mensaje);
   final String mensaje;
@@ -123,7 +121,9 @@ class AdministracionApiRepository {
   }) async {
     final token = SesionState.token;
     if (token == null) {
-      throw AdministracionException(tr('Tu sesión venció. Vuelve a ingresar.'));
+      throw const AdministracionException(
+        'Tu sesión venció. Vuelve a ingresar.',
+      );
     }
     try {
       final req =
@@ -144,10 +144,10 @@ class AdministracionApiRepository {
     } on AdministracionException {
       rethrow;
     } on TimeoutException {
-      throw AdministracionException(tr('El servidor tardó demasiado.'));
+      throw const AdministracionException('El servidor tardó demasiado.');
     } catch (_) {
-      throw AdministracionException(
-        tr('No pudimos conectarnos con MiMercado+.'),
+      throw const AdministracionException(
+        'No pudimos conectarnos con MiMercado+.',
       );
     }
   }
@@ -160,6 +160,6 @@ class AdministracionApiRepository {
       }
     }
     if (data is List && data.isNotEmpty) return data.first.toString();
-    return tr('No pudimos guardar el cambio. Revisa los datos.');
+    return 'No pudimos guardar el cambio. Revisa los datos.';
   }
 }

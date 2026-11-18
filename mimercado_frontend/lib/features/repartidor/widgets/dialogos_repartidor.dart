@@ -3,8 +3,6 @@ import '../../../core/theme/app_colors.dart';
 import '../../../data/models/pedido.dart';
 import 'piezas_repartidor.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 Widget _dialogo(List<Widget> children) => Dialog(
   child: SingleChildScrollView(
     padding: const EdgeInsets.all(20),
@@ -25,14 +23,12 @@ Future<bool?> mostrarOfertaRepartidor(
   context: context,
   builder: (ctx) => _dialogo([
     const Icon(Icons.delivery_dining, size: 48, color: AppColors.azul),
-    TituloRepartidor(tr('¡Nuevo pedido para recoger!')),
+    const TituloRepartidor('¡Nuevo pedido para recoger!'),
     Text(
-      tr('Cliente: {0}', [pedido.clienteNombre]),
+      'Cliente: ${pedido.clienteNombre}',
       style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
     ),
-    TituloRepartidor(
-      tr('Recoges en {0} puestos', [pedido.puestosActivos.length]),
-    ),
+    TituloRepartidor('Recoges en ${pedido.puestosActivos.length} puestos'),
     for (final parte in pedido.puestosActivos)
       Text(
         '${parte.parada}. ${parte.puesto.nombre}',
@@ -40,13 +36,13 @@ Future<bool?> mostrarOfertaRepartidor(
       ),
     const SizedBox(height: 12),
     Text(
-      tr('Entregas en: {0}', [pedido.direccion]),
+      'Entregas en: ${pedido.direccion}',
       style: const TextStyle(fontSize: 18),
     ),
     Text(distanciaDe(datos), style: const TextStyle(fontSize: 17)),
     const SizedBox(height: 12),
     Text(
-      tr('Ganas {0}', [gananciaDe(datos)]),
+      'Ganas ${gananciaDe(datos)}',
       style: const TextStyle(
         fontSize: 24,
         fontWeight: FontWeight.w800,
@@ -55,18 +51,18 @@ Future<bool?> mostrarOfertaRepartidor(
     ),
     Text(
       pedido.metodoPago == MetodoPago.efectivo
-          ? tr('El cliente paga en efectivo al recibir.')
+          ? 'El cliente paga en efectivo al recibir.'
           : datos['pago_simulado'] == true
-          ? tr('Pago de demostración confirmado. No se movió dinero.')
-          : tr('El pago con Yape ya está confirmado.'),
+          ? 'Pago de demostración confirmado. No se movió dinero.'
+          : 'El pago con Yape ya está confirmado.',
       style: const TextStyle(fontSize: 18),
     ),
     const SizedBox(height: 16),
     FilledButton(
       style: estiloBotonRepartidor,
       onPressed: () => Navigator.of(ctx).pop(true),
-      child: Text(
-        tr('Aceptar reparto'),
+      child: const Text(
+        'Aceptar reparto',
         textAlign: TextAlign.center,
         style: TextStyle(fontSize: 20),
       ),
@@ -74,7 +70,7 @@ Future<bool?> mostrarOfertaRepartidor(
     TextButton(
       style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
       onPressed: () => Navigator.of(ctx).pop(false),
-      child: Text(tr('Ahora no'), style: TextStyle(fontSize: 18)),
+      child: const Text('Ahora no', style: TextStyle(fontSize: 18)),
     ),
   ]),
 );
@@ -94,12 +90,12 @@ Future<bool> confirmarRepartidor(
         FilledButton(
           style: estiloBotonRepartidor,
           onPressed: () => Navigator.of(ctx).pop(true),
-          child: Text(tr('Sí, confirmar'), style: TextStyle(fontSize: 20)),
+          child: const Text('Sí, confirmar', style: TextStyle(fontSize: 20)),
         ),
         TextButton(
           style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
           onPressed: () => Navigator.of(ctx).pop(false),
-          child: Text(tr('Volver a revisar'), style: TextStyle(fontSize: 18)),
+          child: const Text('Volver a revisar', style: TextStyle(fontSize: 18)),
         ),
       ]),
     ) ??
@@ -112,17 +108,17 @@ Future<void> mostrarEntregado(BuildContext context, String ganancia) =>
       barrierDismissible: false,
       builder: (ctx) => _dialogo([
         const Icon(Icons.celebration, size: 50, color: AppColors.azul),
-        TituloRepartidor(tr('¡Pedido entregado!')),
+        const TituloRepartidor('¡Pedido entregado!'),
         Text(
-          tr('Ganaste {0} por este reparto.', [ganancia]),
+          'Ganaste $ganancia por este reparto.',
           style: const TextStyle(fontSize: 21),
         ),
         const SizedBox(height: 16),
         FilledButton(
           style: estiloBotonRepartidor,
           onPressed: () => Navigator.of(ctx).pop(),
-          child: Text(
-            tr('Volver al inicio'),
+          child: const Text(
+            'Volver al inicio',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 20),
           ),

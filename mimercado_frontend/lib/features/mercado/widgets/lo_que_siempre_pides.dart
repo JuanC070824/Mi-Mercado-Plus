@@ -5,8 +5,6 @@ import '../../../core/utils/formato.dart';
 import '../../../core/widgets/componentes_app.dart';
 import '../../../data/repositories/catalogo_api_repository.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 /// RF-20: los productos que el cliente repite, para agregarlos con un toque.
 class LoQueSiemprePides extends StatelessWidget {
   const LoQueSiemprePides({
@@ -26,8 +24,8 @@ class LoQueSiemprePides extends StatelessWidget {
       children: [
         Semantics(
           header: true,
-          child: Text(
-            tr('Lo que siempre pides'),
+          child: const Text(
+            'Lo que siempre pides',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w800,
@@ -35,8 +33,8 @@ class LoQueSiemprePides extends StatelessWidget {
             ),
           ),
         ),
-        Text(
-          tr('Agrégalo de nuevo con un toque.'),
+        const Text(
+          'Agrégalo de nuevo con un toque.',
           style: TextStyle(fontSize: 17, color: AppColors.textoSecundario),
         ),
         const SizedBox(height: 12),
@@ -83,9 +81,7 @@ class _Tarjeta extends StatelessWidget {
                 ),
                 if (!puedeAgregar)
                   Text(
-                    item.puesto.abierto
-                        ? tr('Hoy no hay')
-                        : tr('Puesto cerrado'),
+                    item.puesto.abierto ? 'Hoy no hay' : 'Puesto cerrado',
                     style: const TextStyle(
                       fontSize: 16,
                       color: AppColors.textoSecundario,
@@ -100,8 +96,8 @@ class _Tarjeta extends StatelessWidget {
             onPressed: puedeAgregar ? () => onAgregar(item) : null,
             icon: const Icon(Icons.add_shopping_cart),
             label: Text(
-              tr('Agregar'),
-              semanticsLabel: tr('Agregar {0}', [p.nombre]),
+              'Agregar',
+              semanticsLabel: 'Agregar ${p.nombre}',
               style: const TextStyle(fontSize: 17),
             ),
           ),

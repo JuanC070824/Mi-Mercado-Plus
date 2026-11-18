@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/widgets/componentes_app.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 /// Identifica la afiliación de la cuenta, sin confundir solicitud y autorización.
 class MercadoRepartidor extends StatelessWidget {
   const MercadoRepartidor({super.key, required this.datos});
@@ -23,10 +21,10 @@ class MercadoRepartidor extends StatelessWidget {
           header: true,
           child: Text(
             autorizado
-                ? tr('Mi mercado asignado')
+                ? 'Mi mercado asignado'
                 : pendiente
-                ? tr('Mi mercado solicitado')
-                : tr('Sin mercado autorizado'),
+                ? 'Mi mercado solicitado'
+                : 'Sin mercado autorizado',
             style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
           ),
         ),
@@ -40,24 +38,20 @@ class MercadoRepartidor extends StatelessWidget {
         const SizedBox(height: 8),
         EtiquetaEstado(
           texto: autorizado
-              ? tr('Autorizado para repartir')
+              ? 'Autorizado para repartir'
               : pendiente
-              ? tr('Autorización pendiente')
-              : tr('Aún no tienes un mercado autorizado'),
+              ? 'Autorización pendiente'
+              : 'Aún no tienes un mercado autorizado',
           icono: autorizado ? Icons.verified_outlined : Icons.info_outline,
           tipo: autorizado ? TipoEstado.exito : TipoEstado.aviso,
         ),
         const SizedBox(height: 8),
         Text(
           autorizado
-              ? tr('Recibirás únicamente pedidos de este mercado.')
+              ? 'Recibirás únicamente pedidos de este mercado.'
               : pendiente
-              ? tr(
-                  'La solicitud está registrada. El responsable debe autorizar tu cuenta antes de recibir pedidos.',
-                )
-              : tr(
-                  'Solicita tu mercado desde Inicio para poder recibir pedidos.',
-                ),
+              ? 'La solicitud está registrada. El responsable debe autorizar tu cuenta antes de recibir pedidos.'
+              : 'Solicita tu mercado desde Inicio para poder recibir pedidos.',
           style: const TextStyle(fontSize: 18),
         ),
       ],

@@ -4,8 +4,6 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/soporte_dialog.dart';
 import '../../../data/repositories/vendedor_inicio_repository.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 /// Cabecera del puesto sin alturas fijas, para permitir ampliar el texto.
 class EncabezadoInicioCasero extends StatelessWidget {
   const EncabezadoInicioCasero({
@@ -51,7 +49,10 @@ class EncabezadoInicioCasero extends StatelessWidget {
                       minimumSize: const Size(48, 48),
                     ),
                     icon: const Icon(Icons.headset_mic_outlined),
-                    label: Text(tr('Soporte'), style: TextStyle(fontSize: 16)),
+                    label: const Text(
+                      'Soporte',
+                      style: TextStyle(fontSize: 16),
+                    ),
                   ),
                 ],
               ),
@@ -59,7 +60,7 @@ class EncabezadoInicioCasero extends StatelessWidget {
               Semantics(
                 header: true,
                 child: Text(
-                  tr('¡Hola, {0}!', [nombre]),
+                  '¡Hola, $nombre!',
                   style: const TextStyle(
                     color: AppColors.blanco,
                     fontSize: 28,
@@ -96,9 +97,7 @@ class EncabezadoInicioCasero extends StatelessWidget {
                       vertical: 8,
                     ),
                     title: Text(
-                      puesto.abierto
-                          ? tr('Puesto abierto')
-                          : tr('Puesto cerrado'),
+                      puesto.abierto ? 'Puesto abierto' : 'Puesto cerrado',
                       style: const TextStyle(
                         color: AppColors.texto,
                         fontSize: 18,
@@ -107,10 +106,8 @@ class EncabezadoInicioCasero extends StatelessWidget {
                     ),
                     subtitle: Text(
                       puesto.abierto
-                          ? tr('Los clientes pueden hacerte pedidos.')
-                          : tr(
-                              'No recibirás nuevos pedidos. Los que ya aceptaste siguen en curso.',
-                            ),
+                          ? 'Los clientes pueden hacerte pedidos.'
+                          : 'No recibirás nuevos pedidos. Los que ya aceptaste siguen en curso.',
                       style: const TextStyle(
                         color: AppColors.textoSecundario,
                         fontSize: 16,
@@ -122,8 +119,8 @@ class EncabezadoInicioCasero extends StatelessWidget {
                   const SizedBox(height: 8),
                   Semantics(
                     liveRegion: true,
-                    child: Text(
-                      tr('Guardando estado del puesto…'),
+                    child: const Text(
+                      'Guardando estado del puesto…',
                       style: TextStyle(color: AppColors.blanco, fontSize: 16),
                     ),
                   ),

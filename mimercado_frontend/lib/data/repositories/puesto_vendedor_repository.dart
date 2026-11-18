@@ -7,8 +7,6 @@ import 'package:http/http.dart' as http;
 import '../../core/config/api_config.dart';
 import '../../core/state/sesion_state.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 class PuestoVendedorException implements Exception {
   const PuestoVendedorException(this.mensaje);
   final String mensaje;
@@ -98,7 +96,7 @@ class PuestoVendedorApiRepository {
       final categoriasJson = jsonDecode(respuestas[1].body);
       final puestoJson = _mapa(jsonDecode(respuestas[2].body));
       if (mercadosJson is! List || categoriasJson is! List) {
-        throw FormatException(tr('Catálogos inválidos'));
+        throw const FormatException('Catálogos inválidos');
       }
       return DatosPuestoVendedor(
         mercados: mercadosJson.map((item) => _mercado(_mapa(item))).toList(),
@@ -112,16 +110,16 @@ class PuestoVendedorApiRepository {
     } on PuestoVendedorException {
       rethrow;
     } on TimeoutException {
-      throw PuestoVendedorException(
-        tr('La carga tardó demasiado. Inténtalo nuevamente.'),
+      throw const PuestoVendedorException(
+        'La carga tardó demasiado. Inténtalo nuevamente.',
       );
     } on FormatException {
-      throw PuestoVendedorException(
-        tr('El servidor devolvió datos inválidos.'),
+      throw const PuestoVendedorException(
+        'El servidor devolvió datos inválidos.',
       );
     } catch (_) {
-      throw PuestoVendedorException(
-        tr('No pudimos conectarnos con MiMercado+.'),
+      throw const PuestoVendedorException(
+        'No pudimos conectarnos con MiMercado+.',
       );
     }
   }
@@ -153,8 +151,8 @@ class PuestoVendedorApiRepository {
       cambios.value++;
       return puesto;
     } on FormatException {
-      throw PuestoVendedorException(
-        tr('El servidor devolvió datos inválidos.'),
+      throw const PuestoVendedorException(
+        'El servidor devolvió datos inválidos.',
       );
     }
   }
@@ -176,8 +174,8 @@ class PuestoVendedorApiRepository {
     if (autenticada) {
       final token = SesionState.token;
       if (token == null) {
-        throw PuestoVendedorException(
-          tr('Tu sesión venció. Vuelve a iniciar sesión.'),
+        throw const PuestoVendedorException(
+          'Tu sesión venció. Vuelve a iniciar sesión.',
         );
       }
       request.headers['Authorization'] = 'Bearer $token';
@@ -189,14 +187,14 @@ class PuestoVendedorApiRepository {
           .timeout(const Duration(seconds: 15));
       return await http.Response.fromStream(streamed);
     } on TimeoutException {
-      throw PuestoVendedorException(
-        tr('La conexión tardó demasiado. Inténtalo nuevamente.'),
+      throw const PuestoVendedorException(
+        'La conexión tardó demasiado. Inténtalo nuevamente.',
       );
     } on PuestoVendedorException {
       rethrow;
     } catch (_) {
-      throw PuestoVendedorException(
-        tr('No pudimos conectarnos con MiMercado+.'),
+      throw const PuestoVendedorException(
+        'No pudimos conectarnos con MiMercado+.',
       );
     }
   }
@@ -235,17 +233,17 @@ class PuestoVendedorApiRepository {
 
   static Map<String, dynamic> _mapa(dynamic value) {
     if (value is Map<String, dynamic>) return value;
-    throw FormatException(tr('Se esperaba un objeto'));
+    throw const FormatException('Se esperaba un objeto');
   }
 
   static int _entero(dynamic value) {
     if (value is num) return value.toInt();
-    throw FormatException(tr('Se esperaba un número'));
+    throw const FormatException('Se esperaba un número');
   }
 
   static String _texto(dynamic value) {
     final texto = value?.toString().trim() ?? '';
-    if (texto.isEmpty) throw FormatException(tr('Se esperaba texto'));
+    if (texto.isEmpty) throw const FormatException('Se esperaba texto');
     return texto;
   }
 
@@ -264,8 +262,6 @@ class PuestoVendedorApiRepository {
         if (value is String && value.isNotEmpty) return value;
       }
     } catch (_) {}
-    return tr(
-      'No pudimos guardar tu puesto. Revisa los datos e inténtalo nuevamente.',
-    );
+    return 'No pudimos guardar tu puesto. Revisa los datos e inténtalo nuevamente.';
   }
 }

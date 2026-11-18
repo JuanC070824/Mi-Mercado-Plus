@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/app_colors.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 class CampoTextoApp extends StatefulWidget {
   const CampoTextoApp({
     super.key,
@@ -73,9 +71,7 @@ class _CampoTextoAppState extends State<CampoTextoApp> {
           sufijo = const Icon(Icons.calendar_month, color: AppColors.azul);
         } else if (widget.esPassword) {
           sufijo = IconButton(
-            tooltip: _oculto
-                ? tr('Mostrar contraseña')
-                : tr('Ocultar contraseña'),
+            tooltip: _oculto ? 'Mostrar contraseña' : 'Ocultar contraseña',
             constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
             icon: Icon(
               _oculto
@@ -86,16 +82,16 @@ class _CampoTextoAppState extends State<CampoTextoApp> {
             onPressed: () => setState(() => _oculto = !_oculto),
           );
         } else if (widget.soloLectura && value.text.isNotEmpty) {
-          sufijo = Icon(
+          sufijo = const Icon(
             Icons.lock_outline,
             color: AppColors.textoSecundario,
-            semanticLabel: tr('Dato verificado, no se puede editar'),
+            semanticLabel: 'Dato verificado, no se puede editar',
           );
         } else if (esValido) {
-          sufijo = Icon(
+          sufijo = const Icon(
             Icons.check_circle,
             color: AppColors.exito,
-            semanticLabel: tr('Dato correcto'),
+            semanticLabel: 'Dato correcto',
           );
         }
 
