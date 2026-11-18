@@ -17,8 +17,6 @@ import '../../../data/repositories/repositorios_app.dart';
 import '../widgets/acciones_canasta.dart';
 import '../widgets/barra_canasta.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 /// C2 · Puesto: productos del casero con "− cantidad +" y la barra de la canasta.
 class PuestoScreen extends StatefulWidget {
   const PuestoScreen({super.key, required this.puestoId});
@@ -59,13 +57,13 @@ class _PuestoScreenState extends State<PuestoScreen> {
         _puesto = puesto;
         _productos = productos;
         _cargando = false;
-        if (puesto == null) _error = tr('No encontramos este puesto.');
+        if (puesto == null) _error = 'No encontramos este puesto.';
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _cargando = false;
-        _error = tr('No pudimos cargar los productos. Inténtalo de nuevo.');
+        _error = 'No pudimos cargar los productos. Inténtalo de nuevo.';
       });
     }
   }
@@ -84,14 +82,11 @@ class _PuestoScreenState extends State<PuestoScreen> {
       body: Column(
         children: [
           EncabezadoSimple(
-            titulo: p?.nombre ?? tr('Puesto'),
+            titulo: p?.nombre ?? 'Puesto',
             subtitulo: p == null
                 ? null
-                : tr('Casero: {0} · ★ {1} ({2} reseñas)', [
-                    p.casero,
-                    p.calificacion.toStringAsFixed(1),
-                    p.resenas,
-                  ]),
+                : 'Casero: ${p.casero} · ★ ${p.calificacion.toStringAsFixed(1)} '
+                      '(${p.resenas} reseñas)',
           ),
           Expanded(child: _cuerpo()),
         ],
@@ -101,14 +96,14 @@ class _PuestoScreenState extends State<PuestoScreen> {
   }
 
   Widget _cuerpo() {
-    if (_cargando) return CargandoApp(texto: tr('Cargando productos…'));
+    if (_cargando) return const CargandoApp(texto: 'Cargando productos…');
     if (_error != null) {
       return AvisoPantalla(
         icono: Icons.wifi_off,
-        titulo: tr('Algo salió mal'),
+        titulo: 'Algo salió mal',
         texto: _error,
         esError: true,
-        textoBoton: tr('Reintentar'),
+        textoBoton: 'Reintentar',
         alTocar: _cargar,
       );
     }
@@ -116,9 +111,9 @@ class _PuestoScreenState extends State<PuestoScreen> {
     if (_productos.isEmpty) {
       return AvisoPantalla(
         icono: Icons.inventory_2_outlined,
-        titulo: tr('{0} aún no tiene productos', [puesto.nombre]),
-        texto: tr('Prueba con otro casero del mercado.'),
-        textoBoton: tr('Volver a los caseros'),
+        titulo: '${puesto.nombre} aún no tiene productos',
+        texto: 'Prueba con otro casero del mercado.',
+        textoBoton: 'Volver a los caseros',
         alTocar: () => context.pop(),
       );
     }
@@ -128,19 +123,17 @@ class _PuestoScreenState extends State<PuestoScreen> {
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         children: [
           if (!puesto.abierto) ...[
-            EtiquetaEstado(
-              texto: tr('Puesto cerrado ahora: puedes mirar, pero no comprar'),
+            const EtiquetaEstado(
+              texto: 'Puesto cerrado ahora: puedes mirar, pero no comprar',
               icono: Icons.lock_clock,
               tipo: TipoEstado.aviso,
             ),
             const SizedBox(height: 12),
           ],
-          TituloSeccion(tr('Productos')),
+          const TituloSeccion('Productos'),
           const SizedBox(height: 4),
-          Text(
-            tr(
-              'Precio estimado. El casero pesa y te confirma el precio final.',
-            ),
+          const Text(
+            'Precio estimado. El casero pesa y te confirma el precio final.',
             style: TextStyle(fontSize: 16, color: AppColors.textoSecundario),
           ),
           const SizedBox(height: 12),
@@ -161,15 +154,13 @@ class _PuestoScreenState extends State<PuestoScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  tr('¿Algo más de otro puesto?'),
+                const Text(
+                  '¿Algo más de otro puesto?',
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  tr(
-                    'Un solo repartidor recoge en todos los puestos del mercado.',
-                  ),
+                const Text(
+                  'Un solo repartidor recoge en todos los puestos del mercado.',
                   style: TextStyle(fontSize: 17),
                 ),
                 const SizedBox(height: 8),
@@ -177,8 +168,8 @@ class _PuestoScreenState extends State<PuestoScreen> {
                   onPressed: () => context.pop(),
                   style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
                   icon: const Icon(Icons.storefront_outlined),
-                  label: Text(
-                    tr('Volver a los caseros'),
+                  label: const Text(
+                    'Volver a los caseros',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                   ),
                 ),
@@ -248,8 +239,8 @@ class _TarjetaProducto extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           if (!producto.disponible)
-            EtiquetaEstado(
-              texto: tr('Agotado por hoy'),
+            const EtiquetaEstado(
+              texto: 'Agotado por hoy',
               icono: Icons.remove_shopping_cart_outlined,
               tipo: TipoEstado.error,
             )
@@ -265,7 +256,7 @@ class _TarjetaProducto extends StatelessWidget {
                 ),
                 icon: const Icon(Icons.add_shopping_cart),
                 label: Text(
-                  tr('Agregar {0}', [cantidadConUnidad(unidad.paso, unidad)]),
+                  'Agregar ${cantidadConUnidad(unidad.paso, unidad)}',
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
@@ -287,9 +278,7 @@ class _TarjetaProducto extends StatelessWidget {
                   onSumar: habilitado ? onSumar : null,
                 ),
                 Text(
-                  tr('Subtotal {0}', [
-                    soles(cantidad * producto.precioUnitario),
-                  ]),
+                  'Subtotal ${soles(cantidad * producto.precioUnitario)}',
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,

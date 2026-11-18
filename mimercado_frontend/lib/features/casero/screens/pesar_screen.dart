@@ -15,8 +15,6 @@ import '../widgets/alerta_pedido.dart';
 import '../widgets/encabezado_pedido_casero.dart';
 import '../widgets/resumen_precio_casero.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 class PesarScreen extends StatefulWidget {
   const PesarScreen({
     super.key,
@@ -106,7 +104,7 @@ class _PesarScreenState extends State<PesarScreen> {
           _cargando = false;
           _errorCarga = e is PedidoException
               ? e.mensaje
-              : tr('No pudimos cargar el pedido. Inténtalo de nuevo.');
+              : 'No pudimos cargar el pedido. Inténtalo de nuevo.';
         });
       }
     }
@@ -130,15 +128,15 @@ class _PesarScreenState extends State<PesarScreen> {
     final numero = _numero(valor);
     if (!RegExp(patron).hasMatch(valor) || numero == null || !numero.isFinite) {
       return precio
-          ? tr('Escribe un precio con hasta 2 decimales.')
+          ? 'Escribe un precio con hasta 2 decimales.'
           : entera
-          ? tr('Usa una cantidad entera.')
-          : tr('Usa hasta 3 decimales para el peso real.');
+          ? 'Usa una cantidad entera.'
+          : 'Usa hasta 3 decimales para el peso real.';
     }
     if (numero < (precio ? 0.10 : 0.001)) {
       return precio
-          ? tr('El precio mínimo es S/ 0.10.')
-          : tr('La cantidad debe ser mayor que cero.');
+          ? 'El precio mínimo es S/ 0.10.'
+          : 'La cantidad debe ser mayor que cero.';
     }
     return null;
   }
@@ -185,9 +183,8 @@ class _PesarScreenState extends State<PesarScreen> {
     // ListView puede desmontar campos fuera de pantalla: valida también sus datos.
     if (!formularioValido || !_valoresValidos) {
       setState(
-        () => _error = tr(
-          'Revisa las cantidades, los precios y los nombres de reemplazo antes de enviar.',
-        ),
+        () => _error =
+            'Revisa las cantidades, los precios y los nombres de reemplazo antes de enviar.',
       );
       return;
     }
@@ -210,8 +207,8 @@ class _PesarScreenState extends State<PesarScreen> {
               children: [
                 Semantics(
                   header: true,
-                  child: Text(
-                    tr('Confirmar precio final'),
+                  child: const Text(
+                    'Confirmar precio final',
                     style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
                   ),
                 ),
@@ -232,23 +229,21 @@ class _PesarScreenState extends State<PesarScreen> {
                   Padding(
                     padding: const EdgeInsets.only(top: 12),
                     child: Text(
-                      tr('Nota: {0}', [nota]),
+                      'Nota: $nota',
                       style: const TextStyle(fontSize: 18),
                     ),
                   ),
                 const SizedBox(height: 12),
-                Text(
-                  tr(
-                    'Revisa los datos. El cliente debe aceptar el precio de todo su pedido antes de continuar.',
-                  ),
+                const Text(
+                  'Revisa los datos. El cliente debe aceptar el precio de todo su pedido antes de continuar.',
                   style: TextStyle(fontSize: 17),
                 ),
                 const SizedBox(height: 16),
                 FilledButton(
                   style: _estiloEnviar,
                   onPressed: () => Navigator.of(ctx).pop(true),
-                  child: Text(
-                    tr('Confirmar y enviar'),
+                  child: const Text(
+                    'Confirmar y enviar',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 20),
                   ),
@@ -257,8 +252,8 @@ class _PesarScreenState extends State<PesarScreen> {
                 TextButton(
                   style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
                   onPressed: () => Navigator.of(ctx).pop(false),
-                  child: Text(
-                    tr('Volver a corregir'),
+                  child: const Text(
+                    'Volver a corregir',
                     style: TextStyle(fontSize: 18),
                   ),
                 ),
@@ -270,7 +265,7 @@ class _PesarScreenState extends State<PesarScreen> {
       if (confirmar != true || !mounted) return;
       await _repo.enviarPrecioFinal(_parte!.id, detalles, nota: nota);
       if (!mounted) return;
-      avisar(context, tr('Guardaste el precio final de tu puesto.'));
+      avisar(context, 'Guardaste el precio final de tu puesto.');
       setState(() => _finalizado = true);
       await WidgetsBinding.instance.endOfFrame;
       if (!mounted) return;
@@ -296,7 +291,7 @@ class _PesarScreenState extends State<PesarScreen> {
       body: Column(
         children: [
           EncabezadoPedidoCasero(
-            titulo: tr('Pesar y poner precio'),
+            titulo: 'Pesar y poner precio',
             subtitulo: _pedido?.clienteNombre,
             habilitado: !_enviando,
           ),
@@ -311,26 +306,26 @@ class _PesarScreenState extends State<PesarScreen> {
     if (_errorCarga != null) {
       return AvisoPantalla(
         icono: Icons.wifi_off_outlined,
-        titulo: tr('No pudimos cargar el pesaje'),
+        titulo: 'No pudimos cargar el pesaje',
         texto: _errorCarga,
         esError: true,
-        textoBoton: tr('Reintentar'),
+        textoBoton: 'Reintentar',
         alTocar: _cargar,
       );
     }
     final parte = _parte;
     if (_pedido == null || parte == null) {
-      return AvisoPantalla(
+      return const AvisoPantalla(
         icono: Icons.search_off,
-        titulo: tr('No encontramos este pedido'),
+        titulo: 'No encontramos este pedido',
       );
     }
     if (parte.estado != EstadoPedidoPuesto.aceptado &&
         parte.estado != EstadoPedidoPuesto.pesando) {
       return AvisoPantalla(
         icono: Icons.info_outline,
-        titulo: tr('Este pedido ya no permite pesar'),
-        textoBoton: tr('Volver al pedido'),
+        titulo: 'Este pedido ya no permite pesar',
+        textoBoton: 'Volver al pedido',
         alTocar: _volver,
       );
     }
@@ -339,19 +334,17 @@ class _PesarScreenState extends State<PesarScreen> {
     )) {
       return AvisoPantalla(
         icono: Icons.fact_check_outlined,
-        titulo: tr('Falta revisar productos'),
-        texto: tr(
-          'Confirma la disponibilidad de cada producto antes de pesar.',
-        ),
-        textoBoton: tr('Volver al pedido'),
+        titulo: 'Falta revisar productos',
+        texto: 'Confirma la disponibilidad de cada producto antes de pesar.',
+        textoBoton: 'Volver al pedido',
         alTocar: _volver,
       );
     }
     if (_aPesar.isEmpty) {
       return AvisoPantalla(
         icono: Icons.remove_shopping_cart_outlined,
-        titulo: tr('No tienes productos para pesar'),
-        textoBoton: tr('Rechazar pedido'),
+        titulo: 'No tienes productos para pesar',
+        textoBoton: 'Rechazar pedido',
         alTocar: () async {
           if (await rechazarConMotivo(context, parte, repository: _repo) &&
               mounted) {
@@ -368,10 +361,8 @@ class _PesarScreenState extends State<PesarScreen> {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Text(
-            tr(
-              'Registra la cantidad real y el precio por unidad de cada producto. Puedes usar punto o coma para los decimales.',
-            ),
+          const Text(
+            'Registra la cantidad real y el precio por unidad de cada producto. Puedes usar punto o coma para los decimales.',
             style: TextStyle(fontSize: 18),
           ),
           const SizedBox(height: 12),
@@ -381,9 +372,7 @@ class _PesarScreenState extends State<PesarScreen> {
           ],
           if (sinStock.isNotEmpty) ...[
             EtiquetaEstado(
-              texto: tr('No se cobra: {0}', [
-                sinStock.map((d) => d.nombre).join(', '),
-              ]),
+              texto: 'No se cobra: ${sinStock.map((d) => d.nombre).join(', ')}',
               icono: Icons.remove_shopping_cart_outlined,
               tipo: TipoEstado.error,
             ),
@@ -396,8 +385,8 @@ class _PesarScreenState extends State<PesarScreen> {
             maxLines: 3,
             style: const TextStyle(fontSize: 18),
             onChanged: (_) => setState(() {}),
-            decoration: InputDecoration(
-              labelText: tr('Nota para el cliente'),
+            decoration: const InputDecoration(
+              labelText: 'Nota para el cliente',
               border: OutlineInputBorder(),
             ),
           ),
@@ -408,10 +397,9 @@ class _PesarScreenState extends State<PesarScreen> {
               detalles: _cotizacion,
             )
           else
-            EtiquetaEstado(
-              texto: tr(
-                'Completa cantidades, precios y reemplazos para ver el resumen.',
-              ),
+            const EtiquetaEstado(
+              texto:
+                  'Completa cantidades, precios y reemplazos para ver el resumen.',
               icono: Icons.info_outline,
               tipo: TipoEstado.aviso,
             ),
@@ -423,16 +411,16 @@ class _PesarScreenState extends State<PesarScreen> {
           if (_enviando)
             Semantics(
               liveRegion: true,
-              child: Text(
-                tr('Confirmando o enviando el precio final…'),
+              child: const Text(
+                'Confirmando o enviando el precio final…',
                 style: TextStyle(fontSize: 18),
               ),
             ),
           FilledButton(
             style: _estiloEnviar,
             onPressed: _enviando ? null : _enviar,
-            child: Text(
-              tr('Enviar precio final'),
+            child: const Text(
+              'Enviar precio final',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
             ),
@@ -451,11 +439,7 @@ class _PesarScreenState extends State<PesarScreen> {
           style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
         ),
         Text(
-          tr('Pidió {0} · {1} / {2}', [
-            cantidadConUnidad(d.cantidadSolicitada, d.unidad),
-            soles(d.precioEstimadoUnitario),
-            d.unidad.simbolo,
-          ]),
+          'Pidió ${cantidadConUnidad(d.cantidadSolicitada, d.unidad)} · ${soles(d.precioEstimadoUnitario)} / ${d.unidad.simbolo}',
           style: const TextStyle(
             fontSize: 16,
             color: AppColors.textoSecundario,
@@ -470,10 +454,10 @@ class _PesarScreenState extends State<PesarScreen> {
             maxLength: 150,
             style: const TextStyle(fontSize: 18),
             validator: (v) => (v ?? '').trim().isEmpty
-                ? tr('Escribe el nombre del reemplazo.')
+                ? 'Escribe el nombre del reemplazo.'
                 : null,
-            decoration: InputDecoration(
-              labelText: tr('Nombre del reemplazo'),
+            decoration: const InputDecoration(
+              labelText: 'Nombre del reemplazo',
               border: OutlineInputBorder(),
             ),
             onChanged: (_) => setState(() {}),
@@ -481,15 +465,12 @@ class _PesarScreenState extends State<PesarScreen> {
         ],
         const SizedBox(height: 12),
         Text(
-          tr('Cantidad real ({0})', [d.unidad.simbolo]),
+          'Cantidad real (${d.unidad.simbolo})',
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 8),
         Semantics(
-          label: tr('Cantidad real de {0} en {1}', [
-            d.nombre,
-            d.unidad.simbolo,
-          ]),
+          label: 'Cantidad real de ${d.nombre} en ${d.unidad.simbolo}',
           child: TextFormField(
             key: ValueKey('cantidad_${d.id}'),
             controller: _cantidades[d.id],
@@ -513,10 +494,8 @@ class _PesarScreenState extends State<PesarScreen> {
           spacing: 12,
           children: [
             IconButton.outlined(
-              tooltip: tr('Quitar {0} de {1}', [
-                cantidadConUnidad(d.unidad.paso, d.unidad),
-                d.nombre,
-              ]),
+              tooltip:
+                  'Quitar ${cantidadConUnidad(d.unidad.paso, d.unidad)} de ${d.nombre}',
               constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
               onPressed:
                   _enviando ||
@@ -526,10 +505,8 @@ class _PesarScreenState extends State<PesarScreen> {
               icon: const Icon(Icons.remove),
             ),
             IconButton.filled(
-              tooltip: tr('Agregar {0} de {1}', [
-                cantidadConUnidad(d.unidad.paso, d.unidad),
-                d.nombre,
-              ]),
+              tooltip:
+                  'Agregar ${cantidadConUnidad(d.unidad.paso, d.unidad)} de ${d.nombre}',
               constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
               onPressed: _enviando ? null : () => _ajustar(d, d.unidad.paso),
               icon: const Icon(Icons.add),
@@ -538,12 +515,12 @@ class _PesarScreenState extends State<PesarScreen> {
         ),
         const SizedBox(height: 12),
         Text(
-          tr('Precio por {0}', [d.unidad.simbolo]),
+          'Precio por ${d.unidad.simbolo}',
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 8),
         Semantics(
-          label: tr('Precio por {0} de {1}', [d.unidad.simbolo, d.nombre]),
+          label: 'Precio por ${d.unidad.simbolo} de ${d.nombre}',
           child: TextFormField(
             key: ValueKey('precio_${d.id}'),
             controller: _precios[d.id],
@@ -552,8 +529,8 @@ class _PesarScreenState extends State<PesarScreen> {
             style: const TextStyle(fontSize: 20),
             autovalidateMode: AutovalidateMode.onUserInteraction,
             validator: (v) => _validarNumero(v, precio: true),
-            decoration: InputDecoration(
-              prefixText: tr('S/ '),
+            decoration: const InputDecoration(
+              prefixText: 'S/ ',
               border: OutlineInputBorder(),
               errorMaxLines: 3,
             ),

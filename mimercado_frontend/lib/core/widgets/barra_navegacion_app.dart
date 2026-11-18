@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 class ItemNavegacion {
   const ItemNavegacion({
     required this.etiqueta,
@@ -163,7 +161,7 @@ class _ElementoNavegacion extends StatelessWidget {
     return Semantics(
       button: true,
       selected: seleccionado,
-      label: tr(item.etiqueta),
+      label: item.etiqueta,
       onTap: onTap,
       excludeSemantics: true,
       child: Material(
@@ -203,7 +201,7 @@ class _ElementoNavegacion extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    tr(item.etiqueta),
+                    item.etiqueta,
                     textAlign: TextAlign.center,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,

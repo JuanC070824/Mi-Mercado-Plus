@@ -1,5 +1,3 @@
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 /// repartidor_mercados.movilidad
 enum Movilidad {
   aPie('Estibador a pie'),
@@ -9,11 +7,8 @@ enum Movilidad {
   mototaxi('Mototaxi'),
   otro('Otra movilidad');
 
-  const Movilidad(this._etiqueta);
-  final String _etiqueta;
-
-  /// Se traduce al idioma elegido cada vez que se muestra.
-  String get etiqueta => tr(_etiqueta);
+  const Movilidad(this.etiqueta);
+  final String etiqueta;
   String get codigo => this == Movilidad.aPie ? 'a_pie' : name;
   static Movilidad desdeCodigo(String? valor) =>
       values.firstWhere((m) => m.codigo == valor, orElse: () => Movilidad.otro);

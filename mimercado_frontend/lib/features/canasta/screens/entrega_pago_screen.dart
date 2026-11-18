@@ -18,8 +18,6 @@ import '../widgets/acciones_canasta.dart';
 import '../widgets/opcion_elegible.dart';
 import '../widgets/pasos_compra.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 /// C4 · Entrega y pago (Paso 2 de 3).
 class EntregaPagoScreen extends StatefulWidget {
   const EntregaPagoScreen({super.key, required this.usuario});
@@ -86,7 +84,7 @@ class _EntregaPagoScreenState extends State<EntregaPagoScreen> {
     return Scaffold(
       body: Column(
         children: [
-          EncabezadoSimple(titulo: tr('¿Dónde y cómo te entregamos?')),
+          const EncabezadoSimple(titulo: '¿Dónde y cómo te entregamos?'),
           Expanded(
             child: ValueListenableBuilder<Canasta>(
               valueListenable: canastaApp.canasta,
@@ -95,8 +93,8 @@ class _EntregaPagoScreenState extends State<EntregaPagoScreen> {
                 if (canasta.vacia) {
                   return AvisoPantalla(
                     icono: Icons.shopping_basket_outlined,
-                    titulo: tr('Tu canasta está vacía'),
-                    textoBoton: tr('Ir al mercado'),
+                    titulo: 'Tu canasta está vacía',
+                    textoBoton: 'Ir al mercado',
                     alTocar: () => context.go('/inicio'),
                   );
                 }
@@ -116,7 +114,7 @@ class _EntregaPagoScreenState extends State<EntregaPagoScreen> {
       children: [
         const PasosCompra(paso: 2),
         const SizedBox(height: 20),
-        TituloSeccion(tr('Dirección')),
+        const TituloSeccion('Dirección'),
         const SizedBox(height: 8),
         TarjetaApp(
           child: Row(
@@ -125,10 +123,8 @@ class _EntregaPagoScreenState extends State<EntregaPagoScreen> {
               const SizedBox(width: 12),
               Expanded(
                 child: dir == null
-                    ? Text(
-                        tr(
-                          'Aún no tienes una dirección. Agrégala en tu perfil.',
-                        ),
+                    ? const Text(
+                        'Aún no tienes una dirección. Agrégala en tu perfil.',
                         style: TextStyle(fontSize: 18),
                       )
                     : Column(
@@ -144,7 +140,7 @@ class _EntregaPagoScreenState extends State<EntregaPagoScreen> {
                           ),
                           if (dir.referencia != null)
                             Text(
-                              tr('Referencia: {0}', [dir.referencia]),
+                              'Referencia: ${dir.referencia}',
                               style: const TextStyle(
                                 fontSize: 16,
                                 color: AppColors.textoSecundario,
@@ -157,7 +153,7 @@ class _EntregaPagoScreenState extends State<EntregaPagoScreen> {
                 onPressed: () => context.go('/perfil'),
                 style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
                 child: Text(
-                  dir == null ? tr('Agregar') : tr('Cambiar'),
+                  dir == null ? 'Agregar' : 'Cambiar',
                   style: const TextStyle(fontSize: 18),
                 ),
               ),
@@ -165,35 +161,48 @@ class _EntregaPagoScreenState extends State<EntregaPagoScreen> {
           ),
         ),
         const SizedBox(height: 20),
-        TituloSeccion(tr('¿Cuándo?')),
+        const TituloSeccion('¿Cuándo?'),
         const SizedBox(height: 8),
         OpcionElegible(
-          titulo: tr('Lo antes posible'),
-          detalle: tr('Llega en unos 40 minutos'),
+          titulo: 'Lo antes posible',
+          detalle: 'Llega en unos 40 minutos',
           icono: Icons.bolt,
           elegida: true,
           onTap: () {},
         ),
         const SizedBox(height: 8),
-        OpcionElegible(
-          titulo: tr('Programar para más tarde'),
-          detalle: tr('Disponible muy pronto'),
+        const OpcionElegible(
+          titulo: 'Programar para más tarde',
+          detalle: 'Disponible muy pronto',
           icono: Icons.event_outlined,
           elegida: false,
           onTap: null,
         ),
         const SizedBox(height: 20),
-        TituloSeccion(tr('¿Cómo pagas?')),
+        const TituloSeccion('¿Cómo pagas?'),
         const SizedBox(height: 8),
         for (final m in MetodoPago.values) ...[
           OpcionElegible(
-            titulo: m.etiqueta,
+            titulo:
+                m == MetodoPago.yape &&
+                    (ApiConfig.configurada &&
+                        const bool.fromEnvironment(
+                          'MERCADOPAGO_PRUEBAS',
+                          defaultValue: true,
+                        ))
+                ? 'Pago en línea · Mercado Pago'
+                : m.etiqueta,
             detalle: switch (m) {
-              MetodoPago.efectivo => tr('Pagas al repartidor cuando llegue'),
-              MetodoPago.yape => tr('Te guiamos paso a paso'),
-              MetodoPago.plin => tr(
-                'Pagas al repartidor con Plin cuando llegue',
-              ),
+              MetodoPago.efectivo => 'Pagas al repartidor cuando llegue',
+              MetodoPago.yape =>
+                (ApiConfig.configurada &&
+                        const bool.fromEnvironment(
+                          'MERCADOPAGO_PRUEBAS',
+                          defaultValue: true,
+                        ))
+                    ? 'Paga después de aceptar el precio final; es necesario para iniciar el reparto'
+                    : 'Te guiamos paso a paso',
+              MetodoPago.plin => 'Pagas al repartidor con Plin cuando llegue',
             },
             icono: switch (m) {
               MetodoPago.efectivo => Icons.payments_outlined,
@@ -206,17 +215,17 @@ class _EntregaPagoScreenState extends State<EntregaPagoScreen> {
           const SizedBox(height: 8),
         ],
         const SizedBox(height: 12),
-        TituloSeccion(tr('Resumen')),
+        const TituloSeccion('Resumen'),
         const SizedBox(height: 8),
         TarjetaApp(
           child: Column(
             children: [
               for (final g in c.grupos)
                 FilaMonto(etiqueta: g.puesto.nombre, monto: g.subtotal),
-              FilaMonto(etiqueta: tr('Envío'), monto: c.envio),
+              FilaMonto(etiqueta: 'Envío', monto: c.envio),
               const Divider(color: AppColors.divisor),
               FilaMonto(
-                etiqueta: tr('Total estimado'),
+                etiqueta: 'Total estimado',
                 monto: c.totalEstimado,
                 destacado: true,
               ),
@@ -230,8 +239,14 @@ class _EntregaPagoScreenState extends State<EntregaPagoScreen> {
         ],
         BotonPrincipal(
           texto: _metodo == MetodoPago.yape
-              ? tr('Continuar con Yape')
-              : tr('Confirmar pedido'),
+              ? ((ApiConfig.configurada &&
+                        const bool.fromEnvironment(
+                          'MERCADOPAGO_PRUEBAS',
+                          defaultValue: true,
+                        ))
+                    ? 'Enviar pedido y esperar el precio final'
+                    : 'Continuar con Yape')
+              : 'Confirmar pedido',
           cargando: _enviando,
           onPressed: dir == null ? null : _confirmar,
         ),

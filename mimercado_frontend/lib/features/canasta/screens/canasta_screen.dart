@@ -12,8 +12,6 @@ import '../../../data/repositories/repositorios_app.dart';
 import '../widgets/acciones_canasta.dart';
 import '../widgets/pasos_compra.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 /// C3 · Canasta por puesto (+ C3b lista de mandado). Paso 1 de 3.
 class CanastaScreen extends StatefulWidget {
   const CanastaScreen({super.key});
@@ -39,13 +37,13 @@ class _CanastaScreenState extends State<CanastaScreen> {
   Future<void> _vaciar() async {
     final ok = await confirmar(
       context,
-      titulo: tr('¿Vaciar tu canasta?'),
-      texto: tr('Se quitarán todos los productos y las listas de mandado.'),
-      textoSi: tr('Sí, vaciar'),
+      titulo: '¿Vaciar tu canasta?',
+      texto: 'Se quitarán todos los productos y las listas de mandado.',
+      textoSi: 'Sí, vaciar',
     );
     if (!ok) return;
     await _repo.vaciar();
-    if (mounted) avisar(context, tr('Tu canasta quedó vacía.'));
+    if (mounted) avisar(context, 'Tu canasta quedó vacía.');
   }
 
   Future<void> _editarLista(GrupoPuesto g) async {
@@ -57,8 +55,8 @@ class _CanastaScreenState extends State<CanastaScreen> {
         avisar(
           context,
           texto.trim().isEmpty
-              ? tr('Borraste la lista de mandado.')
-              : tr('Lista de mandado guardada.'),
+              ? 'Borraste la lista de mandado.'
+              : 'Lista de mandado guardada.',
         );
       }
     } on CanastaException catch (e) {
@@ -71,7 +69,7 @@ class _CanastaScreenState extends State<CanastaScreen> {
     return Scaffold(
       body: Column(
         children: [
-          EncabezadoSimple(titulo: tr('Mi canasta'), mostrarAtras: false),
+          const EncabezadoSimple(titulo: 'Mi canasta', mostrarAtras: false),
           Expanded(
             child: ValueListenableBuilder<Canasta>(
               valueListenable: _repo.canasta,
@@ -79,9 +77,9 @@ class _CanastaScreenState extends State<CanastaScreen> {
                 if (canasta.vacia) {
                   return AvisoPantalla(
                     icono: Icons.shopping_basket_outlined,
-                    titulo: tr('Tu canasta está vacía'),
-                    texto: tr('Elige un casero y agrega lo que necesitas.'),
-                    textoBoton: tr('Ir al mercado'),
+                    titulo: 'Tu canasta está vacía',
+                    texto: 'Elige un casero y agrega lo que necesitas.',
+                    textoBoton: 'Ir al mercado',
                     alTocar: () => context.go('/inicio'),
                   );
                 }
@@ -103,8 +101,8 @@ class _CanastaScreenState extends State<CanastaScreen> {
         const SizedBox(height: 16),
         EtiquetaEstado(
           texto: n == 1
-              ? tr('Un repartidor recoge en tu puesto')
-              : tr('Un solo repartidor recoge en tus {0} puestos', [n]),
+              ? 'Un repartidor recoge en tu puesto'
+              : 'Un solo repartidor recoge en tus $n puestos',
           icono: Icons.delivery_dining,
           tipo: TipoEstado.info,
         ),
@@ -122,7 +120,7 @@ class _CanastaScreenState extends State<CanastaScreen> {
           ),
           const SizedBox(height: 16),
         ],
-        TarjetaApp(
+        const TarjetaApp(
           color: AppColors.avisoFondo,
           colorBorde: AppColors.aviso,
           child: Row(
@@ -132,9 +130,8 @@ class _CanastaScreenState extends State<CanastaScreen> {
               SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  tr(
-                    'Precio estimado. Cada casero pesa tus productos y te confirma el precio final antes de que salga tu pedido.',
-                  ),
+                  'Precio estimado. Cada casero pesa tus productos y te '
+                  'confirma el precio final antes de que salga tu pedido.',
                   style: TextStyle(fontSize: 17, color: AppColors.texto),
                 ),
               ),
@@ -145,11 +142,11 @@ class _CanastaScreenState extends State<CanastaScreen> {
         TarjetaApp(
           child: Column(
             children: [
-              FilaMonto(etiqueta: tr('Productos'), monto: c.totalProductos),
-              FilaMonto(etiqueta: tr('Envío'), monto: c.envio),
+              FilaMonto(etiqueta: 'Productos', monto: c.totalProductos),
+              FilaMonto(etiqueta: 'Envío', monto: c.envio),
               const Divider(color: AppColors.divisor),
               FilaMonto(
-                etiqueta: tr('Total estimado'),
+                etiqueta: 'Total estimado',
                 monto: c.totalEstimado,
                 destacado: true,
               ),
@@ -158,7 +155,7 @@ class _CanastaScreenState extends State<CanastaScreen> {
         ),
         const SizedBox(height: 20),
         BotonPrincipal(
-          texto: tr('Continuar'),
+          texto: 'Continuar',
           onPressed: _ocupado ? null : () => context.push('/canasta/entrega'),
         ),
         const SizedBox(height: 8),
@@ -170,7 +167,7 @@ class _CanastaScreenState extends State<CanastaScreen> {
               minimumSize: const Size(48, 48),
             ),
             icon: const Icon(Icons.delete_outline),
-            label: Text(tr('Vaciar canasta'), style: TextStyle(fontSize: 18)),
+            label: const Text('Vaciar canasta', style: TextStyle(fontSize: 18)),
           ),
         ),
       ],
@@ -207,12 +204,9 @@ class _GrupoPuesto extends StatelessWidget {
         children: [
           Semantics(
             header: true,
-            label: tr('Puesto {0}, {1} {2}, subtotal {3}', [
-              grupo.puesto.nombre,
-              n,
-              n == 1 ? tr('producto') : tr('productos'),
-              soles(grupo.subtotal),
-            ]),
+            label:
+                'Puesto ${grupo.puesto.nombre}, $n '
+                '${n == 1 ? 'producto' : 'productos'}, subtotal ${soles(grupo.subtotal)}',
             excludeSemantics: true,
             child: Row(
               children: [
@@ -269,7 +263,7 @@ class _GrupoPuesto extends StatelessWidget {
                   ),
                 ),
                 IconButton(
-                  tooltip: tr('Quitar {0}', [it.producto.nombre]),
+                  tooltip: 'Quitar ${it.producto.nombre}',
                   constraints: const BoxConstraints(
                     minWidth: 48,
                     minHeight: 48,
@@ -302,13 +296,13 @@ class _GrupoPuesto extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                const Row(
                   children: [
                     Icon(Icons.edit_note, color: AppColors.azul),
                     SizedBox(width: 6),
                     Flexible(
                       child: Text(
-                        tr('Lista de mandado'),
+                        'Lista de mandado',
                         style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w700,
@@ -320,9 +314,7 @@ class _GrupoPuesto extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   lista ??
-                      tr(
-                        '¿Algo que no está en la lista? Pídeselo al casero aquí.',
-                      ),
+                      '¿Algo que no está en la lista? Pídeselo al casero aquí.',
                   style: TextStyle(
                     fontSize: 17,
                     color: lista == null
@@ -335,8 +327,8 @@ class _GrupoPuesto extends StatelessWidget {
                   style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
                   child: Text(
                     lista == null
-                        ? tr('Escribir lista de mandado')
-                        : tr('Cambiar lista'),
+                        ? 'Escribir lista de mandado'
+                        : 'Cambiar lista',
                     style: const TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
@@ -351,8 +343,8 @@ class _GrupoPuesto extends StatelessWidget {
             onPressed: onAgregarMas,
             style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
             icon: const Icon(Icons.add),
-            label: Text(
-              tr('Agregar o cambiar en este puesto'),
+            label: const Text(
+              'Agregar o cambiar en este puesto',
               style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
             ),
           ),
@@ -380,12 +372,12 @@ Future<String?> mostrarListaMandado(BuildContext context, GrupoPuesto g) {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            tr('Lista de mandado para {0}', [g.puesto.nombre]),
+            'Lista de mandado para ${g.puesto.nombre}',
             style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 4),
-          Text(
-            tr('Ejemplo: "un atado de culantro y 3 ajíes bien frescos".'),
+          const Text(
+            'Ejemplo: "un atado de culantro y 3 ajíes bien frescos".',
             style: TextStyle(fontSize: 16, color: AppColors.textoSecundario),
           ),
           const SizedBox(height: 12),
@@ -397,8 +389,8 @@ Future<String?> mostrarListaMandado(BuildContext context, GrupoPuesto g) {
             maxLength: 300,
             textCapitalization: TextCapitalization.sentences,
             style: const TextStyle(fontSize: 18),
-            decoration: InputDecoration(
-              labelText: tr('¿Qué más le pides al casero?'),
+            decoration: const InputDecoration(
+              labelText: '¿Qué más le pides al casero?',
               border: OutlineInputBorder(
                 borderSide: BorderSide(color: AppColors.borde, width: 1.5),
               ),
@@ -409,14 +401,14 @@ Future<String?> mostrarListaMandado(BuildContext context, GrupoPuesto g) {
           ),
           const SizedBox(height: 12),
           BotonPrincipal(
-            texto: tr('Guardar lista'),
+            texto: 'Guardar lista',
             onPressed: () => Navigator.of(ctx).pop(ctrl.text),
           ),
           const SizedBox(height: 8),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
             style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
-            child: Text(tr('Cancelar'), style: TextStyle(fontSize: 18)),
+            child: const Text('Cancelar', style: TextStyle(fontSize: 18)),
           ),
         ],
       ),

@@ -1,3 +1,4 @@
+import '../../../core/widgets/aviso_pago_pedido.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -7,8 +8,6 @@ import '../../../core/widgets/componentes_app.dart';
 import '../../../data/models/pedido.dart';
 import '../../casero/widgets/llamar_dialog.dart';
 import '../widgets/piezas_repartidor.dart';
-
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
 
 /// Entrega en dos pasos: 1) llegar a la dirección, 2) cobrar y pedir el código.
 class RepartidorEntregaView extends StatelessWidget {
@@ -44,12 +43,12 @@ class RepartidorEntregaView extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          AvisoPantalla(
+          const AvisoPantalla(
             icono: Icons.route_outlined,
-            titulo: tr('Primero completa el recojo en el mercado'),
+            titulo: 'Primero completa el recojo en el mercado',
           ),
           AccionRepartidor(
-            tr('Volver a mi ruta'),
+            'Volver a mi ruta',
             () => context.go('/repartidor/ruta'),
             ocupado: ocupado,
           ),
@@ -60,14 +59,16 @@ class RepartidorEntregaView extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          llegue
-              ? tr('Paso 2 de 2 · Cobro y código')
-              : tr('Paso 1 de 2 · Llegada'),
+          llegue ? 'Paso 2 de 2 · Cobro y código' : 'Paso 1 de 2 · Llegada',
           style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w700,
             color: AppColors.textoSecundario,
           ),
+        ),
+        AvisoPagoPedido(
+          datos: datos,
+          ganancia: (datos['ganancia_repartidor_centavos'] as num?)?.toInt(),
         ),
         ...llegue ? _cobro(context) : _llegada(context),
       ],
@@ -79,7 +80,7 @@ class RepartidorEntregaView extends StatelessWidget {
     Text(pedido.direccion, style: const TextStyle(fontSize: 20)),
     if (pedido.referencia?.isNotEmpty ?? false)
       Text(
-        tr('Referencia: {0}', [pedido.referencia]),
+        'Referencia: ${pedido.referencia}',
         style: const TextStyle(fontSize: 17, color: AppColors.textoSecundario),
       ),
     Align(
@@ -92,22 +93,26 @@ class RepartidorEntregaView extends StatelessWidget {
           celular: pedido.clienteCelular,
         ),
         icon: const Icon(Icons.call),
-        label: Text(tr('Contactar al cliente'), style: TextStyle(fontSize: 17)),
+        label: const Text(
+          'Contactar al cliente',
+          style: TextStyle(fontSize: 17),
+        ),
       ),
     ),
     const SizedBox(height: 8),
-    AccionRepartidor(tr('Llegué a la dirección'), alLlegar, ocupado: ocupado),
+    AccionRepartidor('Llegué a la dirección', alLlegar, ocupado: ocupado),
   ];
 
   List<Widget> _cobro(BuildContext context) {
     final pagado = datos['pago_aprobado'] == true;
     final enEfectivo = pedido.metodoPago == MetodoPago.efectivo;
+    final alRecibir = enEfectivo || pedido.metodoPago == MetodoPago.plin;
     final total = soles(pedido.cotizacion?.totalCliente ?? 0);
     return [
       TituloRepartidor(pedido.clienteNombre),
-      if (enEfectivo) ...[
+      if (alRecibir) ...[
         Text(
-          tr('Cobra {0}', [total]),
+          'Cobra $total',
           style: const TextStyle(
             fontSize: 26,
             fontWeight: FontWeight.w800,
@@ -121,7 +126,9 @@ class RepartidorEntregaView extends StatelessWidget {
             value: efectivo,
             onChanged: ocupado ? null : (v) => alCambiarEfectivo(v == true),
             title: Text(
-              tr('Recibí {0} en efectivo', [total]),
+              enEfectivo
+                  ? 'Recibí $total en efectivo'
+                  : 'Recibí $total por Plin',
               style: const TextStyle(fontSize: 19),
             ),
             controlAffinity: ListTileControlAffinity.leading,
@@ -132,10 +139,12 @@ class RepartidorEntregaView extends StatelessWidget {
           alignment: AlignmentDirectional.centerStart,
           child: EtiquetaEstado(
             texto: pagado
-                ? datos['pago_simulado'] == true
-                      ? tr('Pago de demostración confirmado')
-                      : tr('El cliente ya pagó con Yape')
-                : tr('El pago todavía está pendiente'),
+                ? datos['pago_proveedor'] == 'mercadopago_prueba'
+                      ? 'Pago confirmado con Mercado Pago'
+                      : datos['pago_simulado'] == true
+                      ? 'Pago de demostración confirmado'
+                      : 'El cliente ya pagó con Yape'
+                : 'El pago todavía está pendiente',
             icono: pagado ? Icons.check_circle : Icons.payments_outlined,
             tipo: pagado ? TipoEstado.exito : TipoEstado.aviso,
           ),
@@ -150,24 +159,24 @@ class RepartidorEntregaView extends StatelessWidget {
         obscureText: true,
         inputFormatters: [FilteringTextInputFormatter.digitsOnly],
         style: const TextStyle(fontSize: 26),
-        decoration: InputDecoration(
-          labelText: tr('Código del cliente'),
-          helperText: tr('Los 4 números que te dicta el cliente'),
+        decoration: const InputDecoration(
+          labelText: 'Código del cliente',
+          helperText: 'Los 4 números que te dicta el cliente',
           helperStyle: TextStyle(fontSize: 16),
           border: OutlineInputBorder(),
         ),
       ),
       AccionRepartidor(
-        tr('Confirmar entrega'),
-        enEfectivo && !efectivo || !enEfectivo && !pagado ? null : alConfirmar,
+        'Confirmar entrega',
+        alRecibir && !efectivo || !alRecibir && !pagado ? null : alConfirmar,
         ocupado: ocupado,
       ),
       Align(
         child: TextButton(
           style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
           onPressed: ocupado ? null : alVolverALlegada,
-          child: Text(
-            tr('Ver la dirección otra vez'),
+          child: const Text(
+            'Ver la dirección otra vez',
             style: TextStyle(fontSize: 17),
           ),
         ),

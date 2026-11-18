@@ -5,8 +5,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/componentes_app.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 /// Abre el marcador del teléfono. Se puede reemplazar en pruebas.
 @visibleForTesting
 Future<bool> Function(Uri) abrirMarcador = launchUrl;
@@ -21,10 +19,7 @@ Future<void> mostrarLlamar(
     await Clipboard.setData(ClipboardData(text: celular));
     if (!ctx.mounted) return;
     Navigator.of(ctx).pop();
-    avisar(
-      context,
-      tr('Copiamos el número. Pégalo en tu teléfono para llamar.'),
-    );
+    avisar(context, 'Copiamos el número. Pégalo en tu teléfono para llamar.');
   }
 
   Future<void> llamar(BuildContext ctx) async {
@@ -49,7 +44,7 @@ Future<void> mostrarLlamar(
     builder: (ctx) => AlertDialog(
       icon: const Icon(Icons.call, size: 40, color: AppColors.azul),
       title: Text(
-        tr('Llamar a {0}', [nombre]),
+        'Llamar a $nombre',
         textAlign: TextAlign.center,
         style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
       ),
@@ -69,27 +64,27 @@ Future<void> mostrarLlamar(
           FilledButton.icon(
             style: botonPrincipal,
             icon: const Icon(Icons.copy),
-            label: Text(tr('Copiar número'), style: TextStyle(fontSize: 18)),
+            label: const Text('Copiar número', style: TextStyle(fontSize: 18)),
             onPressed: () => copiar(ctx),
           )
         else ...[
           FilledButton.icon(
             style: botonPrincipal,
             icon: const Icon(Icons.call),
-            label: Text(tr('Llamar'), style: TextStyle(fontSize: 18)),
+            label: const Text('Llamar', style: TextStyle(fontSize: 18)),
             onPressed: () => llamar(ctx),
           ),
           TextButton.icon(
             style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
             icon: const Icon(Icons.copy),
-            label: Text(tr('Copiar número'), style: TextStyle(fontSize: 18)),
+            label: const Text('Copiar número', style: TextStyle(fontSize: 18)),
             onPressed: () => copiar(ctx),
           ),
         ],
         TextButton(
           style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
           onPressed: () => Navigator.of(ctx).pop(),
-          child: Text(tr('Cerrar'), style: TextStyle(fontSize: 18)),
+          child: const Text('Cerrar', style: TextStyle(fontSize: 18)),
         ),
       ],
     ),

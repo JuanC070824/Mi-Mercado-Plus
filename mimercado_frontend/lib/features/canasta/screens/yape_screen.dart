@@ -17,8 +17,6 @@ import '../../../data/repositories/pedido_repository.dart';
 import '../widgets/acciones_canasta.dart';
 import '../widgets/pasos_compra.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 /// C4b · Guía de Yape (RF-04) + celular y código de aprobación (pago simulado).
 class YapeScreen extends StatefulWidget {
   const YapeScreen({super.key, required this.usuario, required this.direccion});
@@ -88,7 +86,7 @@ class _YapeScreenState extends State<YapeScreen> {
     return Scaffold(
       body: Column(
         children: [
-          EncabezadoSimple(titulo: tr('Pagar con Yape')),
+          const EncabezadoSimple(titulo: 'Pagar con Yape'),
           Expanded(
             child: Form(
               key: _form,
@@ -103,8 +101,8 @@ class _YapeScreenState extends State<YapeScreen> {
                     child: MergeSemantics(
                       child: Column(
                         children: [
-                          Text(
-                            tr('Vas a pagar'),
+                          const Text(
+                            'Vas a pagar',
                             style: TextStyle(fontSize: 18),
                           ),
                           Text(
@@ -115,10 +113,9 @@ class _YapeScreenState extends State<YapeScreen> {
                               color: AppColors.azul,
                             ),
                           ),
-                          Text(
-                            tr(
-                              'Si el precio final cambia al pesar, la diferencia se arregla al recibir tu pedido.',
-                            ),
+                          const Text(
+                            'Si el precio final cambia al pesar, la diferencia '
+                            'se arregla al recibir tu pedido.',
                             textAlign: TextAlign.center,
                             style: TextStyle(fontSize: 16),
                           ),
@@ -127,31 +124,29 @@ class _YapeScreenState extends State<YapeScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  TituloSeccion(tr('Así se hace, en 3 pasos')),
+                  const TituloSeccion('Así se hace, en 3 pasos'),
                   const SizedBox(height: 8),
-                  _Paso(
+                  const _Paso(
                     numero: 1,
                     icono: Icons.phone_iphone,
-                    texto: tr(
-                      'Abre tu app Yape y toca "Código de aprobación".',
-                    ),
+                    texto: 'Abre tu app Yape y toca "Código de aprobación".',
                   ),
-                  _Paso(
+                  const _Paso(
                     numero: 2,
                     icono: Icons.pin_outlined,
-                    texto: tr('Yape te muestra 6 números. Mira bien cada uno.'),
+                    texto: 'Yape te muestra 6 números. Mira bien cada uno.',
                   ),
-                  _Paso(
+                  const _Paso(
                     numero: 3,
                     icono: Icons.edit_outlined,
-                    texto: tr(
-                      'Vuelve aquí y escríbelos abajo. Luego toca "Confirmar y pagar".',
-                    ),
+                    texto:
+                        'Vuelve aquí y escríbelos abajo. Luego toca '
+                        '"Confirmar y pagar".',
                   ),
                   const SizedBox(height: 16),
                   CampoTextoApp(
-                    etiqueta: tr('Celular Yape'),
-                    hint: tr('9 dígitos'),
+                    etiqueta: 'Celular Yape',
+                    hint: '9 dígitos',
                     prefijo: '+51 ',
                     controller: _celular,
                     teclado: TextInputType.phone,
@@ -165,7 +160,7 @@ class _YapeScreenState extends State<YapeScreen> {
                   ),
                   const SizedBox(height: 12),
                   CampoTextoApp(
-                    etiqueta: tr('Código de aprobación (6 números)'),
+                    etiqueta: 'Código de aprobación (6 números)',
                     controller: _codigo,
                     teclado: TextInputType.number,
                     soloDigitos: true,
@@ -178,10 +173,10 @@ class _YapeScreenState extends State<YapeScreen> {
                     validator: _pagos.validarCodigoYape,
                   ),
                   const SizedBox(height: 8),
-                  EtiquetaEstado(
-                    texto: tr(
-                      'El código vence en pocos minutos. Si vence, genera otro en Yape: tu canasta no se pierde.',
-                    ),
+                  const EtiquetaEstado(
+                    texto:
+                        'El código vence en pocos minutos. Si vence, genera '
+                        'otro en Yape: tu canasta no se pierde.',
                     icono: Icons.timer_outlined,
                     tipo: TipoEstado.aviso,
                   ),
@@ -191,7 +186,7 @@ class _YapeScreenState extends State<YapeScreen> {
                     const SizedBox(height: 12),
                   ],
                   BotonPrincipal(
-                    texto: tr('Confirmar y pagar'),
+                    texto: 'Confirmar y pagar',
                     cargando: _pagando,
                     onPressed: _pagar,
                   ),
@@ -226,7 +221,7 @@ class _Paso extends StatelessWidget {
                 backgroundColor: AppColors.azul,
                 child: Text(
                   '$numero',
-                  semanticsLabel: tr('Paso {0}', [numero]),
+                  semanticsLabel: 'Paso $numero',
                   style: const TextStyle(
                     color: AppColors.blanco,
                     fontSize: 20,

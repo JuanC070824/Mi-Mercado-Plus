@@ -4,8 +4,6 @@ import '../../../core/utils/formato.dart';
 import '../../../core/widgets/componentes_app.dart';
 import '../widgets/piezas_repartidor.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 /// Entregas y ganancia del día.
 class ResumenGananciasRepartidor extends StatelessWidget {
   const ResumenGananciasRepartidor({super.key, required this.inicio});
@@ -15,22 +13,17 @@ class ResumenGananciasRepartidor extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      TituloRepartidor(tr('Tu trabajo de hoy')),
+      const TituloRepartidor('Tu trabajo de hoy'),
       TarjetaApp(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              tr('{0} entregas completadas', [inicio['entregas_hoy'] ?? 0]),
+              '${inicio['entregas_hoy'] ?? 0} entregas completadas',
               style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w700),
             ),
             Text(
-              tr('Ganaste {0}', [
-                soles(
-                  ((inicio['ganancia_hoy_centavos'] as num?) ?? 0).toDouble() /
-                      100,
-                ),
-              ]),
+              'Ganaste ${soles(((inicio['ganancia_hoy_centavos'] as num?) ?? 0).toDouble() / 100)}',
               style: const TextStyle(
                 fontSize: 26,
                 fontWeight: FontWeight.w800,
@@ -53,6 +46,33 @@ class RepartidorGananciasView extends StatelessWidget {
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       ResumenGananciasRepartidor(inicio: inicio),
+      const SizedBox(height: 12),
+      TarjetaApp(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Ganancias acumuladas',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+            ),
+            Text(
+              soles(
+                ((inicio['ganancia_acumulada_centavos'] as num?) ?? 0)
+                        .toDouble() /
+                    100,
+              ),
+              style: const TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.w800,
+                color: AppColors.azul,
+              ),
+            ),
+            const Text(
+              'Entregas completadas con pago confirmado. Registro interno; no representa un depósito bancario.',
+            ),
+          ],
+        ),
+      ),
       for (final j in inicio['historial_hoy'] as List? ?? [])
         Padding(
           padding: const EdgeInsets.only(top: 12),

@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import '../widgets/piezas_repartidor.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 typedef SolicitudMercado =
     void Function(
       int mercado,
@@ -54,22 +52,17 @@ class _RepartidorSinMercadoViewState extends State<RepartidorSinMercadoView> {
       children: [
         TituloRepartidor(
           inicio['pendiente'] == true
-              ? tr('Esperando autorización del mercado')
-              : tr('Elige el mercado donde trabajarás'),
+              ? 'Esperando autorización del mercado'
+              : 'Elige el mercado donde trabajarás',
         ),
         Text(
           inicio['pendiente'] == true
-              ? tr(
-                  'Tu solicitud para {0} está registrada. El responsable del mercado debe autorizarte.',
-                  [inicio['mercado_solicitado']],
-                )
-              : tr(
-                  'Solo recibirás pedidos del mercado que autorice tu cuenta.',
-                ),
+              ? 'Tu solicitud para ${inicio['mercado_solicitado']} está registrada. El responsable del mercado debe autorizarte.'
+              : 'Solo recibirás pedidos del mercado que autorice tu cuenta.',
           style: const TextStyle(fontSize: 18),
         ),
         const SizedBox(height: 12),
-        Text(tr('Mercado'), style: TextStyle(fontSize: 18)),
+        const Text('Mercado', style: TextStyle(fontSize: 18)),
         DropdownButtonFormField<int>(
           initialValue: _mercado,
           isExpanded: true,
@@ -88,19 +81,19 @@ class _RepartidorSinMercadoViewState extends State<RepartidorSinMercadoView> {
           decoration: const InputDecoration(border: OutlineInputBorder()),
         ),
         const SizedBox(height: 12),
-        Text(tr('Movilidad'), style: TextStyle(fontSize: 18)),
+        const Text('Movilidad', style: TextStyle(fontSize: 18)),
         DropdownButtonFormField<String>(
           initialValue: _movilidad,
           isExpanded: true,
           itemHeight: null,
           items: [
-            for (final e in {
-              'a_pie': tr('Estibador a pie'),
-              'carretilla': tr('Carretilla'),
-              'bicicleta': tr('Bicicleta'),
-              'moto': tr('Moto'),
-              'mototaxi': tr('Mototaxi'),
-              'otro': tr('Otra movilidad'),
+            for (final e in const {
+              'a_pie': 'Estibador a pie',
+              'carretilla': 'Carretilla',
+              'bicicleta': 'Bicicleta',
+              'moto': 'Moto',
+              'mototaxi': 'Mototaxi',
+              'otro': 'Otra movilidad',
             }.entries)
               DropdownMenuItem(
                 value: e.key,
@@ -111,7 +104,7 @@ class _RepartidorSinMercadoViewState extends State<RepartidorSinMercadoView> {
           decoration: const InputDecoration(border: OutlineInputBorder()),
         ),
         const SizedBox(height: 12),
-        Text(tr('Placa, si corresponde'), style: TextStyle(fontSize: 18)),
+        const Text('Placa, si corresponde', style: TextStyle(fontSize: 18)),
         TextField(
           controller: _placa,
           maxLength: 20,
@@ -120,7 +113,7 @@ class _RepartidorSinMercadoViewState extends State<RepartidorSinMercadoView> {
           decoration: const InputDecoration(border: OutlineInputBorder()),
         ),
         if (_movilidad == 'otro') ...[
-          Text(tr('Describe tu movilidad'), style: TextStyle(fontSize: 18)),
+          const Text('Describe tu movilidad', style: TextStyle(fontSize: 18)),
           TextField(
             controller: _descripcion,
             maxLength: 150,
@@ -131,7 +124,7 @@ class _RepartidorSinMercadoViewState extends State<RepartidorSinMercadoView> {
           ),
         ],
         AccionRepartidor(
-          tr('Solicitar autorización'),
+          'Solicitar autorización',
           _mercado == null
               ? null
               : () => widget.alSolicitar(

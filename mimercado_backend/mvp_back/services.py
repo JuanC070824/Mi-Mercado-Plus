@@ -255,6 +255,9 @@ def cancel_order(user, order_id):
         raise ValidationError('El pedido ya pasó a logística; solicita soporte.')
     if Pago.objects.filter(pedido_id=order.pk,estado__in=['aprobado','procesando']).exists():
         raise ValidationError('Hay un pago aprobado o en proceso; solicita soporte.')
+    if Pago.objects.filter(pedido_id=order.pk, estado='pendiente',
+            proveedor_transaccion_id__startswith='mp_test_').exists():
+        raise ValidationError('Hay un checkout de Mercado Pago pendiente. Confirma su estado antes de cancelar.')
     details=list(PedidoDetalle.objects.filter(pedido_puesto__pedido_id=order.pk))
     products={p.pk:p for p in Producto.objects.select_for_update().filter(
         pk__in=[d.producto_id for d in details if d.producto_id]).order_by('id')}

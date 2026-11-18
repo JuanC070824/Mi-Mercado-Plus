@@ -1,5 +1,5 @@
 from django.db import transaction
-from django.db.models import Q, Sum
+from django.db.models import Q, Sum, Case, When, Value, IntegerField
 from django.utils import timezone
 from django.conf import settings
 from rest_framework.views import APIView
@@ -12,6 +12,7 @@ from .models import (Mercado, RepartidorMercado, Entrega, Pedido, Cotizacion, Pa
 from .services import require_buyer
 from .views import ultima_cotizacion_por_pedido
 from .money import cents
+from .finanzas import pagos_confirmados
 
 MOVILIDADES = ['a_pie','carretilla','bicicleta','moto','mototaxi','otro']
 
@@ -54,16 +55,22 @@ class RepartidorInicioView(APIView):
         hechos=[e.pedido for e in de_hoy[:100]]
         actual=[activa.pedido] if activa else []
         quotes=ultima_cotizacion_por_pedido([p.pk for p in aptos+actual]+[e.pedido_id for e in de_hoy])
-        # La ganancia del día sale de las mismas cotizaciones (antes era otra consulta).
-        ganancia=sum((quotes[e.pedido_id].ganancia_repartidor for e in de_hoy
-                      if e.pedido_id in quotes and quotes[e.pedido_id].estado=='aceptada'),0)
+        realizadas = list(Entrega.objects.filter(
+            repartidor_mercado__repartidor_id=request.user.pk, estado='entregada'))
+        confirmados = pagos_confirmados([e.pedido_id for e in realizadas])
+        # Cada entrega aporta una sola vez, aunque existan varios intentos de pago.
+        acumulado = sum(confirmados.get(e.pedido_id, {}).get(
+            'ganancia_repartidor_centavos', 0) for e in realizadas)
+        ganancia = sum(confirmados.get(e.pedido_id, {}).get(
+            'ganancia_repartidor_centavos', 0) for e in de_hoy)
         # Las ofertas no tienen entrega (se excluyeron las asignadas); el resto son mías.
         payloads=op.pedidos_operacion_payload(aptos+actual+hechos,quotes=quotes,
                                               entregas={e.pedido_id:e for e in mias})
         return Response({'autorizado':True,'disponible':rm.disponible,
             'mercado':{'id':rm.mercado_id,'nombre':rm.mercado.nombre},'movilidad':rm.movilidad,'placa':rm.placa,
             'descripcion_movilidad':rm.descripcion_movilidad,
-            'entregas_hoy':len(de_hoy),'ganancia_hoy_centavos':cents(ganancia),
+            'entregas_hoy':len(de_hoy),'ganancia_hoy_centavos':ganancia,
+            'ganancia_acumulada_centavos':acumulado,
             'sonido':request.user.sonido,'vibracion':request.user.vibracion,
             'historial_hoy':payloads[len(aptos)+len(actual):],
             'ofertas':payloads[:len(aptos)],'en_curso':payloads[len(aptos)] if actual else None})
@@ -128,7 +135,9 @@ class RepartidorCompletarView(APIView):
         import re
         codigo=request.data.get('codigo','')
         if not isinstance(codigo,str) or not re.fullmatch(r'[0-9]{4}',codigo): raise ValidationError('El código de entrega tiene 4 números.')
-        if not op.completar(request.user,order_id,codigo,request.data.get('efectivo_confirmado') is True):
+        cobro_confirmado = (request.data.get('pago_al_recibir_confirmado') is True
+                            or request.data.get('efectivo_confirmado') is True)
+        if not op.completar(request.user,order_id,codigo,cobro_confirmado):
             return Response({'detail':'El código no coincide. Pídeselo de nuevo al cliente.'},status=400)
         return Response({'entregado':True})
 
@@ -139,7 +148,12 @@ class CompradorPedidosView(APIView):
         if request.query_params.get('vigente')=='1':
             # «Mi pedido» refresca cada 10 s: solo el pedido en curso o, si no hay,
             # el último entregado que falta calificar (no los 100 del historial).
-            activo=pedidos.exclude(estado__in=['entregado','cancelado']).first()
+            # Una compra más reciente no debe ocultar el código de otra entrega.
+            activo=pedidos.exclude(estado__in=['entregado','cancelado']).order_by(
+                Case(When(estado='en_camino',then=Value(0)),
+                     When(estado='en_recojo',then=Value(1)),
+                     default=Value(2),output_field=IntegerField()),
+                '-creado_en','-id').first()
             if activo is None:
                 recientes=list(pedidos.filter(estado='entregado').values_list('id',flat=True)[:100])
                 pendientes=op.pedidos_sin_calificar(recientes)

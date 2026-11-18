@@ -2,7 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../core/config/api_config.dart';
 import '../../../data/repositories/pedidos_api_repository.dart';
+import '../../../data/repositories/mercadopago_api_repository.dart';
 import '../widgets/pago_yape_simulado.dart';
+import '../widgets/pago_mercadopago_pruebas.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/formato.dart';
@@ -17,21 +19,26 @@ import '../../../data/repositories/pedido_repository.dart';
 import '../widgets/estrellas.dart';
 import '../widgets/precio_final_sheet.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 /// Mi pedido: seguimiento del pedido en curso.
 /// C5 pesando · C5b confirmar precio final · C6 recojo · C7 en camino ·
 /// C7b repartidor afuera · C8 calificar. C9 (historial) desde el enlace.
 class MiPedidoScreen extends StatefulWidget {
-  const MiPedidoScreen({super.key, required this.usuario});
+  const MiPedidoScreen({
+    super.key,
+    required this.usuario,
+    this.repository,
+    this.pagosRepository,
+  });
   final Usuario usuario;
+  final PedidoRepository? repository;
+  final MercadoPagoApiRepository? pagosRepository;
 
   @override
   State<MiPedidoScreen> createState() => _MiPedidoScreenState();
 }
 
 class _MiPedidoScreenState extends State<MiPedidoScreen> {
-  final PedidoRepository _repo = pedidosApp;
+  late final PedidoRepository _repo = widget.repository ?? pedidosApp;
   Timer? _refresco;
   bool _consultando = false;
 
@@ -95,7 +102,7 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
       if (!mounted) return;
       setState(() {
         _cargando = false;
-        _error = tr('No pudimos cargar tu pedido. Inténtalo de nuevo.');
+        _error = 'No pudimos cargar tu pedido. Inténtalo de nuevo.';
       });
     } finally {
       _consultando = false;
@@ -114,7 +121,12 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
   Future<void> _verPrecio(Pedido p) async {
     final acepto = await mostrarPrecioFinal(context, p);
     if (acepto && mounted) {
-      avisar(context, tr('¡Listo! Tus caseros ya empaquetan tu pedido.'));
+      avisar(
+        context,
+        PagoMercadoPagoPruebas.habilitado && p.metodoPago == MetodoPago.yape
+            ? 'Precio aceptado. Continúa con el pago para que salga tu pedido.'
+            : '¡Listo! Tus caseros ya empaquetan tu pedido.',
+      );
     }
   }
 
@@ -123,7 +135,7 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
     return Scaffold(
       body: Column(
         children: [
-          EncabezadoSimple(titulo: tr('Mi pedido'), mostrarAtras: false),
+          const EncabezadoSimple(titulo: 'Mi pedido', mostrarAtras: false),
           Expanded(child: _cuerpo()),
         ],
       ),
@@ -131,14 +143,14 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
   }
 
   Widget _cuerpo() {
-    if (_cargando) return CargandoApp(texto: tr('Buscando tu pedido…'));
+    if (_cargando) return const CargandoApp(texto: 'Buscando tu pedido…');
     if (_error != null) {
       return AvisoPantalla(
         icono: Icons.wifi_off,
-        titulo: tr('Algo salió mal'),
+        titulo: 'Algo salió mal',
         texto: _error,
         esError: true,
-        textoBoton: tr('Reintentar'),
+        textoBoton: 'Reintentar',
         alTocar: _cargar,
       );
     }
@@ -146,6 +158,39 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
     if (p == null) return _sinPedido();
     if (p.estado == EstadoPedido.entregado) return _calificar(p); // C8
     final aceptado = p.cotizacion?.estado == EstadoCotizacion.aceptada;
+    final online =
+        ApiConfig.configurada &&
+        PagoMercadoPagoPruebas.habilitado &&
+        p.metodoPago == MetodoPago.yape;
+    final pagado =
+        _repo is PedidosApiRepository &&
+        _repo.datosDe(p.id)['pago_aprobado'] == true;
+    if (online && aceptado && !pagado && p.estado != EstadoPedido.cancelado) {
+      return RefreshIndicator(
+        onRefresh: _cargar,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+          children: [
+            const Text(
+              'Paso 3 · Paga tu pedido',
+              style: TextStyle(fontSize: 25, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Ya aceptaste el precio final. El pago es necesario para asignar un repartidor y continuar con la entrega.',
+              style: TextStyle(fontSize: 18),
+            ),
+            const SizedBox(height: 16),
+            PagoMercadoPagoPruebas(
+              key: ValueKey('mercadopago_${p.id}'),
+              pedido: p,
+              repository: widget.pagosRepository,
+              alConfirmarPago: _cargar,
+            ),
+          ],
+        ),
+      );
+    }
     final llego =
         p.estado == EstadoPedido.enCamino &&
         p.historial.isNotEmpty &&
@@ -165,7 +210,14 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
               aceptado &&
               p.metodoPago == MetodoPago.yape) ...[
             const SizedBox(height: 16),
-            PagoYapeSimulado(pedido: p, usuario: widget.usuario),
+            if (PagoMercadoPagoPruebas.habilitado)
+              const EtiquetaEstado(
+                texto: 'Pago confirmado con Mercado Pago',
+                icono: Icons.check_circle,
+                tipo: TipoEstado.exito,
+              )
+            else
+              PagoYapeSimulado(pedido: p, usuario: widget.usuario),
           ],
           const SizedBox(height: 20),
           if (p.estado == EstadoPedido.enCamino)
@@ -173,7 +225,7 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
           else if (aceptado)
             ..._recojo(p) // C6
           else ...[
-            TituloSeccion(tr('Tus puestos')),
+            const TituloSeccion('Tus puestos'),
             const SizedBox(height: 8),
             for (final parte in p.puestos) ...[
               _FilaPuesto(parte: parte),
@@ -181,7 +233,7 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
             ],
           ],
           const SizedBox(height: 12),
-          TituloSeccion(tr('Paso a paso')),
+          const TituloSeccion('Paso a paso'),
           const SizedBox(height: 8),
           LineaTiempo(eventos: p.historial),
           Align(
@@ -190,8 +242,8 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
               onPressed: _explicarPasos,
               style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
               icon: const Icon(Icons.help_outline),
-              label: Text(
-                tr('¿Qué significa cada paso?'),
+              label: const Text(
+                '¿Qué significa cada paso?',
                 style: TextStyle(fontSize: 18),
               ),
             ),
@@ -208,8 +260,8 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
       onPressed: () => context.push('/pedido/historial'),
       style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
       icon: const Icon(Icons.receipt_long_outlined),
-      label: Text(
-        tr('Ver mis pedidos anteriores'),
+      label: const Text(
+        'Ver mis pedidos anteriores',
         style: TextStyle(fontSize: 18),
       ),
     ),
@@ -222,17 +274,17 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
     final paradas = [...p.puestosActivos]
       ..sort((a, b) => a.parada.compareTo(b.parada));
     return [
-      TituloSeccion(tr('Tu repartidor')),
+      const TituloSeccion('Tu repartidor'),
       const SizedBox(height: 8),
       TarjetaApp(
         child: r == null
-            ? Row(
+            ? const Row(
                 children: [
                   Icon(Icons.person_search, color: AppColors.azul, size: 32),
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      tr('Estamos buscando un repartidor de tu mercado.'),
+                      'Estamos buscando un repartidor de tu mercado.',
                       style: TextStyle(fontSize: 18),
                     ),
                   ),
@@ -270,7 +322,7 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
                           Text(
                             r.calificacion > 0
                                 ? '★ ${r.calificacion.toStringAsFixed(1)}'
-                                : tr('Repartidor de tu mercado'),
+                                : 'Repartidor de tu mercado',
                             style: const TextStyle(
                               fontSize: 16,
                               color: AppColors.textoSecundario,
@@ -281,17 +333,14 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
                     ),
                   ),
                   IconButton.outlined(
-                    tooltip: tr('Llamar a {0}', [r.nombre]),
+                    tooltip: 'Llamar a ${r.nombre}',
                     constraints: const BoxConstraints(
                       minWidth: 48,
                       minHeight: 48,
                     ),
                     onPressed: () => avisar(
                       context,
-                      tr('Llama a {0} al {1}.', [
-                        r.nombre.split(' ').first,
-                        r.celular,
-                      ]),
+                      'Llama a ${r.nombre.split(' ').first} al ${r.celular}.',
                     ),
                     icon: const Icon(Icons.call, color: AppColors.azul),
                   ),
@@ -299,7 +348,7 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
               ),
       ),
       const SizedBox(height: 16),
-      TituloSeccion(tr('Ruta de recojo')),
+      const TituloSeccion('Ruta de recojo'),
       const SizedBox(height: 8),
       for (final pp in paradas) ...[
         MergeSemantics(
@@ -328,8 +377,8 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
                 ),
                 Text(
                   pp.estado == EstadoPedidoPuesto.recogido
-                      ? tr('Recogido')
-                      : tr('Por recoger'),
+                      ? 'Recogido'
+                      : 'Por recoger',
                   style: const TextStyle(fontSize: 16),
                 ),
               ],
@@ -347,7 +396,7 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  tr('{0}. Tu casa', [paradas.length + 1]),
+                  '${paradas.length + 1}. Tu casa',
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
@@ -372,8 +421,8 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
           children: [
             Text(
               ApiConfig.configurada
-                  ? tr('Tu repartidor va en camino')
-                  : tr('Llega en unos 8 minutos'),
+                  ? 'Tu repartidor va en camino'
+                  : 'Llega en unos 8 minutos',
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 8),
@@ -384,7 +433,7 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
                 borderRadius: BorderRadius.circular(6),
                 color: AppColors.azul,
                 backgroundColor: AppColors.divisor,
-                semanticsLabel: tr('Tu pedido está cerca'),
+                semanticsLabel: 'Tu pedido está cerca',
               ),
             if (_repartidor != null) ...[
               const SizedBox(height: 8),
@@ -401,14 +450,16 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
         color: AppColors.azulClaro,
         colorBorde: AppColors.azul,
         child: Semantics(
-          label: tr(
-            'Tu código de entrega es {0}. Dáselo al repartidor cuando llegue.',
-            [p.codigoEntrega.split('').join(' ')],
-          ),
+          label:
+              'Tu código de entrega es ${p.codigoEntrega.split('').join(' ')}. '
+              'Dáselo al repartidor cuando llegue.',
           excludeSemantics: true,
           child: Column(
             children: [
-              Text(tr('Tu código de entrega'), style: TextStyle(fontSize: 18)),
+              const Text(
+                'Tu código de entrega',
+                style: TextStyle(fontSize: 18),
+              ),
               Text(
                 p.codigoEntrega,
                 style: const TextStyle(
@@ -418,8 +469,8 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
                   color: AppColors.azul,
                 ),
               ),
-              Text(
-                tr('Dáselo al repartidor cuando llegue.'),
+              const Text(
+                'Dáselo al repartidor cuando llegue.',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 17),
               ),
@@ -430,11 +481,12 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
       const SizedBox(height: 16),
       EtiquetaEstado(
         texto: p.metodoPago == MetodoPago.yape
-            ? tr('Ya pagaste con Yape')
-            : tr('Ten listo {0} para pagar en {1}', [
-                soles(total),
-                p.metodoPago.etiqueta.toLowerCase(),
-              ]),
+            ? (_repo is PedidosApiRepository &&
+                      _repo.datosDe(p.id)['pago_proveedor'] ==
+                          'mercadopago_prueba'
+                  ? 'Pago confirmado con Mercado Pago'
+                  : 'Ya pagaste con Yape')
+            : 'Ten listo ${soles(total)} para pagar en ${p.metodoPago.etiqueta.toLowerCase()}',
         icono: p.metodoPago == MetodoPago.yape
             ? Icons.check_circle
             : Icons.payments_outlined,
@@ -457,9 +509,7 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              tr('¡Tu repartidor está afuera! Dale el código {0}.', [
-                p.codigoEntrega,
-              ]),
+              '¡Tu repartidor está afuera! Dale el código ${p.codigoEntrega}.',
               style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
             ),
           ),
@@ -475,7 +525,7 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
     try {
       await _repo.calificar(p.id, Map.of(_estrellas), _estrellasRepartidor);
       if (!mounted) return;
-      avisar(context, tr('¡Gracias! Tu calificación ayuda a tus caseros.'));
+      avisar(context, '¡Gracias! Tu calificación ayuda a tus caseros.');
       _estrellas.clear();
       _estrellasRepartidor = 0;
     } on PedidoException catch (e) {
@@ -497,14 +547,14 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
         const SizedBox(height: 8),
         Semantics(
           liveRegion: true,
-          child: Text(
-            tr('¡Pedido entregado!'),
+          child: const Text(
+            '¡Pedido entregado!',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800),
           ),
         ),
-        Text(
-          tr('¿Cómo te atendieron? Toca las estrellas.'),
+        const Text(
+          '¿Cómo te atendieron? Toca las estrellas.',
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 18),
         ),
@@ -537,7 +587,7 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  tr('Repartidor: {0}', [_repartidor!.nombre]),
+                  'Repartidor: ${_repartidor!.nombre}',
                   style: const TextStyle(
                     fontSize: 19,
                     fontWeight: FontWeight.w800,
@@ -553,15 +603,15 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
           ),
         const SizedBox(height: 20),
         BotonPrincipal(
-          texto: tr('Enviar calificación'),
+          texto: 'Enviar calificación',
           cargando: _enviandoCalificacion,
           onPressed: completo ? () => _enviarCalificacion(p) : null,
         ),
         if (!completo)
-          Padding(
+          const Padding(
             padding: EdgeInsets.only(top: 8),
             child: Text(
-              tr('Califica a cada uno para enviar.'),
+              'Califica a cada uno para enviar.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 16, color: AppColors.textoSecundario),
             ),
@@ -577,9 +627,9 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
       Expanded(
         child: AvisoPantalla(
           icono: Icons.inventory_2_outlined,
-          titulo: tr('No tienes pedidos en curso'),
-          texto: tr('Cuando hagas un pedido, aquí verás cómo va.'),
-          textoBoton: tr('Ir al mercado'),
+          titulo: 'No tienes pedidos en curso',
+          texto: 'Cuando hagas un pedido, aquí verás cómo va.',
+          textoBoton: 'Ir al mercado',
           alTocar: () => context.go('/inicio'),
         ),
       ),
@@ -594,23 +644,16 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
   List<Widget> _ahora(Pedido p) {
     final aceptado = p.cotizacion?.estado == EstadoCotizacion.aceptada;
     final String texto = switch (p.estado) {
-      EstadoPedido.pendiente => tr('Tus caseros están viendo tu pedido.'),
-      EstadoPedido.enPreparacion when !aceptado => tr(
+      EstadoPedido.pendiente => 'Tus caseros están viendo tu pedido.',
+      EstadoPedido.enPreparacion when !aceptado =>
         'Tus caseros están pesando tus productos.',
-      ),
-      EstadoPedido.enPreparacion => tr(
-        'Tus caseros están empaquetando tu pedido.',
-      ),
-      EstadoPedido.esperandoConfirmacion => tr(
+      EstadoPedido.enPreparacion => 'Tus caseros están empaquetando tu pedido.',
+      EstadoPedido.esperandoConfirmacion =>
         'Ya pesaron. Revisa y acepta el precio final para que salga tu pedido.',
-      ),
-      EstadoPedido.listoParaRecojo => tr(
+      EstadoPedido.listoParaRecojo =>
         'Tus bolsas están listas. El repartidor va a recogerlas.',
-      ),
-      EstadoPedido.enRecojo => tr(
-        'El repartidor está recogiendo en tus puestos.',
-      ),
-      EstadoPedido.enCamino => tr('¡Tu pedido va en camino a tu casa!'),
+      EstadoPedido.enRecojo => 'El repartidor está recogiendo en tus puestos.',
+      EstadoPedido.enCamino => '¡Tu pedido va en camino a tu casa!',
       _ => p.estado.etiqueta,
     };
     return [
@@ -622,8 +665,8 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                tr('AHORA'),
+              const Text(
+                'AHORA',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w900,
@@ -648,7 +691,7 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
       if (p.estado == EstadoPedido.esperandoConfirmacion) ...[
         const SizedBox(height: 12),
         BotonPrincipal(
-          texto: tr('Ver precio final'),
+          texto: 'Ver precio final',
           onPressed: () => _verPrecio(p),
         ),
       ],
@@ -659,15 +702,19 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(
-          tr('¿Qué significa cada paso?'),
+        title: const Text(
+          '¿Qué significa cada paso?',
           style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
         ),
-        content: SingleChildScrollView(
+        content: const SingleChildScrollView(
           child: Text(
-            tr(
-              '1. Pedido enviado: tus caseros lo reciben.\n2. Pesando: cada casero pesa tus productos.\n3. Precio final: tú lo revisas y lo aceptas.\n4. Empaquetando: preparan tus bolsas.\n5. Recogiendo: el repartidor pasa por cada puesto.\n6. En camino: va a tu casa. Dale tu código de entrega.\n7. Entregado: ¡listo! Puedes calificar.',
-            ),
+            '1. Pedido enviado: tus caseros lo reciben.\n'
+            '2. Pesando: cada casero pesa tus productos.\n'
+            '3. Precio final: tú lo revisas y lo aceptas.\n'
+            '4. Empaquetando: preparan tus bolsas.\n'
+            '5. Recogiendo: el repartidor pasa por cada puesto.\n'
+            '6. En camino: va a tu casa. Dale tu código de entrega.\n'
+            '7. Entregado: ¡listo! Puedes calificar.',
             style: TextStyle(fontSize: 18, height: 1.5),
           ),
         ),
@@ -675,7 +722,7 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
           TextButton(
             style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
             onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(tr('Entendido'), style: TextStyle(fontSize: 18)),
+            child: const Text('Entendido', style: TextStyle(fontSize: 18)),
           ),
         ],
       ),

@@ -11,8 +11,6 @@ import '../../../core/widgets/mensaje_error.dart';
 import '../../../data/models/usuario.dart';
 import '../../../data/repositories/puesto_vendedor_repository.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 class MiPuestoScreen extends StatefulWidget {
   const MiPuestoScreen({
     super.key,
@@ -113,14 +111,12 @@ class _MiPuestoScreenState extends State<MiPuestoScreen> {
     setState(() => _error = null);
     if (!_formKey.currentState!.validate()) return;
     if (_mercado == null) {
-      setState(
-        () => _error = tr('Selecciona el mercado donde está tu puesto.'),
-      );
+      setState(() => _error = 'Selecciona el mercado donde está tu puesto.');
       return;
     }
     if (_categoriaId == null) {
       setState(
-        () => _error = tr('Selecciona la categoría principal de tu puesto.'),
+        () => _error = 'Selecciona la categoría principal de tu puesto.',
       );
       return;
     }
@@ -151,8 +147,8 @@ class _MiPuestoScreenState extends State<MiPuestoScreen> {
         SnackBar(
           content: Text(
             creando
-                ? tr('Puesto creado correctamente.')
-                : tr('Puesto guardado correctamente.'),
+                ? 'Puesto creado correctamente.'
+                : 'Puesto guardado correctamente.',
           ),
         ),
       );
@@ -170,7 +166,10 @@ class _MiPuestoScreenState extends State<MiPuestoScreen> {
     return Scaffold(
       body: Column(
         children: [
-          EncabezadoPedidoCasero(titulo: tr('Mi puesto'), mostrarAtras: false),
+          const EncabezadoPedidoCasero(
+            titulo: 'Mi puesto',
+            mostrarAtras: false,
+          ),
           Expanded(child: _contenido()),
         ],
       ),
@@ -178,14 +177,14 @@ class _MiPuestoScreenState extends State<MiPuestoScreen> {
   }
 
   Widget _contenido() {
-    if (_cargando) return CargandoApp(texto: tr('Cargando tu puesto…'));
+    if (_cargando) return const CargandoApp(texto: 'Cargando tu puesto…');
     if (_datos == null) {
       return AvisoPantalla(
         icono: Icons.wifi_off_rounded,
-        titulo: tr('No pudimos cargar tu puesto'),
+        titulo: 'No pudimos cargar tu puesto',
         texto: _error,
         esError: true,
-        textoBoton: tr('Reintentar'),
+        textoBoton: 'Reintentar',
         alTocar: _cargar,
       );
     }
@@ -229,21 +228,19 @@ class _MiPuestoScreenState extends State<MiPuestoScreen> {
                       ),
                       if (puesto.numero != null)
                         Text(
-                          tr('Puesto {0}', [puesto.numero]),
+                          'Puesto ${puesto.numero}',
                           style: const TextStyle(fontSize: 18),
                         ),
                       Text(
                         puesto.horarios.isEmpty
-                            ? tr('Horario sin registrar')
+                            ? 'Horario sin registrar'
                             : puesto.horarios.join('\n'),
                         style: const TextStyle(fontSize: 18),
                       ),
                       Text(
                         puesto.contactoBilletera == null
-                            ? tr('Yape / Plin: sin registrar')
-                            : tr('Yape / Plin: {0}', [
-                                puesto.contactoBilletera,
-                              ]),
+                            ? 'Yape / Plin: sin registrar'
+                            : 'Yape / Plin: ${puesto.contactoBilletera}',
                         style: const TextStyle(fontSize: 18),
                       ),
                     ],
@@ -252,7 +249,7 @@ class _MiPuestoScreenState extends State<MiPuestoScreen> {
                 const SizedBox(height: 18),
               ],
               Text(
-                editando ? tr('Información del puesto') : tr('Crea tu puesto'),
+                editando ? 'Información del puesto' : 'Crea tu puesto',
                 style: const TextStyle(
                   color: AppColors.azul,
                   fontSize: 24,
@@ -262,10 +259,8 @@ class _MiPuestoScreenState extends State<MiPuestoScreen> {
               const SizedBox(height: 4),
               Text(
                 editando
-                    ? tr('Puedes corregir estos datos cuando sea necesario.')
-                    : tr(
-                        'Elige el mercado y completa los datos para comenzar.',
-                      ),
+                    ? 'Puedes corregir estos datos cuando sea necesario.'
+                    : 'Elige el mercado y completa los datos para comenzar.',
                 style: const TextStyle(
                   fontSize: 16,
                   color: AppColors.textoSecundario,
@@ -280,8 +275,8 @@ class _MiPuestoScreenState extends State<MiPuestoScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       _campo(
-                        etiqueta: tr('Nombre del puesto'),
-                        hint: tr('Ej.: Verdulería Doña Rosa'),
+                        etiqueta: 'Nombre del puesto',
+                        hint: 'Ej.: Verdulería Doña Rosa',
                         controller: _nombre,
                         maxLongitud: 150,
                         mostrarContador: true,
@@ -289,27 +284,27 @@ class _MiPuestoScreenState extends State<MiPuestoScreen> {
                         mayusculas: TextCapitalization.words,
                         validator: (valor) => Validadores.requerido(
                           valor,
-                          campo: tr('El nombre del puesto'),
+                          campo: 'El nombre del puesto',
                         ),
                       ),
                       const SizedBox(height: 16),
                       _campo(
-                        etiqueta: tr('Número del puesto (opcional)'),
-                        hint: tr('Ej.: A-12'),
+                        etiqueta: 'Número del puesto (opcional)',
+                        hint: 'Ej.: A-12',
                         controller: _numero,
                         maxLongitud: 30,
                         mostrarContador: true,
                         icono: Icons.tag,
                       ),
                       const SizedBox(height: 20),
-                      _TituloFormulario(
+                      const _TituloFormulario(
                         icono: Icons.location_on_outlined,
-                        texto: tr('Mercado y dirección'),
+                        texto: 'Mercado y dirección',
                       ),
                       const SizedBox(height: 10),
                       _campo(
-                        etiqueta: tr('Buscar mercado'),
-                        hint: tr('Escribe el nombre o la dirección'),
+                        etiqueta: 'Buscar mercado',
+                        hint: 'Escribe el nombre o la dirección',
                         controller: _busqueda,
                         icono: Icons.search,
                       ),
@@ -326,8 +321,8 @@ class _MiPuestoScreenState extends State<MiPuestoScreen> {
                         _DireccionSeleccionada(mercado: _mercado!),
                       ],
                       const SizedBox(height: 18),
-                      Text(
-                        tr('Categoría principal'),
+                      const Text(
+                        'Categoría principal',
                         style: TextStyle(
                           fontSize: 19,
                           fontWeight: FontWeight.w700,
@@ -349,13 +344,13 @@ class _MiPuestoScreenState extends State<MiPuestoScreen> {
                         onChanged: (valor) =>
                             setState(() => _categoriaId = valor),
                         validator: (valor) => valor == null
-                            ? tr('Selecciona la categoría principal.')
+                            ? 'Selecciona la categoría principal.'
                             : null,
                       ),
                       const SizedBox(height: 16),
                       _campo(
-                        etiqueta: tr('Referencia para encontrar el puesto'),
-                        hint: tr('Ej.: Pasillo 2, junto a la entrada'),
+                        etiqueta: 'Referencia para encontrar el puesto',
+                        hint: 'Ej.: Pasillo 2, junto a la entrada',
                         controller: _referencia,
                         maxLongitud: 300,
                         mostrarContador: true,
@@ -375,10 +370,10 @@ class _MiPuestoScreenState extends State<MiPuestoScreen> {
                         onPressed: _guardando ? null : _guardar,
                         child: Text(
                           _guardando
-                              ? tr('Guardando puesto…')
+                              ? 'Guardando puesto…'
                               : editando
-                              ? tr('Guardar cambios')
-                              : tr('Crear mi puesto'),
+                              ? 'Guardar cambios'
+                              : 'Crear mi puesto',
                           textAlign: TextAlign.center,
                           style: const TextStyle(fontSize: 20),
                         ),
@@ -472,8 +467,8 @@ class _AccesoPerfil extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      tr('Mi perfil'),
+                    const Text(
+                      'Mi perfil',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
@@ -512,7 +507,7 @@ class _BannerVacio extends StatelessWidget {
         border: Border.all(color: AppColors.divisor),
       ),
       child: fotoUrl == null
-          ? Padding(
+          ? const Padding(
               padding: EdgeInsets.all(16),
               child: Center(
                 child: Column(
@@ -525,11 +520,11 @@ class _BannerVacio extends StatelessWidget {
                     ),
                     SizedBox(height: 6),
                     Text(
-                      tr('Tu puesto en MiMercado+'),
+                      'Tu puesto en MiMercado+',
                       style: TextStyle(fontWeight: FontWeight.w700),
                     ),
                     Text(
-                      tr('Información de tu negocio'),
+                      'Información de tu negocio',
                       style: TextStyle(color: AppColors.textoSecundario),
                     ),
                   ],
@@ -587,10 +582,10 @@ class _ListaMercados extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (mercados.isEmpty) {
-      return Padding(
+      return const Padding(
         padding: EdgeInsets.symmetric(vertical: 12),
         child: Text(
-          tr('No encontramos mercados con esa búsqueda.'),
+          'No encontramos mercados con esa búsqueda.',
           style: TextStyle(color: AppColors.textoSecundario),
         ),
       );
@@ -660,7 +655,7 @@ class _DireccionSeleccionada extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              tr('Dirección conservada del mercado:\n{0}', [mercado.direccion]),
+              'Dirección conservada del mercado:\n${mercado.direccion}',
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
           ),

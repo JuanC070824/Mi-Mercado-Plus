@@ -24,10 +24,11 @@ def provider_charge(phone, code, amount, email):
 
 
 def payment_result(payment, status=200):
-    mode = 'mock' if (payment.proveedor_transaccion_id or '').startswith('mock_') else settings.PAYMENT_MODE
+    mp = (payment.proveedor_transaccion_id or '').startswith('mp_test_')
+    mode = 'mercadopago_prueba' if mp else ('mock' if (payment.proveedor_transaccion_id or '').startswith('mock_') else settings.PAYMENT_MODE)
     result = {'success': payment.estado=='aprobado', 'pago_id':payment.pk,'pedido_id':payment.pedido_id,
               'estado':payment.estado,'monto_centavos':cents(payment.monto),'moneda':payment.moneda,
-              'modo':mode,'simulado':mode=='mock'}
+              'modo':mode,'simulado':mode in ('mock','mercadopago_prueba')}
     if payment.estado=='rechazado':
         status=402
     elif payment.estado=='procesando':
@@ -58,6 +59,9 @@ def pay_order(user, data):
         existing=Pago.objects.filter(pedido_id=order.pk,estado__in=['aprobado','procesando']).first()
         if existing:
             return payment_result(existing)
+        if Pago.objects.filter(pedido_id=order.pk, estado='pendiente',
+                proveedor_transaccion_id__startswith='mp_test_').exists():
+            raise ValidationError('Hay un checkout de Mercado Pago pendiente. Consulta y confirma su estado antes de usar otro pago.')
         try:
             quote=Cotizacion.objects.select_for_update().get(pedido_id=order.pk,estado='aceptada')
         except Cotizacion.DoesNotExist:

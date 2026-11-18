@@ -1,0 +1,30 @@
+{
+  "creado_utc": "2026-11-17T14:27:33.511011+00:00",
+  "entorno": "prueba",
+  "estado": "preferencia_creada",
+  "referencia": "mmp_diag_classic_fee1ff48-8e5c-4f4c-87c5-a2a20f091d0e",
+  "idempotencia": "fee1ff48-8e5c-4f4c-87c5-a2a20f091d0e",
+  "solicitud": {
+    "items": [
+      {
+        "id": "diagnostico-classic",
+        "title": "Prueba aislada MiMercado+ - Checkout clasico",
+        "quantity": 1,
+        "currency_id": "PEN",
+        "unit_price": 7.0
+      }
+    ],
+    "external_reference": "mmp_diag_classic_fee1ff48-8e5c-4f4c-87c5-a2a20f091d0e",
+    "purpose": "wallet_purchase",
+    "payment_methods": {
+      "installments": 1
+    }
+  },
+  "nota": "Prueba independiente; no representa el pedido 4 ni registra pago en MiMercado+. No se han enviado datos de tarjeta ni personales.",
+  "http": 201,
+  "request_id": "0e2b5070-272d-466c-ad3c-1dd482ef10d9",
+  "preferencia": "3853174322-12f7cc8b-353e-4cc8-9d52-233fc9b442d1",
+  "init_point": "https://www.mercadopago.com.pe/checkout/v1/redirect?pref_id=3853174322-12f7cc8b-353e-4cc8-9d52-233fc9b442d1",
+  "sandbox_init_point": "https://sandbox.mercadopago.com.pe/checkout/v1/redirect?pref_id=3853174322-12f7cc8b-353e-4cc8-9d52-233fc9b442d1",
+  "verificacion_pagos": []
+}

@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="es"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer"><title>Pago seguro · MiMercado+</title>
+<style>
+*{box-sizing:border-box}html{height:100%;overflow-y:auto;overscroll-behavior-y:contain;scrollbar-gutter:stable}body{margin:0;padding:12px;font:16px system-ui,sans-serif;color:#183443;background:#fff}
+button,input{font:inherit}button{cursor:pointer;min-height:48px;border:1px solid #206d9e;border-radius:10px;padding:10px 16px;background:white;color:#206d9e}
+button[aria-selected=true],button[type=submit]{background:#206d9e;color:white}button:disabled{opacity:.55;cursor:wait}
+nav{display:flex;gap:8px;margin-bottom:14px}nav button{flex:1}label{display:block;margin:12px 0 5px}
+input{width:100%;min-height:48px;padding:10px;border:1px solid #87949b;border-radius:8px}#yape button{width:100%;margin-top:16px}
+[hidden]{display:none!important}#estado{white-space:pre-wrap;line-height:1.4}#estado.error{color:#b3261e}
+</style></head><body>
+<nav aria-label="Medio de pago"><button id="tarjeta-tab" aria-selected="true" type="button">Tarjeta</button><button id="yape-tab" aria-selected="false" type="button">Yape</button></nav>
+<p id="estado" role="status" aria-live="polite">Cargando formulario seguro…</p>
+<div id="tarjeta"><div id="card-payment"></div></div>
+<form id="yape" hidden>
+<label for="correo">Correo del comprador de prueba</label><input id="correo" type="email" autocomplete="email" required>
+<label for="celular">Celular asociado a Yape</label><input id="celular" type="tel" inputmode="numeric" pattern="9[0-9]{8}" maxlength="9" required>
+<label for="codigo">Código de aprobación de Yape</label><input id="codigo" type="password" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="off" required>
+<button type="submit">Pagar con Yape</button></form>
+<script src="https://sdk.mercadopago.com/js/v2"></script><script src="mercadopago.js"></script>
+</body></html>

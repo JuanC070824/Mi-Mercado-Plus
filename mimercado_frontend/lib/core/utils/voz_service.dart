@@ -1,5 +1,4 @@
 import 'package:speech_to_text/speech_to_text.dart';
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
 
 /// Reconocimiento de voz para buscar caseros hablando (RF-08).
 abstract class VozService {
@@ -23,7 +22,7 @@ class VozSpeechToText implements VozService {
 
   final _stt = SpeechToText();
   bool? _lista;
-  List<String> _idiomas = const [];
+  String? _idioma;
   void Function()? _alTerminar;
 
   @override
@@ -40,26 +39,20 @@ class VozSpeechToText implements VozService {
         },
       );
       if (_lista!) {
-        _idiomas = [for (final l in await _stt.locales()) l.localeId];
+        // Español del Perú si el teléfono lo tiene; si no, cualquier español.
+        final idiomas = await _stt.locales();
+        String? buscar(bool Function(String) cumple) => idiomas
+            .map((l) => l.localeId)
+            .where((id) => cumple(id.toLowerCase().replaceAll('-', '_')))
+            .firstOrNull;
+        _idioma =
+            buscar((id) => id == 'es_pe') ??
+            buscar((id) => id.startsWith('es'));
       }
     } catch (_) {
       _lista = false;
     }
     return _lista!;
-  }
-
-  /// Inglés si la app está en inglés. En español y en quechua se escucha en
-  /// español del Perú: el reconocimiento de voz del teléfono no trae quechua.
-  String? _idiomaDeVoz() {
-    String? buscar(bool Function(String) cumple) => _idiomas
-        .where((id) => cumple(id.toLowerCase().replaceAll('-', '_')))
-        .firstOrNull;
-    if (IdiomaState.actual.value == Idioma.ingles) {
-      final en =
-          buscar((id) => id == 'en_us') ?? buscar((id) => id.startsWith('en'));
-      if (en != null) return en;
-    }
-    return buscar((id) => id == 'es_pe') ?? buscar((id) => id.startsWith('es'));
   }
 
   @override
@@ -71,7 +64,7 @@ class VozSpeechToText implements VozService {
     return _stt.listen(
       onResult: (r) => alOir(r.recognizedWords, r.finalResult),
       listenOptions: SpeechListenOptions(
-        localeId: _idiomaDeVoz(),
+        localeId: _idioma,
         listenFor: const Duration(seconds: 15),
         pauseFor: const Duration(seconds: 3),
         partialResults: true,

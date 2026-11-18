@@ -12,13 +12,13 @@ import '../models/puesto.dart';
 import 'catalogo_api_repository.dart';
 import 'pedido_repository.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 class PedidosVendedorApiRepository {
   PedidosVendedorApiRepository({http.Client? client, String? baseUrl})
     : _client = client ?? http.Client(),
       _baseUrl = baseUrl;
   static final instancia = PedidosVendedorApiRepository();
+  final _datos = <int, Map<String, dynamic>>{};
+  Map<String, dynamic> datosDe(int id) => _datos[id] ?? const {};
   final http.Client _client;
   final String? _baseUrl;
   final ValueNotifier<int> _cambios = ValueNotifier(0);
@@ -27,7 +27,7 @@ class PedidosVendedorApiRepository {
   Future<List<Pedido>> pedidosDePuesto(int puestoId) async {
     final data = await _enviar('GET', '/api/vendedor/pedidos/');
     if (data is! List) {
-      throw PedidoException(tr('El servidor devolvió pedidos inválidos.'));
+      throw const PedidoException('El servidor devolvió pedidos inválidos.');
     }
     return [
       for (final raw in data)
@@ -85,6 +85,7 @@ class PedidosVendedorApiRepository {
   void _notificar() => _cambios.value++;
 
   Pedido pedidoDesdeJson(Map<String, dynamic> j) {
+    _datos[(j['id'] as num).toInt()] = j;
     final partes = <PedidoPuesto>[];
     for (final raw in (j['puestos'] as List? ?? const [])) {
       if (raw is! Map<String, dynamic>) continue;
@@ -93,7 +94,7 @@ class PedidosVendedorApiRepository {
         id: (pj['id'] as num).toInt(),
         mercadoId: (pj['mercado_id'] as num).toInt(),
         nombre: pj['nombre'].toString(),
-        casero: pj['casero']?.toString() ?? tr('Casero'),
+        casero: pj['casero']?.toString() ?? 'Casero',
         categoria: _categoria(pj['categoria']?.toString()),
         calificacion: ((pj['calificacion'] as num?) ?? 0).toDouble(),
         resenas: ((pj['resenas'] as num?) ?? 0).toInt(),
@@ -229,7 +230,7 @@ class PedidosVendedorApiRepository {
     Map<String, dynamic>? body,
   }) async {
     final token = SesionState.token;
-    if (token == null) throw PedidoException(tr('Tu sesión venció.'));
+    if (token == null) throw const PedidoException('Tu sesión venció.');
     try {
       final req =
           http.Request(metodo, ApiConfig.uri(ruta, baseUrlOverride: _baseUrl))
@@ -249,16 +250,16 @@ class PedidosVendedorApiRepository {
         throw PedidoException(
           d['detail']?.toString() ??
               d.values.firstOrNull?.toString() ??
-              tr('No pudimos actualizar el pedido.'),
+              'No pudimos actualizar el pedido.',
         );
       }
       return decoded;
     } on PedidoException {
       rethrow;
     } on TimeoutException {
-      throw PedidoException(tr('El servidor tardó demasiado.'));
+      throw const PedidoException('El servidor tardó demasiado.');
     } catch (_) {
-      throw PedidoException(tr('No pudimos conectarnos con MiMercado+.'));
+      throw const PedidoException('No pudimos conectarnos con MiMercado+.');
     }
   }
 }

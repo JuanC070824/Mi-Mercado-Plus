@@ -15,8 +15,6 @@ import '../../../data/repositories/auth_repository.dart';
 import '../../../data/repositories/dni_repository.dart';
 import '../widgets/requisitos_password.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 enum _EstadoDni { inicial, buscando, encontrado, noEncontrado, falloServicio }
 
 enum _EstadoUbicacion { inicial, buscando, listo, error }
@@ -164,10 +162,10 @@ class _ClienteRegistroScreenState extends State<ClienteRegistroScreen> {
     final base = Validadores.dni(v);
     if (base != null) return base;
     if (_estadoDni == _EstadoDni.noEncontrado) {
-      return tr('No encontramos este DNI. Revisa los 8 números.');
+      return 'No encontramos este DNI. Revisa los 8 números.';
     }
     if (_estadoDni != _EstadoDni.encontrado || _dniToken == null) {
-      return tr('Es necesario validar el DNI antes de crear la cuenta.');
+      return 'Es necesario validar el DNI antes de crear la cuenta.';
     }
     return null;
   }
@@ -175,7 +173,7 @@ class _ClienteRegistroScreenState extends State<ClienteRegistroScreen> {
   String? _validarNombre(String? v, String campo, {bool opcional = false}) {
     final vacio = (v ?? '').trim().isEmpty;
     if (vacio && _bloqueado) {
-      return opcional ? null : tr('Se completa solo al escribir tu DNI');
+      return opcional ? null : 'Se completa solo al escribir tu DNI';
     }
     return Validadores.nombre(v, campo: campo, opcional: opcional);
   }
@@ -196,12 +194,8 @@ class _ClienteRegistroScreenState extends State<ClienteRegistroScreen> {
         if (u.direccion != null) _direccion.text = u.direccion!;
         _estadoUbicacion = _EstadoUbicacion.listo;
         _mensajeUbicacion = u.direccion != null
-            ? tr(
-                'Encontramos tu ubicación. Revisa la dirección y corrígela si hace falta.',
-              )
-            : tr(
-                'Guardamos tu ubicación, pero no pudimos obtener la calle. Escríbela tú.',
-              );
+            ? 'Encontramos tu ubicación. Revisa la dirección y corrígela si hace falta.'
+            : 'Guardamos tu ubicación, pero no pudimos obtener la calle. Escríbela tú.';
       });
     } on UbicacionException catch (e) {
       if (!mounted) return;
@@ -221,9 +215,9 @@ class _ClienteRegistroScreenState extends State<ClienteRegistroScreen> {
       firstDate: DateTime(1900),
       lastDate: hoy,
       initialEntryMode: DatePickerEntryMode.calendarOnly,
-      helpText: tr('Elige tu fecha de nacimiento'),
-      cancelText: tr('Cancelar'),
-      confirmText: tr('Aceptar'),
+      helpText: 'Elige tu fecha de nacimiento',
+      cancelText: 'Cancelar',
+      confirmText: 'Aceptar',
     );
     if (f == null) return;
     _nacimiento.text =
@@ -266,15 +260,14 @@ class _ClienteRegistroScreenState extends State<ClienteRegistroScreen> {
 
     if (_estadoDni == _EstadoDni.buscando) {
       setState(
-        () => _error = tr(
-          'Espera un momento: estamos buscando tus datos con tu DNI.',
-        ),
+        () => _error =
+            'Espera un momento: estamos buscando tus datos con tu DNI.',
       );
       return;
     }
     if (!_formKey.currentState!.validate()) {
       setState(
-        () => _error = tr('Revisa los campos marcados en rojo para continuar.'),
+        () => _error = 'Revisa los campos marcados en rojo para continuar.',
       );
       _irAlPrimerError();
       return;
@@ -327,28 +320,26 @@ class _ClienteRegistroScreenState extends State<ClienteRegistroScreen> {
       case _EstadoDni.inicial:
         return const SizedBox.shrink();
       case _EstadoDni.buscando:
-        return _MensajeEstado(
-          texto: tr('Buscando tus datos…'),
+        return const _MensajeEstado(
+          texto: 'Buscando tus datos…',
           color: AppColors.azul,
           cargando: true,
         );
       case _EstadoDni.encontrado:
-        return _MensajeEstado(
-          texto: tr('Datos encontrados. Verifica que sean los tuyos.'),
+        return const _MensajeEstado(
+          texto: 'Datos encontrados. Verifica que sean los tuyos.',
           color: AppColors.exito,
           icono: Icons.check_circle,
         );
       case _EstadoDni.noEncontrado:
-        return _MensajeEstado(
-          texto: tr('No encontramos este DNI. Revisa los 8 números.'),
+        return const _MensajeEstado(
+          texto: 'No encontramos este DNI. Revisa los 8 números.',
           color: AppColors.error,
           icono: Icons.error_outline,
         );
       case _EstadoDni.falloServicio:
         return _MensajeEstado(
-          texto: tr(
-            'No pudimos consultar tu DNI ahora. Reintenta para continuar.',
-          ),
+          texto: 'No pudimos consultar tu DNI ahora. Reintenta para continuar.',
           color: AppColors.texto,
           icono: Icons.info_outline,
           accion: TextButton(
@@ -357,8 +348,8 @@ class _ClienteRegistroScreenState extends State<ClienteRegistroScreen> {
               _dniConsultado = null;
               _consultarDni(d);
             },
-            child: Text(
-              tr('Reintentar'),
+            child: const Text(
+              'Reintentar',
               style: TextStyle(fontSize: 18, color: AppColors.azul),
             ),
           ),
@@ -373,20 +364,18 @@ class _ClienteRegistroScreenState extends State<ClienteRegistroScreen> {
       child: OutlinedButton.icon(
         onPressed: buscando ? null : _usarUbicacion,
         icon: buscando
-            ? SizedBox(
+            ? const SizedBox(
                 width: 22,
                 height: 22,
                 child: CircularProgressIndicator(
                   strokeWidth: 3,
                   color: AppColors.azul,
-                  semanticsLabel: tr('Buscando ubicación'),
+                  semanticsLabel: 'Buscando ubicación',
                 ),
               )
             : const Icon(Icons.my_location),
         label: Text(
-          buscando
-              ? tr('Buscando tu ubicación…')
-              : tr('Usar mi ubicación actual'),
+          buscando ? 'Buscando tu ubicación…' : 'Usar mi ubicación actual',
           style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
         ),
         style: OutlinedButton.styleFrom(
@@ -414,7 +403,7 @@ class _ClienteRegistroScreenState extends State<ClienteRegistroScreen> {
     return Scaffold(
       body: Column(
         children: [
-          EncabezadoAzul(titulo: tr('Registro de {0}', [widget.rol.etiqueta])),
+          EncabezadoAzul(titulo: 'Registro de ${widget.rol.etiqueta}'),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
@@ -427,10 +416,8 @@ class _ClienteRegistroScreenState extends State<ClienteRegistroScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Text(
-                            tr(
-                              'Los campos que no dicen "opcional" son obligatorios.',
-                            ),
+                          const Text(
+                            'Los campos que no dicen "opcional" son obligatorios.',
                             style: TextStyle(
                               fontSize: 17,
                               color: AppColors.textoSecundario,
@@ -438,11 +425,14 @@ class _ClienteRegistroScreenState extends State<ClienteRegistroScreen> {
                           ),
                           const SizedBox(height: 20),
 
-                          _TituloSeccion(tr('Mis datos'), Icons.badge_outlined),
+                          const _TituloSeccion(
+                            'Mis datos',
+                            Icons.badge_outlined,
+                          ),
                           const SizedBox(height: 16),
                           CampoTextoApp(
-                            etiqueta: tr('DNI'),
-                            hint: tr('8 dígitos'),
+                            etiqueta: 'DNI',
+                            hint: '8 dígitos',
                             controller: _dni,
                             teclado: TextInputType.number,
                             soloDigitos: true,
@@ -457,41 +447,40 @@ class _ClienteRegistroScreenState extends State<ClienteRegistroScreen> {
                           ),
                           const SizedBox(height: 12),
                           CampoTextoApp(
-                            etiqueta: tr('Nombres'),
-                            hint: tr('Se completa con tu DNI'),
+                            etiqueta: 'Nombres',
+                            hint: 'Se completa con tu DNI',
                             controller: _nombres,
                             soloLectura: _bloqueado,
                             mayusculas: TextCapitalization.words,
-                            validator: (v) =>
-                                _validarNombre(v, tr('El nombre')),
+                            validator: (v) => _validarNombre(v, 'El nombre'),
                           ),
                           const SizedBox(height: 12),
                           CampoTextoApp(
-                            etiqueta: tr('Apellido paterno'),
-                            hint: tr('Se completa con tu DNI'),
+                            etiqueta: 'Apellido paterno',
+                            hint: 'Se completa con tu DNI',
                             controller: _paterno,
                             soloLectura: _bloqueado,
                             mayusculas: TextCapitalization.words,
                             validator: (v) =>
-                                _validarNombre(v, tr('El apellido paterno')),
+                                _validarNombre(v, 'El apellido paterno'),
                           ),
                           const SizedBox(height: 12),
                           CampoTextoApp(
-                            etiqueta: tr('Apellido materno'),
-                            hint: tr('Se completa con tu DNI'),
+                            etiqueta: 'Apellido materno',
+                            hint: 'Se completa con tu DNI',
                             controller: _materno,
                             soloLectura: _bloqueado,
                             mayusculas: TextCapitalization.words,
                             validator: (v) => _validarNombre(
                               v,
-                              tr('El apellido materno'),
+                              'El apellido materno',
                               opcional: true,
                             ),
                           ),
                           const SizedBox(height: 12),
                           CampoTextoApp(
-                            etiqueta: tr('Fecha de nacimiento (opcional)'),
-                            hint: tr('Toca para elegir la fecha'),
+                            etiqueta: 'Fecha de nacimiento (opcional)',
+                            hint: 'Toca para elegir la fecha',
                             controller: _nacimiento,
                             icono: Icons.cake_outlined,
                             onTap: _elegirFecha,
@@ -499,11 +488,11 @@ class _ClienteRegistroScreenState extends State<ClienteRegistroScreen> {
                           ),
 
                           const SizedBox(height: 28),
-                          _TituloSeccion(tr('Mi acceso'), Icons.lock_outline),
+                          const _TituloSeccion('Mi acceso', Icons.lock_outline),
                           const SizedBox(height: 16),
                           CampoTextoApp(
-                            etiqueta: tr('Celular'),
-                            hint: tr('9 dígitos'),
+                            etiqueta: 'Celular',
+                            hint: '9 dígitos',
                             prefijo: '+51 ',
                             controller: _celular,
                             teclado: TextInputType.phone,
@@ -518,7 +507,7 @@ class _ClienteRegistroScreenState extends State<ClienteRegistroScreen> {
                           ),
                           const SizedBox(height: 12),
                           CampoTextoApp(
-                            etiqueta: tr('Correo (opcional)'),
+                            etiqueta: 'Correo (opcional)',
                             hint: 'nombre@correo.com',
                             controller: _correo,
                             teclado: TextInputType.emailAddress,
@@ -529,7 +518,7 @@ class _ClienteRegistroScreenState extends State<ClienteRegistroScreen> {
                           ),
                           const SizedBox(height: 12),
                           CampoTextoApp(
-                            etiqueta: tr('Contraseña'),
+                            etiqueta: 'Contraseña',
                             controller: _password,
                             esPassword: true,
                             icono: Icons.lock_outline,
@@ -540,7 +529,7 @@ class _ClienteRegistroScreenState extends State<ClienteRegistroScreen> {
                           RequisitosPassword(controller: _password),
                           const SizedBox(height: 12),
                           CampoTextoApp(
-                            etiqueta: tr('Repite tu contraseña'),
+                            etiqueta: 'Repite tu contraseña',
                             controller: _confirmar,
                             esPassword: true,
                             icono: Icons.lock_outline,
@@ -550,15 +539,13 @@ class _ClienteRegistroScreenState extends State<ClienteRegistroScreen> {
 
                           if (widget.rol == Rol.cliente) ...[
                             const SizedBox(height: 28),
-                            _TituloSeccion(
-                              tr('Dónde te entregamos (opcional)'),
+                            const _TituloSeccion(
+                              'Dónde te entregamos (opcional)',
                               Icons.home_outlined,
                             ),
                             const SizedBox(height: 4),
-                            Text(
-                              tr(
-                                'Puedes completarlo ahora o más tarde, desde Mi perfil.',
-                              ),
+                            const Text(
+                              'Puedes completarlo ahora o más tarde, desde Mi perfil.',
                               style: TextStyle(
                                 fontSize: 17,
                                 color: AppColors.textoSecundario,
@@ -572,8 +559,8 @@ class _ClienteRegistroScreenState extends State<ClienteRegistroScreen> {
                             ),
                             const SizedBox(height: 16),
                             CampoTextoApp(
-                              etiqueta: tr('Dirección principal'),
-                              hint: tr('Av. Principal 123, Surquillo'),
+                              etiqueta: 'Dirección principal',
+                              hint: 'Av. Principal 123, Surquillo',
                               controller: _direccion,
                               icono: Icons.home_outlined,
                               autofillHints: const [
@@ -583,8 +570,8 @@ class _ClienteRegistroScreenState extends State<ClienteRegistroScreen> {
                             ),
                             const SizedBox(height: 12),
                             CampoTextoApp(
-                              etiqueta: tr('Referencia (opcional)'),
-                              hint: tr('Cerca a la juguería'),
+                              etiqueta: 'Referencia (opcional)',
+                              hint: 'Cerca a la juguería',
                               controller: _referencia,
                               icono: Icons.edit_location_alt_outlined,
                               accion: TextInputAction.done,
@@ -592,8 +579,8 @@ class _ClienteRegistroScreenState extends State<ClienteRegistroScreen> {
                           ],
 
                           const SizedBox(height: 28),
-                          _TituloSeccion(
-                            tr('Cómo quiero usar la app'),
+                          const _TituloSeccion(
+                            'Cómo quiero usar la app',
                             Icons.tune,
                           ),
                           const SizedBox(height: 12),
@@ -608,7 +595,7 @@ class _ClienteRegistroScreenState extends State<ClienteRegistroScreen> {
                             const SizedBox(height: 16),
                           ],
                           BotonPrincipal(
-                            texto: tr('Crear mi cuenta'),
+                            texto: 'Crear mi cuenta',
                             cargando: _cargando,
                             onPressed: _registrar,
                           ),
@@ -623,8 +610,8 @@ class _ClienteRegistroScreenState extends State<ClienteRegistroScreen> {
                                         ? '/casero/login'
                                         : '/repartidor/login',
                                   ),
-                            child: Text(
-                              tr('¿Ya tienes cuenta? Iniciar sesión'),
+                            child: const Text(
+                              '¿Ya tienes cuenta? Iniciar sesión',
                               style: TextStyle(
                                 fontSize: 18,
                                 color: AppColors.azul,
@@ -664,22 +651,22 @@ class _ClienteRegistroScreenState extends State<ClienteRegistroScreen> {
           SwitchListTile(
             value: _letraGrande,
             onChanged: (v) => setState(() => _letraGrande = v),
-            title: Text(tr('Letra grande'), style: titulo),
-            subtitle: Text(tr('Textos más fáciles de leer'), style: detalle),
+            title: const Text('Letra grande', style: titulo),
+            subtitle: const Text('Textos más fáciles de leer', style: detalle),
           ),
           const Divider(height: 1),
           SwitchListTile(
             value: _sonido,
             onChanged: (v) => setState(() => _sonido = v),
-            title: Text(tr('Sonido'), style: titulo),
-            subtitle: Text(tr('Avisos con sonido'), style: detalle),
+            title: const Text('Sonido', style: titulo),
+            subtitle: const Text('Avisos con sonido', style: detalle),
           ),
           const Divider(height: 1),
           SwitchListTile(
             value: _vibracion,
             onChanged: (v) => setState(() => _vibracion = v),
-            title: Text(tr('Vibración'), style: titulo),
-            subtitle: Text(tr('Avisos con vibración'), style: detalle),
+            title: const Text('Vibración', style: titulo),
+            subtitle: const Text('Avisos con vibración', style: detalle),
           ),
         ],
       ),
@@ -690,7 +677,7 @@ class _ClienteRegistroScreenState extends State<ClienteRegistroScreen> {
     return FormField<bool>(
       initialValue: false,
       validator: (v) =>
-          (v ?? false) ? null : tr('Debes aceptar para poder crear tu cuenta'),
+          (v ?? false) ? null : 'Debes aceptar para poder crear tu cuenta',
       builder: (campo) {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -701,10 +688,8 @@ class _ClienteRegistroScreenState extends State<ClienteRegistroScreen> {
               controlAffinity: ListTileControlAffinity.leading,
               contentPadding: EdgeInsets.zero,
               side: const BorderSide(color: AppColors.azul, width: 2),
-              title: Text(
-                tr(
-                  'Acepto los términos de uso y el tratamiento de mis datos personales.',
-                ),
+              title: const Text(
+                'Acepto los términos de uso y el tratamiento de mis datos personales.',
                 style: TextStyle(fontSize: 18, color: AppColors.texto),
               ),
             ),
@@ -802,7 +787,7 @@ class _MensajeEstado extends StatelessWidget {
                   child: CircularProgressIndicator(
                     strokeWidth: 3,
                     color: color,
-                    semanticsLabel: tr('Cargando'),
+                    semanticsLabel: 'Cargando',
                   ),
                 )
               else

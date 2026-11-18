@@ -6,8 +6,6 @@ import 'package:http/http.dart' as http;
 import '../../core/config/api_config.dart';
 import '../../core/state/sesion_state.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 class VendedorInicioException implements Exception {
   const VendedorInicioException(this.mensaje);
   final String mensaje;
@@ -87,6 +85,8 @@ class PedidoActivoVendedor {
     required this.estado,
     required this.creadoEn,
     this.responderAntes,
+    this.pagoConfirmado = false,
+    this.pagoMetodo,
   });
 
   final int id;
@@ -95,6 +95,8 @@ class PedidoActivoVendedor {
   final String estado;
   final DateTime creadoEn;
   final DateTime? responderAntes;
+  final bool pagoConfirmado;
+  final String? pagoMetodo;
 }
 
 class ResumenVendedor {
@@ -102,10 +104,14 @@ class ResumenVendedor {
     required this.ventas,
     required this.comision,
     required this.recibes,
+    this.acumulado = 0,
+    this.pendienteEntregar = 0,
   });
   final int ventas;
   final int comision;
   final int recibes;
+  final int acumulado;
+  final int pendienteEntregar;
 }
 
 class VendedorInicioApiRepository {
@@ -130,7 +136,7 @@ class VendedorInicioApiRepository {
     final atencion = _mapaValor(data['atencion']);
     final resumen = _mapaValor(data['resumen']);
     final pedidosJson = data['pedidos_activos'];
-    if (pedidosJson is! List) throw FormatException(tr('Pedidos inválidos'));
+    if (pedidosJson is! List) throw const FormatException('Pedidos inválidos');
 
     return VendedorInicio(
       puesto: PuestoVendedor(
@@ -157,12 +163,16 @@ class VendedorInicioApiRepository {
           estado: _texto(pedido['estado']),
           creadoEn: DateTime.parse(_texto(pedido['creado_en'])),
           responderAntes: _fechaOpcional(pedido['responder_antes']),
+          pagoConfirmado: pedido['pago_confirmado'] == true,
+          pagoMetodo: pedido['pago_metodo'] as String?,
         );
       }).toList(),
       resumen: ResumenVendedor(
         ventas: _entero(resumen['ventas_centavos']),
         comision: _entero(resumen['comision_centavos']),
         recibes: _entero(resumen['recibes_centavos']),
+        acumulado: _entero(resumen['acumulado_centavos'] ?? 0),
+        pendienteEntregar: _entero(resumen['pendiente_entregar_centavos'] ?? 0),
       ),
     );
   }
@@ -182,8 +192,8 @@ class VendedorInicioApiRepository {
   }) async {
     final token = SesionState.token;
     if (token == null) {
-      throw VendedorInicioException(
-        tr('Tu sesión venció. Vuelve a iniciar sesión.'),
+      throw const VendedorInicioException(
+        'Tu sesión venció. Vuelve a iniciar sesión.',
       );
     }
     try {
@@ -202,16 +212,16 @@ class VendedorInicioApiRepository {
           .timeout(const Duration(seconds: 15));
       return await http.Response.fromStream(streamed);
     } on TimeoutException {
-      throw VendedorInicioException(
-        tr('La carga tardó demasiado. Inténtalo nuevamente.'),
+      throw const VendedorInicioException(
+        'La carga tardó demasiado. Inténtalo nuevamente.',
       );
     } on VendedorInicioException {
       rethrow;
     } on StateError catch (error) {
       throw VendedorInicioException(error.message);
     } catch (_) {
-      throw VendedorInicioException(
-        tr('No pudimos conectarnos con MiMercado+.'),
+      throw const VendedorInicioException(
+        'No pudimos conectarnos con MiMercado+.',
       );
     }
   }
@@ -220,25 +230,25 @@ class VendedorInicioApiRepository {
     try {
       return _mapaValor(jsonDecode(response.body));
     } on FormatException {
-      throw VendedorInicioException(
-        tr('El servidor devolvió datos inválidos.'),
+      throw const VendedorInicioException(
+        'El servidor devolvió datos inválidos.',
       );
     }
   }
 
   static Map<String, dynamic> _mapaValor(dynamic valor) {
     if (valor is Map<String, dynamic>) return valor;
-    throw FormatException(tr('Se esperaba un objeto'));
+    throw const FormatException('Se esperaba un objeto');
   }
 
   static int _entero(dynamic valor) {
     if (valor is num) return valor.toInt();
-    throw FormatException(tr('Se esperaba un número'));
+    throw const FormatException('Se esperaba un número');
   }
 
   static String _texto(dynamic valor) {
     final texto = valor?.toString().trim() ?? '';
-    if (texto.isEmpty) throw FormatException(tr('Se esperaba texto'));
+    if (texto.isEmpty) throw const FormatException('Se esperaba texto');
     return texto;
   }
 
@@ -253,6 +263,5 @@ class VendedorInicioApiRepository {
   }
 
   static String _mensaje(Map<String, dynamic> data) =>
-      data['detail']?.toString() ??
-      tr('No pudimos cargar el inicio del vendedor.');
+      data['detail']?.toString() ?? 'No pudimos cargar el inicio del vendedor.';
 }
