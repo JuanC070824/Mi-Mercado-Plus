@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 const iconosProducto = <String, ({String nombre, IconData icono, Color color})>{
   'icono:verdura': (
     nombre: 'Verdura',
@@ -60,7 +58,7 @@ class IconoProducto extends StatelessWidget {
         valor?.startsWith('https://') == true;
     return Semantics(
       image: true,
-      label: tr('Imagen referencial: {0}', [tr(dato.nombre)]),
+      label: 'Imagen referencial: ${dato.nombre}',
       child: Container(
         width: size,
         height: size,

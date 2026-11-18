@@ -9,8 +9,6 @@ import '../models/producto.dart';
 import 'catalogo_api_repository.dart';
 import 'catalogo_repository.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 class CatalogoVendedorApiRepository {
   CatalogoVendedorApiRepository({http.Client? client, String? baseUrl})
     : _client = client ?? http.Client(),
@@ -23,7 +21,9 @@ class CatalogoVendedorApiRepository {
     final data = await _enviar('GET', '/api/vendedor/productos/');
     final lista = data['productos'];
     if (lista is! List) {
-      throw CatalogoException(tr('El servidor devolvió un catálogo inválido.'));
+      throw const CatalogoException(
+        'El servidor devolvió un catálogo inválido.',
+      );
     }
     return [
       for (final item in lista)
@@ -72,7 +72,9 @@ class CatalogoVendedorApiRepository {
   }) async {
     final token = SesionState.token;
     if (token == null) {
-      throw CatalogoException(tr('Tu sesión venció. Vuelve a iniciar sesión.'));
+      throw const CatalogoException(
+        'Tu sesión venció. Vuelve a iniciar sesión.',
+      );
     }
     try {
       final request =
@@ -96,9 +98,11 @@ class CatalogoVendedorApiRepository {
     } on CatalogoException {
       rethrow;
     } on TimeoutException {
-      throw CatalogoException(tr('El servidor tardó demasiado en responder.'));
+      throw const CatalogoException(
+        'El servidor tardó demasiado en responder.',
+      );
     } catch (_) {
-      throw CatalogoException(tr('No pudimos conectarnos con MiMercado+.'));
+      throw const CatalogoException('No pudimos conectarnos con MiMercado+.');
     }
   }
 
@@ -109,6 +113,6 @@ class CatalogoVendedorApiRepository {
       if (value is List && value.isNotEmpty) return value.first.toString();
       if (value is String) return value;
     }
-    return tr('No pudimos guardar el producto.');
+    return 'No pudimos guardar el producto.';
   }
 }

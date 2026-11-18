@@ -22,7 +22,7 @@ class VozSpeechToText implements VozService {
 
   final _stt = SpeechToText();
   bool? _lista;
-  List<String> _idiomas = const [];
+  String? _idioma;
   void Function()? _alTerminar;
 
   @override
@@ -39,21 +39,20 @@ class VozSpeechToText implements VozService {
         },
       );
       if (_lista!) {
-        _idiomas = [for (final l in await _stt.locales()) l.localeId];
+        // Español del Perú si el teléfono lo tiene; si no, cualquier español.
+        final idiomas = await _stt.locales();
+        String? buscar(bool Function(String) cumple) => idiomas
+            .map((l) => l.localeId)
+            .where((id) => cumple(id.toLowerCase().replaceAll('-', '_')))
+            .firstOrNull;
+        _idioma =
+            buscar((id) => id == 'es_pe') ??
+            buscar((id) => id.startsWith('es'));
       }
     } catch (_) {
       _lista = false;
     }
     return _lista!;
-  }
-
-  /// Siempre español del Perú: el reconocimiento de voz del teléfono no trae
-  /// quechua ni aimara, y quien habla esos idiomas suele hablar español.
-  String? _idiomaDeVoz() {
-    String? buscar(bool Function(String) cumple) => _idiomas
-        .where((id) => cumple(id.toLowerCase().replaceAll('-', '_')))
-        .firstOrNull;
-    return buscar((id) => id == 'es_pe') ?? buscar((id) => id.startsWith('es'));
   }
 
   @override
@@ -65,7 +64,7 @@ class VozSpeechToText implements VozService {
     return _stt.listen(
       onResult: (r) => alOir(r.recognizedWords, r.finalResult),
       listenOptions: SpeechListenOptions(
-        localeId: _idiomaDeVoz(),
+        localeId: _idioma,
         listenFor: const Duration(seconds: 15),
         pauseFor: const Duration(seconds: 3),
         partialResults: true,

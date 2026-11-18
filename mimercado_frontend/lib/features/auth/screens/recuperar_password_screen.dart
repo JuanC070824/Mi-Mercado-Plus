@@ -12,8 +12,6 @@ import '../../../data/models/rol.dart';
 import '../../../data/repositories/auth_api_repository.dart';
 import '../widgets/requisitos_password.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 /// RF-04 en dos pasos: 1) celular + DNI del titular, 2) código y nueva contraseña.
 class RecuperarPasswordScreen extends StatefulWidget {
   const RecuperarPasswordScreen({
@@ -65,9 +63,7 @@ class _RecuperarPasswordScreenState extends State<RecuperarPasswordScreen> {
     if (!_formIdentidad.currentState!.validate()) return;
     if (_sinServidor) {
       setState(
-        () => _error = tr(
-          'Recuperar la contraseña necesita conexión al servidor.',
-        ),
+        () => _error = 'Recuperar la contraseña necesita conexión al servidor.',
       );
       return;
     }
@@ -118,7 +114,7 @@ class _RecuperarPasswordScreenState extends State<RecuperarPasswordScreen> {
     return Scaffold(
       body: Column(
         children: [
-          EncabezadoAzul(titulo: tr('Recuperar contraseña')),
+          const EncabezadoAzul(titulo: 'Recuperar contraseña'),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
@@ -140,17 +136,15 @@ class _RecuperarPasswordScreenState extends State<RecuperarPasswordScreen> {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _Paso(tr('Paso 1 de 2')),
-        Text(
-          tr(
-            'Escribe tu celular y tu DNI. Revisaremos que la cuenta sea tuya.',
-          ),
+        const _Paso('Paso 1 de 2'),
+        const Text(
+          'Escribe tu celular y tu DNI. Revisaremos que la cuenta sea tuya.',
           style: TextStyle(fontSize: 18),
         ),
         const SizedBox(height: 20),
         CampoTextoApp(
-          etiqueta: tr('Celular'),
-          hint: tr('9 dígitos'),
+          etiqueta: 'Celular',
+          hint: '9 dígitos',
           prefijo: '+51 ',
           controller: _celular,
           teclado: TextInputType.phone,
@@ -162,8 +156,8 @@ class _RecuperarPasswordScreenState extends State<RecuperarPasswordScreen> {
         ),
         const SizedBox(height: 12),
         CampoTextoApp(
-          etiqueta: tr('DNI'),
-          hint: tr('8 dígitos'),
+          etiqueta: 'DNI',
+          hint: '8 dígitos',
           controller: _dni,
           teclado: TextInputType.number,
           soloDigitos: true,
@@ -180,7 +174,7 @@ class _RecuperarPasswordScreenState extends State<RecuperarPasswordScreen> {
           const SizedBox(height: 16),
         ],
         BotonPrincipal(
-          texto: tr('Continuar'),
+          texto: 'Continuar',
           cargando: _cargando,
           onPressed: _pedirCodigo,
         ),
@@ -193,7 +187,7 @@ class _RecuperarPasswordScreenState extends State<RecuperarPasswordScreen> {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _Paso(tr('Paso 2 de 2')),
+        const _Paso('Paso 2 de 2'),
         if (_codigoDemostracion case final codigo?) ...[
           TarjetaApp(
             color: AppColors.azulClaro,
@@ -203,8 +197,8 @@ class _RecuperarPasswordScreenState extends State<RecuperarPasswordScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    tr('Tu código (modo demostración)'),
+                  const Text(
+                    'Tu código (modo demostración)',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                   ),
                   Text(
@@ -216,8 +210,8 @@ class _RecuperarPasswordScreenState extends State<RecuperarPasswordScreen> {
                       color: AppColors.azul,
                     ),
                   ),
-                  Text(
-                    tr('En la versión final te llegará por SMS.'),
+                  const Text(
+                    'En la versión final te llegará por SMS.',
                     style: TextStyle(
                       fontSize: 16,
                       color: AppColors.textoSecundario,
@@ -230,7 +224,7 @@ class _RecuperarPasswordScreenState extends State<RecuperarPasswordScreen> {
           const SizedBox(height: 16),
         ],
         CampoTextoApp(
-          etiqueta: tr('Código de 6 números'),
+          etiqueta: 'Código de 6 números',
           controller: _codigo,
           teclado: TextInputType.number,
           soloDigitos: true,
@@ -238,11 +232,11 @@ class _RecuperarPasswordScreenState extends State<RecuperarPasswordScreen> {
           icono: Icons.pin_outlined,
           validator: (v) => RegExp(r'^\d{6}$').hasMatch(v?.trim() ?? '')
               ? null
-              : tr('Escribe los 6 números del código'),
+              : 'Escribe los 6 números del código',
         ),
         const SizedBox(height: 12),
         CampoTextoApp(
-          etiqueta: tr('Nueva contraseña'),
+          etiqueta: 'Nueva contraseña',
           controller: _password,
           esPassword: true,
           icono: Icons.lock_outline,
@@ -253,7 +247,7 @@ class _RecuperarPasswordScreenState extends State<RecuperarPasswordScreen> {
         RequisitosPassword(controller: _password),
         const SizedBox(height: 12),
         CampoTextoApp(
-          etiqueta: tr('Repite la contraseña'),
+          etiqueta: 'Repite la contraseña',
           controller: _confirmacion,
           esPassword: true,
           icono: Icons.lock_outline,
@@ -267,7 +261,7 @@ class _RecuperarPasswordScreenState extends State<RecuperarPasswordScreen> {
           const SizedBox(height: 16),
         ],
         BotonPrincipal(
-          texto: tr('Cambiar contraseña'),
+          texto: 'Cambiar contraseña',
           cargando: _cargando,
           onPressed: _cambiar,
         ),
@@ -275,8 +269,8 @@ class _RecuperarPasswordScreenState extends State<RecuperarPasswordScreen> {
         TextButton(
           style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
           onPressed: _cargando ? null : _volverAlPaso1,
-          child: Text(
-            tr('Pedir otro código'),
+          child: const Text(
+            'Pedir otro código',
             style: TextStyle(fontSize: 16, color: AppColors.azul),
           ),
         ),

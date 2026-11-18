@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/voz_service.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 /// "Te escucho…": muestra en vivo lo que entiende y devuelve el texto (null si cancela).
 Future<String?> escucharBusqueda(BuildContext context, VozService voz) =>
     showDialog<String>(
@@ -68,7 +66,7 @@ class _EscucharDialogState extends State<_EscucharDialog> {
       color: AppColors.azul,
     ),
     title: Text(
-      _sinAudio ? tr('No te escuchamos') : tr('Te escucho…'),
+      _sinAudio ? 'No te escuchamos' : 'Te escucho…',
       textAlign: TextAlign.center,
       style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
     ),
@@ -76,9 +74,9 @@ class _EscucharDialogState extends State<_EscucharDialog> {
       liveRegion: true,
       child: Text(
         _sinAudio
-            ? tr('Revisa el permiso del micrófono o escribe tu búsqueda.')
+            ? 'Revisa el permiso del micrófono o escribe tu búsqueda.'
             : _texto.isEmpty
-            ? tr('Di el nombre del casero o del puesto.')
+            ? 'Di el nombre del casero o del puesto.'
             : '“$_texto”',
         textAlign: TextAlign.center,
         style: TextStyle(
@@ -106,14 +104,14 @@ class _EscucharDialogState extends State<_EscucharDialog> {
             ? null
             : () => _cerrar(_texto),
         child: Text(
-          _sinAudio ? tr('Intentar de nuevo') : tr('Buscar'),
+          _sinAudio ? 'Intentar de nuevo' : 'Buscar',
           style: const TextStyle(fontSize: 18),
         ),
       ),
       TextButton(
         style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
         onPressed: () => _cerrar(null),
-        child: Text(tr('Cancelar'), style: TextStyle(fontSize: 18)),
+        child: const Text('Cancelar', style: TextStyle(fontSize: 18)),
       ),
     ],
   );
