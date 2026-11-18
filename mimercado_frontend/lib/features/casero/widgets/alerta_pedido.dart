@@ -10,6 +10,8 @@ import '../../../data/repositories/pedido_repository.dart';
 import '../../../data/repositories/pedidos_vendedor_api_repository.dart';
 import '../../canasta/widgets/opcion_elegible.dart';
 
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
+
 /// Texto del aviso de pedido compartido: con qué otros puestos y en qué orden recoge.
 String? textoCompartido(Pedido pedido, PedidoPuesto parte) {
   final otros = [
@@ -18,9 +20,9 @@ String? textoCompartido(Pedido pedido, PedidoPuesto parte) {
   ];
   if (otros.isEmpty) return null;
   final orden = parte.parada == 1
-      ? 'El repartidor recoge primero en tu puesto'
-      : 'El repartidor pasa por tu puesto en la parada ${parte.parada}';
-  return 'Pedido compartido con ${otros.join(' y ')} · $orden';
+      ? tr('El repartidor recoge primero en tu puesto')
+      : tr('El repartidor pasa por tu puesto en la parada {0}', [parte.parada]);
+  return tr('Pedido compartido con {0} · {1}', [otros.join(tr(' y ')), orden]);
 }
 
 /// Lista "Tomate — 1 kg" de la parte del pedido de un puesto.
@@ -51,13 +53,13 @@ class ListaProductosParte extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Row(
+                  Row(
                     children: [
                       Icon(Icons.edit_note, color: AppColors.aviso),
                       SizedBox(width: 6),
                       Flexible(
                         child: Text(
-                          'Lista de mandado',
+                          tr('Lista de mandado'),
                           style: TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w800,
@@ -113,8 +115,8 @@ Future<bool?> mostrarNuevoPedido(
               const SizedBox(height: 12),
               Semantics(
                 liveRegion: true,
-                child: const Text(
-                  '¡NUEVO PEDIDO!',
+                child: Text(
+                  tr('¡NUEVO PEDIDO!'),
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900),
                 ),
@@ -133,7 +135,7 @@ Future<bool?> mostrarNuevoPedido(
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Pedido de ${pedido.clienteNombre}',
+                    tr('Pedido de {0}', [pedido.clienteNombre]),
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
@@ -143,7 +145,7 @@ Future<bool?> mostrarNuevoPedido(
                   ListaProductosParte(parte: parte),
                   const SizedBox(height: 8),
                   Text(
-                    'Estimado: ${soles(parte.subtotalEstimado)}',
+                    tr('Estimado: {0}', [soles(parte.subtotalEstimado)]),
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
@@ -170,8 +172,8 @@ Future<bool?> mostrarNuevoPedido(
                   ),
                   onPressed: () => Navigator.of(ctx).pop(true),
                   icon: const Icon(Icons.check),
-                  label: const Text(
-                    'Aceptar pedido',
+                  label: Text(
+                    tr('Aceptar pedido'),
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
                   ),
                 ),
@@ -188,7 +190,7 @@ Future<bool?> mostrarNuevoPedido(
                   ),
                   onPressed: () => Navigator.of(ctx).pop(false),
                   icon: const Icon(Icons.close),
-                  label: const Text('Rechazar', style: TextStyle(fontSize: 20)),
+                  label: Text(tr('Rechazar'), style: TextStyle(fontSize: 20)),
                 ),
               ),
               const SizedBox(height: 8),
@@ -196,8 +198,8 @@ Future<bool?> mostrarNuevoPedido(
                 child: TextButton(
                   style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
                   onPressed: () => Navigator.of(ctx).pop(),
-                  child: const Text(
-                    'Verlo después',
+                  child: Text(
+                    tr('Verlo después'),
                     style: TextStyle(fontSize: 18),
                   ),
                 ),
@@ -236,13 +238,15 @@ Future<MotivoRechazo?> elegirMotivoRechazo(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text(
-                    '¿Por qué no puedes atenderlo?',
+                  Text(
+                    tr('¿Por qué no puedes atenderlo?'),
                     style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
-                    'Elige un motivo. Al confirmar, no podrás volver a aceptar tu parte de este pedido.',
+                  Text(
+                    tr(
+                      'Elige un motivo. Al confirmar, no podrás volver a aceptar tu parte de este pedido.',
+                    ),
                     style: TextStyle(
                       fontSize: 17,
                       color: AppColors.textoSecundario,
@@ -273,8 +277,8 @@ Future<MotivoRechazo?> elegirMotivoRechazo(
                   if (guardando) ...[
                     Semantics(
                       liveRegion: true,
-                      child: const Text(
-                        'Guardando el motivo del rechazo…',
+                      child: Text(
+                        tr('Guardando el motivo del rechazo…'),
                         style: TextStyle(fontSize: 18),
                       ),
                     ),
@@ -312,8 +316,8 @@ Future<MotivoRechazo?> elegirMotivoRechazo(
                               }
                             }
                           },
-                    child: const Text(
-                      'Sí, rechazar pedido',
+                    child: Text(
+                      tr('Sí, rechazar pedido'),
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
@@ -327,8 +331,8 @@ Future<MotivoRechazo?> elegirMotivoRechazo(
                     onPressed: guardando || finalizado
                         ? null
                         : () => Navigator.of(ctx).pop(),
-                    child: const Text(
-                      'No, volver',
+                    child: Text(
+                      tr('No, volver'),
                       style: TextStyle(fontSize: 18),
                     ),
                   ),
@@ -355,7 +359,7 @@ Future<bool> rechazarConMotivo(
   );
   if (motivo == null) return false;
   if (context.mounted) {
-    avisar(context, 'Pedido rechazado. Se guardó el motivo.');
+    avisar(context, tr('Pedido rechazado. Se guardó el motivo.'));
   }
   return true;
 }

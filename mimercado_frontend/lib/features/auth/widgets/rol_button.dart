@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
+
 class RolButton extends StatelessWidget {
   const RolButton({
     super.key,
@@ -17,7 +19,7 @@ class RolButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      label: 'Entrar como $etiqueta',
+      label: tr('Entrar como {0}', [etiqueta]),
       excludeSemantics: true,
       child: InkWell(
         onTap: onTap,

@@ -10,6 +10,8 @@ import '../../../data/models/usuario.dart';
 import '../../../data/repositories/catalogo_repository.dart';
 import '../../../data/repositories/catalogo_vendedor_api_repository.dart';
 
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
+
 class CatalogoCaseroScreen extends StatefulWidget {
   const CatalogoCaseroScreen({
     super.key,
@@ -91,8 +93,8 @@ class _CatalogoCaseroScreenState extends State<CatalogoCaseroScreen> {
       avisar(
         context,
         producto == null
-            ? '${guardado.nombre} fue añadido.'
-            : 'Producto actualizado.',
+            ? tr('{0} fue añadido.', [guardado.nombre])
+            : tr('Producto actualizado.'),
       );
     } finally {
       if (mounted) setState(() => _editando = false);
@@ -136,9 +138,9 @@ class _CatalogoCaseroScreenState extends State<CatalogoCaseroScreen> {
             child: Column(
               children: [
                 EncabezadoPedidoCasero(
-                  titulo: 'Mi catálogo',
+                  titulo: tr('Mi catálogo'),
                   mostrarAtras: false,
-                  subtitulo: '${_productos.length} productos',
+                  subtitulo: tr('{0} productos', [_productos.length]),
                 ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
@@ -146,8 +148,8 @@ class _CatalogoCaseroScreenState extends State<CatalogoCaseroScreen> {
                     controller: _busqueda,
                     onChanged: (_) => setState(() {}),
                     style: const TextStyle(fontSize: 18),
-                    decoration: const InputDecoration(
-                      labelText: 'Buscar producto',
+                    decoration: InputDecoration(
+                      labelText: tr('Buscar producto'),
                       prefixIcon: Icon(Icons.search),
                       border: OutlineInputBorder(),
                     ),
@@ -162,10 +164,10 @@ class _CatalogoCaseroScreenState extends State<CatalogoCaseroScreen> {
                     spacing: 8,
                     runSpacing: 4,
                     children: [
-                      for (final (i, texto) in const [
-                        (0, 'Todos'),
-                        (1, 'Disponibles'),
-                        (2, 'Agotados'),
+                      for (final (i, texto) in [
+                        (0, tr('Todos')),
+                        (1, tr('Disponibles')),
+                        (2, tr('Agotados')),
                       ])
                         ChoiceChip(
                           label: Text(texto),
@@ -180,7 +182,7 @@ class _CatalogoCaseroScreenState extends State<CatalogoCaseroScreen> {
                           minimumSize: const Size(48, 48),
                         ),
                         icon: const Icon(Icons.refresh),
-                        label: const Text('Actualizar'),
+                        label: Text(tr('Actualizar')),
                       ),
                     ],
                   ),
@@ -203,8 +205,8 @@ class _CatalogoCaseroScreenState extends State<CatalogoCaseroScreen> {
                         ? null
                         : () => _editar(),
                     icon: const Icon(Icons.add),
-                    label: const Text(
-                      'Añadir producto',
+                    label: Text(
+                      tr('Añadir producto'),
                       style: TextStyle(fontSize: 18),
                     ),
                   ),
@@ -220,9 +222,9 @@ class _CatalogoCaseroScreenState extends State<CatalogoCaseroScreen> {
 
   Widget _cuerpo(List<Producto> visibles) {
     if (_cargando) {
-      return const SliverFillRemaining(
+      return SliverFillRemaining(
         hasScrollBody: false,
-        child: CargandoApp(texto: 'Cargando tu catálogo…'),
+        child: CargandoApp(texto: tr('Cargando tu catálogo…')),
       );
     }
     if (_error != null) {
@@ -232,27 +234,27 @@ class _CatalogoCaseroScreenState extends State<CatalogoCaseroScreen> {
           icono: Icons.wifi_off,
           titulo: _error!,
           esError: true,
-          textoBoton: 'Reintentar',
+          textoBoton: tr('Reintentar'),
           alTocar: _cargar,
         ),
       );
     }
     if (_productos.isEmpty) {
-      return const SliverFillRemaining(
+      return SliverFillRemaining(
         hasScrollBody: false,
         child: AvisoPantalla(
           icono: Icons.inventory_2_outlined,
-          titulo: 'Tu catálogo está vacío',
-          texto: 'Usa Añadir producto para comenzar.',
+          titulo: tr('Tu catálogo está vacío'),
+          texto: tr('Usa Añadir producto para comenzar.'),
         ),
       );
     }
     if (visibles.isEmpty) {
-      return const SliverFillRemaining(
+      return SliverFillRemaining(
         hasScrollBody: false,
         child: AvisoPantalla(
           icono: Icons.search_off,
-          titulo: 'No encontramos ese producto',
+          titulo: tr('No encontramos ese producto'),
         ),
       );
     }
@@ -293,7 +295,7 @@ class _CatalogoCaseroScreenState extends State<CatalogoCaseroScreen> {
                     ),
                     IconButton(
                       onPressed: ocupado ? null : () => _editar(p),
-                      tooltip: 'Editar ${p.nombre}',
+                      tooltip: tr('Editar {0}', [p.nombre]),
                       icon: const Icon(
                         Icons.edit_outlined,
                         color: AppColors.azul,
@@ -317,7 +319,7 @@ class _CatalogoCaseroScreenState extends State<CatalogoCaseroScreen> {
                           : AppColors.error,
                     ),
                     title: Text(
-                      p.disponible ? 'Disponible' : 'Agotado',
+                      p.disponible ? tr('Disponible') : tr('Agotado'),
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
@@ -412,14 +414,16 @@ class _DialogoProductoState extends State<_DialogoProducto> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                widget.producto == null ? 'Añadir producto' : 'Editar producto',
+                widget.producto == null
+                    ? tr('Añadir producto')
+                    : tr('Editar producto'),
                 style: const TextStyle(
                   fontSize: 23,
                   fontWeight: FontWeight.w800,
                 ),
               ),
               const SizedBox(height: 16),
-              const Text('Nombre del producto', style: TextStyle(fontSize: 18)),
+              Text(tr('Nombre del producto'), style: TextStyle(fontSize: 18)),
               TextFormField(
                 key: const ValueKey('nombre_producto'),
                 controller: _nombre,
@@ -428,7 +432,7 @@ class _DialogoProductoState extends State<_DialogoProducto> {
                 textCapitalization: TextCapitalization.sentences,
                 style: const TextStyle(fontSize: 19),
                 validator: (v) => (v ?? '').trim().length < 2
-                    ? 'Escribe un nombre de al menos 2 letras.'
+                    ? tr('Escribe un nombre de al menos 2 letras.')
                     : null,
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
@@ -436,8 +440,8 @@ class _DialogoProductoState extends State<_DialogoProducto> {
                 ),
               ),
               const SizedBox(height: 12),
-              const Text(
-                'Precio por unidad de venta',
+              Text(
+                tr('Precio por unidad de venta'),
                 style: TextStyle(fontSize: 18),
               ),
               TextFormField(
@@ -456,17 +460,19 @@ class _DialogoProductoState extends State<_DialogoProducto> {
                           !precio.isFinite ||
                           precio < .10 ||
                           precio > 99999.99
-                      ? 'Usa entre S/ 0.10 y S/ 99999.99, con hasta 2 decimales.'
+                      ? tr(
+                          'Usa entre S/ 0.10 y S/ 99999.99, con hasta 2 decimales.',
+                        )
                       : null;
                 },
-                decoration: const InputDecoration(
-                  prefixText: 'S/ ',
+                decoration: InputDecoration(
+                  prefixText: tr('S/ '),
                   border: OutlineInputBorder(),
                   errorMaxLines: 5,
                 ),
               ),
               const SizedBox(height: 12),
-              const Text('Unidad de venta', style: TextStyle(fontSize: 18)),
+              Text(tr('Unidad de venta'), style: TextStyle(fontSize: 18)),
               DropdownButtonFormField<UnidadMedida>(
                 initialValue: _unidad,
                 isExpanded: true,
@@ -486,8 +492,8 @@ class _DialogoProductoState extends State<_DialogoProducto> {
                     : (v) => setState(() => _unidad = v!),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Ícono del producto',
+              Text(
+                tr('Ícono del producto'),
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
               ),
               Wrap(
@@ -497,7 +503,7 @@ class _DialogoProductoState extends State<_DialogoProducto> {
                   for (final e in iconosProducto.entries)
                     ChoiceChip(
                       avatar: Icon(e.value.icono, color: e.value.color),
-                      label: Text(e.value.nombre),
+                      label: Text(tr(e.value.nombre)),
                       selected: _icono == e.key,
                       onSelected: _guardando
                           ? null
@@ -528,7 +534,9 @@ class _DialogoProductoState extends State<_DialogoProducto> {
                 ),
                 onPressed: _guardando ? null : _guardar,
                 child: Text(
-                  _guardando ? 'Guardando producto…' : 'Guardar producto',
+                  _guardando
+                      ? tr('Guardando producto…')
+                      : tr('Guardar producto'),
                   textAlign: TextAlign.center,
                   style: const TextStyle(fontSize: 20),
                 ),
@@ -538,7 +546,7 @@ class _DialogoProductoState extends State<_DialogoProducto> {
                 onPressed: _guardando
                     ? null
                     : () => Navigator.of(context).pop(),
-                child: const Text('Cancelar', style: TextStyle(fontSize: 18)),
+                child: Text(tr('Cancelar'), style: TextStyle(fontSize: 18)),
               ),
             ],
           ),

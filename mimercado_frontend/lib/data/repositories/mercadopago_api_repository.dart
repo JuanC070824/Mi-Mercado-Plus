@@ -1,6 +1,8 @@
 import 'pedidos_api_repository.dart';
 import 'pedido_repository.dart';
 
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
+
 /// Checkout de prueba y conciliación verificada con el reparto interno.
 class MercadoPagoApiRepository {
   MercadoPagoApiRepository({PedidosApiRepository? transporte})
@@ -15,7 +17,7 @@ class MercadoPagoApiRepository {
   }) async {
     final data = await _transporte.solicitar(metodo, ruta, body: body);
     if (data is! Map<String, dynamic>) {
-      throw const PedidoException('No pudimos leer la respuesta de pago.');
+      throw PedidoException(tr('No pudimos leer la respuesta de pago.'));
     }
     return data;
   }
@@ -68,8 +70,8 @@ class MercadoPagoApiRepository {
         orderId == null ||
         orderId.length != 1 ||
         !RegExp(r'^ORDTST[A-Z0-9]{10,80}$').hasMatch(orderId.single)) {
-      throw const PedidoException(
-        'No recibimos un enlace válido de Mercado Pago de prueba.',
+      throw PedidoException(
+        tr('No recibimos un enlace válido de Mercado Pago de prueba.'),
       );
     }
     return uri;

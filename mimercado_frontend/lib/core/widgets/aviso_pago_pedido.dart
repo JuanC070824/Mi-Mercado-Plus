@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
+
 /// Estado persistente del pago confirmado por el servidor.
 class AvisoPagoPedido extends StatelessWidget {
   const AvisoPagoPedido({super.key, required this.datos, this.ganancia});
@@ -23,18 +25,19 @@ class AvisoPagoPedido extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Pago confirmado · ${datos['pago_metodo'] ?? 'Cliente'}',
+              tr('Pago confirmado · {0}', [datos['pago_metodo'] ?? 'Cliente']),
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
                 color: AppColors.exitoTexto,
               ),
             ),
-            const Text('El cliente ya pagó este pedido.'),
+            Text(tr('El cliente ya pagó este pedido.')),
             if (ganancia != null)
               Text(
-                'Tu ganancia: S/ ${(ganancia! / 100).toStringAsFixed(2)}. '
-                'Se acumula al completar la entrega.',
+                tr('Tu ganancia: S/ {0}. Se acumula al completar la entrega.', [
+                  (ganancia! / 100).toStringAsFixed(2),
+                ]),
               ),
           ],
         ),
