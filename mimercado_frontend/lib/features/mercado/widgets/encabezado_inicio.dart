@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../../core/state/accesibilidad_state.dart';
 import '../../../core/theme/app_colors.dart';
 
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
+
 class EncabezadoInicio extends StatelessWidget {
   const EncabezadoInicio({
     super.key,
@@ -48,11 +50,11 @@ class EncabezadoInicio extends StatelessWidget {
                           foregroundColor: AppColors.blanco,
                           minimumSize: const Size(48, 48),
                         ),
-                        child: const Row(
+                        child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              'Soporte',
+                              tr('Soporte'),
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w700,
@@ -77,7 +79,7 @@ class EncabezadoInicio extends StatelessWidget {
                           child: Image.asset(
                             'assets/images/logo_mimercado.png',
                             fit: BoxFit.contain,
-                            semanticLabel: 'Logo de MiMercado+',
+                            semanticLabel: tr('Logo de MiMercado+'),
                             errorBuilder: (context, error, stack) => const Icon(
                               Icons.storefront,
                               size: 48,
@@ -94,7 +96,7 @@ class EncabezadoInicio extends StatelessWidget {
                     child: Semantics(
                       header: true,
                       child: Text(
-                        'Hola, $nombre!',
+                        tr('Hola, {0}!', [nombre]),
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                           color: AppColors.blanco,
@@ -121,7 +123,7 @@ class EncabezadoInicio extends StatelessWidget {
                           color: AppColors.texto,
                         ),
                         decoration: InputDecoration(
-                          hintText: 'Busca a tu casero',
+                          hintText: tr('Busca a tu casero'),
                           hintStyle: const TextStyle(
                             fontSize: 20,
                             color: AppColors.textoSecundario,
@@ -150,7 +152,7 @@ class EncabezadoInicio extends StatelessWidget {
                             children: [
                               if (value.text.isNotEmpty)
                                 IconButton(
-                                  tooltip: 'Borrar búsqueda',
+                                  tooltip: tr('Borrar búsqueda'),
                                   constraints: const BoxConstraints(
                                     minWidth: 48,
                                     minHeight: 48,
@@ -162,7 +164,7 @@ class EncabezadoInicio extends StatelessWidget {
                                   onPressed: onLimpiar,
                                 ),
                               IconButton(
-                                tooltip: 'Buscar por voz',
+                                tooltip: tr('Buscar por voz'),
                                 constraints: const BoxConstraints(
                                   minWidth: 48,
                                   minHeight: 48,
@@ -204,7 +206,7 @@ class _BotonLetra extends StatelessWidget {
         return Semantics(
           button: true,
           toggled: grande,
-          label: 'Letra grande',
+          label: tr('Letra grande'),
           onTap: AccesibilidadState.alternarLetra,
           excludeSemantics: true,
           child: Material(
@@ -223,7 +225,7 @@ class _BotonLetra extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        'Aa',
+                        tr('Aa'),
                         style: TextStyle(
                           color: texto,
                           fontSize: 22,
@@ -232,7 +234,7 @@ class _BotonLetra extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        'Letra',
+                        tr('Letra'),
                         style: TextStyle(
                           color: texto,
                           fontSize: 18,

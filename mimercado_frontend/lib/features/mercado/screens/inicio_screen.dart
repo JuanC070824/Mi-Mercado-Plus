@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/utils/formato.dart';
+import '../../../core/utils/voz_service.dart';
 import '../../../core/widgets/botones_app.dart';
 import '../../../core/widgets/componentes_app.dart';
 import '../../../core/widgets/mensaje_error.dart';
@@ -16,11 +17,17 @@ import '../../../data/repositories/catalogo_repository.dart';
 import '../../../data/repositories/catalogo_api_repository.dart';
 import '../widgets/componentes_inicio.dart';
 import '../widgets/encabezado_inicio.dart';
+import '../widgets/escuchar_voz_dialog.dart';
+import '../widgets/lo_que_siempre_pides.dart';
+import '../../canasta/widgets/acciones_canasta.dart';
 import '../widgets/selector_mercado_sheet.dart';
 
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
+
 class InicioScreen extends StatefulWidget {
-  const InicioScreen({super.key, required this.usuario});
+  const InicioScreen({super.key, required this.usuario, this.voz});
   final Usuario usuario;
+  final VozService? voz;
 
   @override
   State<InicioScreen> createState() => _InicioScreenState();
@@ -35,6 +42,7 @@ class _InicioScreenState extends State<InicioScreen> {
   Map<int, String> _nombresMercado = {};
   CategoriaPuesto? _categoria;
   List<Puesto> _puestos = [];
+  List<ProductoFrecuente> _frecuentes = [];
   bool _cargando = true;
   String? _errorCarga;
   int _consultaId = 0;
@@ -79,6 +87,7 @@ class _InicioScreenState extends State<InicioScreen> {
       final sel = _seleccion;
       final texto = _busqueda.text.trim();
       final List<Puesto> r;
+      if (!_hayFiltros) _cargarFrecuentes(sel?.mercado.id, id);
       if (sel == null) {
         r = await _repo.masQueridos();
       } else if (_categoria == null && texto.isEmpty) {
@@ -99,13 +108,34 @@ class _InicioScreenState extends State<InicioScreen> {
       if (!mounted || id != _consultaId) return;
       setState(() {
         _cargando = false;
-        _errorCarga =
-            'No pudimos cargar los caseros. Revisa tu conexión e inténtalo de nuevo.';
+        _errorCarga = tr(
+          'No pudimos cargar los caseros. Revisa tu conexión e inténtalo de nuevo.',
+        );
       });
     }
   }
 
+  /// RF-20: solo con API y sesión de cliente; si falla, la sección no aparece.
+  Future<void> _cargarFrecuentes(int? mercadoId, int consulta) async {
+    final repo = _repo;
+    if (repo is! CatalogoApiRepository) return;
+    final r = await repo.loQueSiemprePides(mercadoId: mercadoId);
+    if (!mounted || consulta != _consultaId) return;
+    setState(() => _frecuentes = r.take(4).toList());
+  }
+
   // ---------- Acciones ----------
+
+  Future<void> _agregarFrecuente(ProductoFrecuente f) async {
+    final ok = await cambiarCanasta(
+      context,
+      f.puesto,
+      () => canastaApp.agregar(f.puesto, f.producto),
+    );
+    if (ok && mounted) {
+      _aviso(tr('Agregamos {0} a tu canasta.', [f.producto.nombre]));
+    }
+  }
 
   void _aviso(String texto) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -130,11 +160,11 @@ class _InicioScreenState extends State<InicioScreen> {
     if (mercadoCanasta != null && mercadoCanasta != r.mercado.id) {
       final seguir = await confirmar(
         context,
-        titulo: '¿Cambiar de mercado?',
-        texto:
-            'Tu canasta tiene productos de otro mercado. '
-            'Si cambias de mercado, se vaciará tu canasta.',
-        textoSi: 'Sí, vaciar y cambiar',
+        titulo: tr('¿Cambiar de mercado?'),
+        texto: tr(
+          'Tu canasta tiene productos de otro mercado. Si cambias de mercado, se vaciará tu canasta.',
+        ),
+        textoSi: tr('Sí, vaciar y cambiar'),
       );
       if (!seguir || !mounted) return false;
       await canasta.vaciar();
@@ -151,7 +181,7 @@ class _InicioScreenState extends State<InicioScreen> {
   Future<void> _tocarCategoria(CategoriaPuesto c) async {
     if (_seleccion == null) {
       final ok = await _elegirMercado(
-        mensaje: 'Elige tu mercado para ver ${c.nombre.toLowerCase()}.',
+        mensaje: tr('Elige tu mercado para ver {0}.', [c.nombre.toLowerCase()]),
       );
       if (!ok) return;
       setState(() => _categoria = c);
@@ -163,10 +193,32 @@ class _InicioScreenState extends State<InicioScreen> {
 
   Future<void> _pedirMercadoParaBuscar() async {
     final ok = await _elegirMercado(
-      mensaje:
-          'Primero elige tu mercado: la búsqueda funciona dentro del mercado que selecciones.',
+      mensaje: tr(
+        'Primero elige tu mercado: la búsqueda funciona dentro del mercado que selecciones.',
+      ),
     );
     if (ok) _cargarPuestos();
+  }
+
+  /// RF-08: lo que dice el cliente se escribe en el buscador del mercado elegido.
+  Future<void> _buscarPorVoz() async {
+    final voz = widget.voz ?? VozSpeechToText.instancia;
+    if (!await voz.preparar()) {
+      if (mounted) {
+        _aviso(
+          tr(
+            'No pudimos usar el micrófono. Revisa el permiso o escribe tu búsqueda.',
+          ),
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
+    final texto = (await escucharBusqueda(context, voz))?.trim() ?? '';
+    if (!mounted || texto.isEmpty) return;
+    _espera?.cancel();
+    _busqueda.text = texto;
+    _cargarPuestos();
   }
 
   void _alEscribir(String _) {
@@ -203,9 +255,8 @@ class _InicioScreenState extends State<InicioScreen> {
               onTapBusquedaBloqueada: _pedirMercadoParaBuscar,
               onCambio: _alEscribir,
               onLimpiar: _limpiarBusqueda,
-              onVoz: () => sel == null
-                  ? _pedirMercadoParaBuscar()
-                  : _aviso('La búsqueda por voz estará disponible pronto.'),
+              onVoz: () =>
+                  sel == null ? _pedirMercadoParaBuscar() : _buscarPorVoz(),
               onSoporte: () => mostrarSoporte(context),
             ),
             Center(
@@ -220,8 +271,8 @@ class _InicioScreenState extends State<InicioScreen> {
                       const SizedBox(height: 28),
                       Semantics(
                         header: true,
-                        child: const Text(
-                          '¿Qué necesitas hoy?',
+                        child: Text(
+                          tr('¿Qué necesitas hoy?'),
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.w800,
@@ -238,6 +289,11 @@ class _InicioScreenState extends State<InicioScreen> {
                         onTap: _tocarBarraMercado,
                       ),
                       const SizedBox(height: 28),
+                      if (!_hayFiltros)
+                        LoQueSiemprePides(
+                          productos: _frecuentes,
+                          onAgregar: _agregarFrecuente,
+                        ),
                       _seccionCaseros(),
                     ],
                   ),
@@ -280,20 +336,26 @@ class _InicioScreenState extends State<InicioScreen> {
 
   String _titulo() {
     final texto = _busqueda.text.trim();
-    if (texto.isNotEmpty) return 'Resultados para “$texto”';
+    if (texto.isNotEmpty) return tr('Resultados para “{0}”', [texto]);
     if (_categoria != null) return _categoria!.nombre;
-    return 'Tus caseros más queridos';
+    return tr('Tus caseros más queridos');
   }
 
   String _subtitulo() {
     final sel = _seleccion;
-    if (_cargando) return 'Buscando…';
+    if (_cargando) return tr('Buscando…');
     if (sel == null) {
-      return 'De todos los mercados. Elige uno para filtrar por rubro y buscar.';
+      return tr(
+        'De todos los mercados. Elige uno para filtrar por rubro y buscar.',
+      );
     }
-    if (!_hayFiltros) return 'En ${sel.mercado.nombre}';
+    if (!_hayFiltros) return tr('En {0}', [sel.mercado.nombre]);
     final n = _puestos.length;
-    return '$n ${n == 1 ? 'casero encontrado' : 'caseros encontrados'} en ${sel.mercado.nombre}';
+    return tr('{0} {1} en {2}', [
+      n,
+      n == 1 ? tr('casero encontrado') : tr('caseros encontrados'),
+      sel.mercado.nombre,
+    ]);
   }
 
   Widget _seccionCaseros() {
@@ -301,10 +363,12 @@ class _InicioScreenState extends State<InicioScreen> {
 
     final Widget contenido;
     if (_cargando) {
-      contenido = const Padding(
+      contenido = Padding(
         padding: EdgeInsets.symmetric(vertical: 32),
         child: Center(
-          child: CircularProgressIndicator(semanticsLabel: 'Cargando caseros'),
+          child: CircularProgressIndicator(
+            semanticsLabel: tr('Cargando caseros'),
+          ),
         ),
       );
     } else if (_errorCarga != null) {
@@ -312,7 +376,7 @@ class _InicioScreenState extends State<InicioScreen> {
         children: [
           MensajeError(_errorCarga!),
           const SizedBox(height: 12),
-          BotonSecundario(texto: 'Reintentar', onPressed: _cargarPuestos),
+          BotonSecundario(texto: tr('Reintentar'), onPressed: _cargarPuestos),
         ],
       );
     } else if (_puestos.isEmpty) {
@@ -321,13 +385,20 @@ class _InicioScreenState extends State<InicioScreen> {
           Semantics(
             liveRegion: true,
             child: Text(
-              'No encontramos caseros${sel == null ? '' : ' en ${sel.mercado.nombre}'} '
-              'con esos datos. Prueba con otro rubro o con otra palabra.',
+              tr(
+                'No encontramos caseros{0} con esos datos. Prueba con otro rubro o con otra palabra.',
+                [
+                  sel == null ? '' : tr(' en {0}', [sel.mercado.nombre]),
+                ],
+              ),
               style: const TextStyle(fontSize: 18, color: AppColors.texto),
             ),
           ),
           const SizedBox(height: 12),
-          BotonSecundario(texto: 'Quitar filtros', onPressed: _quitarFiltros),
+          BotonSecundario(
+            texto: tr('Quitar filtros'),
+            onPressed: _quitarFiltros,
+          ),
         ],
       );
     } else {
@@ -369,8 +440,8 @@ class _InicioScreenState extends State<InicioScreen> {
               TextButton(
                 onPressed: _quitarFiltros,
                 style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
-                child: const Text(
-                  'Quitar filtros',
+                child: Text(
+                  tr('Quitar filtros'),
                   style: TextStyle(fontSize: 17, color: AppColors.azul),
                 ),
               ),
@@ -408,9 +479,11 @@ class _TarjetaMiCanasta extends StatelessWidget {
           padding: const EdgeInsets.only(top: 4),
           child: Semantics(
             button: true,
-            label:
-                'Mi canasta: $n ${n == 1 ? 'producto' : 'productos'}, '
-                '${soles(c.totalProductos)}. Ver canasta',
+            label: tr('Mi canasta: {0} {1}, {2}. Ver canasta', [
+              n,
+              n == 1 ? tr('producto') : tr('productos'),
+              soles(c.totalProductos),
+            ]),
             excludeSemantics: true,
             child: InkWell(
               onTap: () => context.go('/canasta'),
@@ -432,7 +505,10 @@ class _TarjetaMiCanasta extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Mi canasta · $n ${n == 1 ? 'producto' : 'productos'}',
+                            tr('Mi canasta · {0} {1}', [
+                              n,
+                              n == 1 ? tr('producto') : tr('productos'),
+                            ]),
                             style: const TextStyle(
                               fontSize: 18,
                               color: AppColors.texto,

@@ -11,6 +11,8 @@ import '../../../core/widgets/mensaje_error.dart';
 import '../../../data/models/rol.dart';
 import '../../../data/repositories/auth_repository.dart';
 
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
+
 //PANTALLA DE LOGIN (la usan los 3 perfiles: cliente, casero y repartidor)
 
 class ClienteLoginScreen extends StatefulWidget {
@@ -23,8 +25,10 @@ class ClienteLoginScreen extends StatefulWidget {
     Rol.cliente: '/inicio',
     Rol.comerciante: '/casero/inicio',
     Rol.repartidor: '/repartidor/inicio',
+    Rol.administrador: '/admin/inicio',
   };
 
+  /// El administrador no se registra en la app: su rol se asigna en el servidor.
   static const registroPorRol = {
     Rol.cliente: '/cliente/registro',
     Rol.comerciante: '/casero/registro',
@@ -47,7 +51,10 @@ class _ClienteLoginScreenState extends State<ClienteLoginScreen> {
   @override
   void initState() {
     super.initState();
-    _repo = ApiConfig.configurada || widget.rol == Rol.repartidor
+    _repo =
+        ApiConfig.configurada ||
+            widget.rol == Rol.repartidor ||
+            widget.rol == Rol.administrador
         ? AuthApiRepository.instancia
         : AuthRepositoryMock.instancia;
   }
@@ -63,10 +70,12 @@ class _ClienteLoginScreenState extends State<ClienteLoginScreen> {
     setState(() => _error = null);
     if (!_formKey.currentState!.validate()) return;
 
-    if (widget.rol == Rol.repartidor && !ApiConfig.configurada) {
+    if ((widget.rol == Rol.repartidor || widget.rol == Rol.administrador) &&
+        !ApiConfig.configurada) {
       setState(
-        () => _error =
-            'No está configurada la conexión al servicio de repartidores. Solicita al responsable iniciar la versión conectada al servidor.',
+        () => _error = tr(
+          'No está configurada la conexión al servicio de repartidores. Solicita al responsable iniciar la versión conectada al servidor.',
+        ),
       );
       return;
     }
@@ -95,7 +104,7 @@ class _ClienteLoginScreenState extends State<ClienteLoginScreen> {
     return Scaffold(
       body: Column(
         children: [
-          const EncabezadoAzul(titulo: 'Iniciar sesión'),
+          EncabezadoAzul(titulo: tr('Iniciar sesión')),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
@@ -111,8 +120,8 @@ class _ClienteLoginScreenState extends State<ClienteLoginScreen> {
                           _InsigniaPerfil(rol: widget.rol),
                           const SizedBox(height: 20),
                           CampoTextoApp(
-                            etiqueta: 'Celular',
-                            hint: '9 dígitos',
+                            etiqueta: tr('Celular'),
+                            hint: tr('9 dígitos'),
                             prefijo: '+51 ',
                             controller: _celular,
                             teclado: TextInputType.phone,
@@ -127,7 +136,7 @@ class _ClienteLoginScreenState extends State<ClienteLoginScreen> {
                           ),
                           const SizedBox(height: 12),
                           CampoTextoApp(
-                            etiqueta: 'Contraseña',
+                            etiqueta: tr('Contraseña'),
                             controller: _password,
                             esPassword: true,
                             icono: Icons.lock_outline,
@@ -136,24 +145,16 @@ class _ClienteLoginScreenState extends State<ClienteLoginScreen> {
                             onSubmitted: (_) => _ingresar(),
                             validator: (v) => Validadores.requerido(
                               v,
-                              campo: 'La contraseña',
+                              campo: tr('La contraseña'),
                             ),
                           ),
                           Align(
                             alignment: Alignment.centerRight,
                             child: TextButton(
-                              onPressed: () {
-                                // TODO: recuperación de contraseña cuando exista en el backend
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Para recuperar tu contraseña, escríbenos desde Soporte.',
-                                    ),
-                                  ),
-                                );
-                              },
-                              child: const Text(
-                                '¿Olvidaste tu contraseña?',
+                              onPressed: () =>
+                                  context.push('/recuperar', extra: widget.rol),
+                              child: Text(
+                                tr('¿Olvidaste tu contraseña?'),
                                 style: TextStyle(
                                   fontSize: 16,
                                   color: AppColors.azul,
@@ -167,19 +168,20 @@ class _ClienteLoginScreenState extends State<ClienteLoginScreen> {
                             const SizedBox(height: 16),
                           ],
                           BotonPrincipal(
-                            texto: 'Ingresar',
+                            texto: tr('Ingresar'),
                             cargando: _cargando,
                             onPressed: _ingresar,
                           ),
-                          const SizedBox(height: 24),
-                          const _SeparadorTexto('¿Primera vez en MiMercado+?'),
-                          const SizedBox(height: 16),
-                          BotonSecundario(
-                            texto: 'Crear mi cuenta',
-                            onPressed: () => context.push(
-                              ClienteLoginScreen.registroPorRol[widget.rol]!,
+                          if (ClienteLoginScreen.registroPorRol[widget.rol]
+                              case final registro?) ...[
+                            const SizedBox(height: 24),
+                            _SeparadorTexto(tr('¿Primera vez en MiMercado+?')),
+                            const SizedBox(height: 16),
+                            BotonSecundario(
+                              texto: tr('Crear mi cuenta'),
+                              onPressed: () => context.push(registro),
                             ),
-                          ),
+                          ],
                           const SizedBox(height: 12),
                           TextButton(
                             onPressed: () => context.go('/'),
@@ -187,8 +189,9 @@ class _ClienteLoginScreenState extends State<ClienteLoginScreen> {
                               minimumSize: const Size(48, 48),
                             ),
                             child: Text(
-                              '¿No eres ${widget.rol.etiqueta.toLowerCase()}? '
-                              'Cambiar de perfil',
+                              tr('¿No eres {0}? Cambiar de perfil', [
+                                widget.rol.etiqueta.toLowerCase(),
+                              ]),
                               textAlign: TextAlign.center,
                               style: const TextStyle(
                                 fontSize: 16,
@@ -220,6 +223,7 @@ class _InsigniaPerfil extends StatelessWidget {
     Rol.cliente: Icons.shopping_basket_outlined,
     Rol.comerciante: Icons.storefront_outlined,
     Rol.repartidor: Icons.delivery_dining_outlined,
+    Rol.administrador: Icons.admin_panel_settings_outlined,
   };
 
   @override
@@ -240,7 +244,7 @@ class _InsigniaPerfil extends StatelessWidget {
             const SizedBox(width: 8),
             Flexible(
               child: Text(
-                'Perfil: ${rol.etiqueta}',
+                tr('Perfil: {0}', [rol.etiqueta]),
                 style: const TextStyle(
                   color: AppColors.azul,
                   fontSize: 16,

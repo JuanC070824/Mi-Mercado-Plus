@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
+
 /// Calificación de 1 a 5 estrellas con botones de 48 dp.
 class Estrellas extends StatelessWidget {
   const Estrellas({
@@ -17,12 +19,16 @@ class Estrellas extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: 'Calificación para $para: $valor de 5 estrellas',
+      label: tr('Calificación para {0}: {1} de 5 estrellas', [para, valor]),
       child: Wrap(
         children: [
           for (var i = 1; i <= 5; i++)
             IconButton(
-              tooltip: '$i ${i == 1 ? 'estrella' : 'estrellas'} para $para',
+              tooltip: tr('{0} {1} para {2}', [
+                i,
+                i == 1 ? tr('estrella') : tr('estrellas'),
+                para,
+              ]),
               constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
               iconSize: 36,
               onPressed: () => onCambio(i),

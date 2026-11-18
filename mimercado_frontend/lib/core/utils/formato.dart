@@ -1,4 +1,5 @@
 import '../../data/models/producto.dart';
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
 
 /// Montos siempre como "S/ 15.80".
 String soles(double monto) => 'S/ ${monto.toStringAsFixed(2)}';
@@ -9,7 +10,7 @@ String cantidadConUnidad(double cantidad, UnidadMedida unidad) {
       ? cantidad.toStringAsFixed(0)
       : cantidad.toStringAsFixed(1);
   final simbolo = unidad == UnidadMedida.atado && cantidad != 1
-      ? 'atados'
+      ? tr('atados')
       : unidad.simbolo;
   return '$numero $simbolo';
 }
@@ -27,8 +28,8 @@ String fechaCorta(DateTime h, {DateTime? ahora}) {
     hoy.month,
     hoy.day,
   ).difference(dia).inDays;
-  if (diferencia == 0) return 'Hoy ${horaCorta(h)}';
-  if (diferencia == 1) return 'Ayer ${horaCorta(h)}';
+  if (diferencia == 0) return tr('Hoy {0}', [horaCorta(h)]);
+  if (diferencia == 1) return tr('Ayer {0}', [horaCorta(h)]);
   return '${h.day.toString().padLeft(2, '0')}/${h.month.toString().padLeft(2, '0')} '
       '${horaCorta(h)}';
 }

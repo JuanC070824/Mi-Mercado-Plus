@@ -46,6 +46,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # sirve el CSS/JS de /admin en producción
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -141,6 +142,16 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'  # destino de collectstatic (Render)
+STORAGES = {
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage'},
+}
+
+# Detrás del proxy HTTPS de Render: confiar en su cabecera y usar cookies seguras.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+CSRF_TRUSTED_ORIGINS = [x.strip() for x in os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',') if x.strip()]
+SESSION_COOKIE_SECURE = CSRF_COOKIE_SECURE = not DEBUG
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -152,7 +163,8 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': ['mvp_back.authentication.BearerAuthentication'],
     'DEFAULT_PERMISSION_CLASSES': ['rest_framework.permissions.IsAuthenticated'],
     'UNAUTHENTICATED_USER': None,
-    'DEFAULT_THROTTLE_RATES': {'login': '10/min', 'registro': '5/min', 'dni': '20/min', 'pago': '5/min'},
+    'DEFAULT_THROTTLE_RATES': {'login': '10/min', 'registro': '5/min', 'dni': '20/min', 'pago': '5/min',
+                               'recuperar': '5/min'},
     'DEFAULT_RENDERER_CLASSES': ['rest_framework.renderers.JSONRenderer'],
 }
 AUTH_TOKEN_TTL_SECONDS = int(os.getenv('AUTH_TOKEN_TTL_SECONDS', '3600'))
@@ -162,4 +174,6 @@ JSONPE_DNI_URL = os.getenv('JSONPE_DNI_URL', 'https://api.json.pe/api/dni')
 JSONPE_TIMEOUT_SECONDS = int(os.getenv('JSONPE_TIMEOUT_SECONDS', '10'))
 JSONPE_REGISTRATION_TOKEN_TTL_SECONDS = int(os.getenv('JSONPE_REGISTRATION_TOKEN_TTL_SECONDS', '600'))
 PAYMENT_MODE = os.getenv('PAYMENT_MODE', 'mock')  # mock (demostración local) | disabled
+# demo: el código de recuperación se muestra en pantalla (no hay SMS ni correo configurados).
+RECUPERACION_MODO = os.getenv('RECUPERACION_MODO', 'demo')
 MOCK_YAPE_CODE = os.getenv('MOCK_YAPE_CODE', '123456')
