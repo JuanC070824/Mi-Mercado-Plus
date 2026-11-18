@@ -1,13 +1,8 @@
 from django.urls import path
 from . import views as v
 from . import operaciones_views as o
-from . import administracion_views as a
 
 urlpatterns=[
-    path('administracion/repartidores/',a.AdminRepartidoresView.as_view()),
-    path('administracion/repartidores/<int:solicitud_id>/<str:accion>/',a.AdminRepartidorAccionView.as_view()),
-    path('administracion/mercados/',a.AdminMercadosView.as_view()),
-    path('administracion/mercados/<int:mercado_id>/',a.AdminMercadoView.as_view()),
     path('repartidor/inicio/',o.RepartidorInicioView.as_view()),
     path('repartidor/mercado/',o.RepartidorMercadoView.as_view()),
     path('repartidor/pedidos/<int:order_id>/aceptar/',o.RepartidorAceptarView.as_view()),
@@ -15,14 +10,10 @@ urlpatterns=[
     path('repartidor/pedidos/<int:order_id>/entregar/',o.RepartidorCompletarView.as_view()),
     path('comprador/pedidos/',o.CompradorPedidosView.as_view()),
     path('comprador/pedidos/<int:order_id>/calificar/',o.CompradorCalificarView.as_view()),
-    path('comprador/pedidos/<int:order_id>/volver-a-pedir/',v.VolverAPedirView.as_view()),
-    path('comprador/recomendaciones/',v.RecomendacionesView.as_view()),
     path('pagos/configuracion/',o.PagoConfiguracionView.as_view()),
     path('auth/dni/',v.DniView.as_view()),
     path('auth/registro/',v.RegistroView.as_view()),
     path('auth/login/',v.LoginView.as_view()),
-    path('auth/recuperar/',v.RecuperarView.as_view()),
-    path('auth/restablecer/',v.RestablecerView.as_view()),
     path('auth/me/',v.PerfilView.as_view()),
     path('mercados/',v.MercadosView.as_view()),
     path('categorias/',v.CategoriasView.as_view()),

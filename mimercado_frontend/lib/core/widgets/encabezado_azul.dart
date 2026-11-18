@@ -3,8 +3,6 @@ import 'package:go_router/go_router.dart';
 import '../theme/app_colors.dart';
 import 'soporte_dialog.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 //Esta es la franja azul de arriba con el logo.
 
 class EncabezadoAzul extends StatelessWidget {
@@ -32,7 +30,7 @@ class EncabezadoAzul extends StatelessWidget {
                 children: [
                   if (mostrarAtras)
                     IconButton(
-                      tooltip: tr('Volver'),
+                      tooltip: 'Volver',
                       iconSize: 28,
                       constraints: const BoxConstraints(
                         minWidth: 48,
@@ -57,8 +55,8 @@ class EncabezadoAzul extends StatelessWidget {
                       Icons.headset_mic_outlined,
                       color: AppColors.blanco,
                     ),
-                    label: Text(
-                      tr('Soporte'),
+                    label: const Text(
+                      'Soporte',
                       style: TextStyle(
                         color: AppColors.blanco,
                         fontSize: 16,
@@ -84,7 +82,7 @@ class EncabezadoAzul extends StatelessWidget {
                       child: Image.asset(
                         'assets/images/logo_mimercado.png',
                         fit: BoxFit.contain,
-                        semanticLabel: tr('Logo de MiMercado+'),
+                        semanticLabel: 'Logo de MiMercado+',
                         errorBuilder: (context, error, stack) => const Icon(
                           Icons.storefront,
                           size: 48,

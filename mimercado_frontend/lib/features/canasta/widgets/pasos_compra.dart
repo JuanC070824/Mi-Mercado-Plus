@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 /// "Paso 1 de 3": Canasta → Entrega y pago → ¡Listo!
 class PasosCompra extends StatelessWidget {
   const PasosCompra({super.key, required this.paso});
@@ -14,13 +12,13 @@ class PasosCompra extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: tr('Paso {0} de 3: {1}', [paso, _nombres[paso - 1]]),
+      label: 'Paso $paso de 3: ${_nombres[paso - 1]}',
       excludeSemantics: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            tr('Paso {0} de 3 · {1}', [paso, _nombres[paso - 1]]),
+            'Paso $paso de 3 · ${_nombres[paso - 1]}',
             style: const TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w700,

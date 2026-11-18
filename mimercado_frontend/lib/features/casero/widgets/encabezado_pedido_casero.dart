@@ -4,8 +4,6 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/soporte_dialog.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 /// Cabecera de las tareas del vendedor: las acciones no comprimen el título.
 class EncabezadoPedidoCasero extends StatelessWidget {
   const EncabezadoPedidoCasero({
@@ -40,7 +38,7 @@ class EncabezadoPedidoCasero extends StatelessWidget {
               children: [
                 if (mostrarAtras)
                   IconButton(
-                    tooltip: tr('Volver'),
+                    tooltip: 'Volver',
                     constraints: const BoxConstraints(
                       minWidth: 48,
                       minHeight: 48,
@@ -59,7 +57,7 @@ class EncabezadoPedidoCasero extends StatelessWidget {
                     minimumSize: const Size(48, 48),
                   ),
                   icon: const Icon(Icons.headset_mic_outlined),
-                  label: Text(tr('Soporte'), style: TextStyle(fontSize: 16)),
+                  label: const Text('Soporte', style: TextStyle(fontSize: 16)),
                 ),
               ],
             ),

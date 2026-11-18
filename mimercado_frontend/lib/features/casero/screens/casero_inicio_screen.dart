@@ -14,8 +14,6 @@ import '../widgets/accesos_inicio_casero.dart';
 import '../widgets/encabezado_inicio_casero.dart';
 import '../widgets/alerta_pedido.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 class CaseroInicioScreen extends StatefulWidget {
   const CaseroInicioScreen({
     super.key,
@@ -94,7 +92,7 @@ class _CaseroInicioScreenState extends State<CaseroInicioScreen> {
     } on FormatException {
       if (!mounted) return;
       setState(() {
-        _error = tr('No pudimos leer la información de tu puesto.');
+        _error = 'No pudimos leer la información de tu puesto.';
         _cargando = false;
       });
     }
@@ -120,7 +118,7 @@ class _CaseroInicioScreenState extends State<CaseroInicioScreen> {
         _pedidosAvisados.add(pedidoId);
         avisar(
           context,
-          tr('Este pedido ya no está pendiente. Actualiza tu lista.'),
+          'Este pedido ya no está pendiente. Actualiza tu lista.',
         );
         return;
       }
@@ -170,8 +168,8 @@ class _CaseroInicioScreenState extends State<CaseroInicioScreen> {
       avisar(
         context,
         abierto
-            ? tr('Tu puesto está abierto. Ya pueden hacerte pedidos.')
-            : tr('Tu puesto está cerrado por ahora.'),
+            ? 'Tu puesto está abierto. Ya pueden hacerte pedidos.'
+            : 'Tu puesto está cerrado por ahora.',
       );
     } on VendedorInicioException catch (error) {
       if (mounted) avisar(context, error.mensaje);
@@ -202,14 +200,14 @@ class _CaseroInicioScreenState extends State<CaseroInicioScreen> {
   }
 
   Widget _contenido() {
-    if (_cargando) return CargandoApp(texto: tr('Cargando tu puesto…'));
+    if (_cargando) return const CargandoApp(texto: 'Cargando tu puesto…');
     if (_error != null) {
       return AvisoPantalla(
         icono: Icons.wifi_off_rounded,
-        titulo: tr('No pudimos cargar tu inicio'),
+        titulo: 'No pudimos cargar tu inicio',
         texto: _error,
         esError: true,
-        textoBoton: tr('Reintentar'),
+        textoBoton: 'Reintentar',
         alTocar: _cargar,
       );
     }
@@ -244,17 +242,15 @@ class _CaseroInicioScreenState extends State<CaseroInicioScreen> {
                 const SizedBox(height: 8),
                 Semantics(
                   header: true,
-                  child: Text(
-                    tr('Aún no tienes un puesto'),
+                  child: const Text(
+                    'Aún no tienes un puesto',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800),
                   ),
                 ),
                 const SizedBox(height: 6),
-                Text(
-                  tr(
-                    'Elige tu mercado y registra tu puesto. Después podrás agregar productos y recibir pedidos.',
-                  ),
+                const Text(
+                  'Elige tu mercado y registra tu puesto. Después podrás agregar productos y recibir pedidos.',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 16, height: 1.35),
                 ),
@@ -276,21 +272,21 @@ class _CaseroInicioScreenState extends State<CaseroInicioScreen> {
             ),
           ),
           icon: const Icon(Icons.add_business_outlined),
-          label: Text(tr('Crear mi puesto'), textAlign: TextAlign.center),
+          label: const Text('Crear mi puesto', textAlign: TextAlign.center),
         ),
         const SizedBox(height: 18),
-        TituloSeccion(tr('¿Qué aparecerá aquí?')),
+        const TituloSeccion('¿Qué aparecerá aquí?'),
         const SizedBox(height: 8),
-        _PasoVacio(
+        const _PasoVacio(
           icono: Icons.notifications_none_rounded,
-          titulo: tr('Pedidos que requieren atención'),
-          texto: tr('Nuevos, en preparación y listos para recoger.'),
+          titulo: 'Pedidos que requieren atención',
+          texto: 'Nuevos, en preparación y listos para recoger.',
         ),
         const SizedBox(height: 10),
-        _PasoVacio(
+        const _PasoVacio(
           icono: Icons.payments_outlined,
-          titulo: tr('Resumen de tus ventas'),
-          texto: tr('Ventas, comisión de la aplicación y lo que recibirás.'),
+          titulo: 'Resumen de tus ventas',
+          texto: 'Ventas, comisión de la aplicación y lo que recibirás.',
         ),
       ],
     );
@@ -320,14 +316,14 @@ class _CaseroInicioScreenState extends State<CaseroInicioScreen> {
                 if (_alertaAbierta) ...[
                   Semantics(
                     liveRegion: true,
-                    child: Text(
-                      tr('Consultando o actualizando el pedido…'),
+                    child: const Text(
+                      'Consultando o actualizando el pedido…',
                       style: TextStyle(fontSize: 18),
                     ),
                   ),
                   const SizedBox(height: 12),
                 ],
-                TituloSeccion(tr('Requieren atención')),
+                const TituloSeccion('Requieren atención'),
                 const SizedBox(height: 7),
                 Row(
                   children: [
@@ -335,7 +331,7 @@ class _CaseroInicioScreenState extends State<CaseroInicioScreen> {
                       child: _Conteo(
                         icono: Icons.inbox_rounded,
                         valor: atencion.nuevos,
-                        etiqueta: tr('Nuevos'),
+                        etiqueta: 'Nuevos',
                         color: AppColors.azul,
                         fondo: const Color(0xFFEAF5FD),
                       ),
@@ -345,7 +341,7 @@ class _CaseroInicioScreenState extends State<CaseroInicioScreen> {
                       child: _Conteo(
                         icono: Icons.schedule_rounded,
                         valor: atencion.preparando,
-                        etiqueta: tr('Preparando'),
+                        etiqueta: 'Preparando',
                         color: AppColors.azul,
                         fondo: AppColors.blanco,
                       ),
@@ -355,7 +351,7 @@ class _CaseroInicioScreenState extends State<CaseroInicioScreen> {
                       child: _Conteo(
                         icono: Icons.check_circle_rounded,
                         valor: atencion.listos,
-                        etiqueta: tr('Listos'),
+                        etiqueta: 'Listos',
                         color: AppColors.exito,
                         fondo: AppColors.exitoFondo,
                       ),
@@ -363,7 +359,7 @@ class _CaseroInicioScreenState extends State<CaseroInicioScreen> {
                   ],
                 ),
                 const SizedBox(height: 14),
-                TituloSeccion(tr('Pedidos activos')),
+                const TituloSeccion('Pedidos activos'),
                 const SizedBox(height: 7),
                 if (inicio.pedidos.isEmpty)
                   const _SinPedidos()
@@ -383,7 +379,7 @@ class _CaseroInicioScreenState extends State<CaseroInicioScreen> {
                   onVerCatalogo: () => context.go('/casero/catalogo'),
                 ),
                 const SizedBox(height: 18),
-                TituloSeccion(tr('Resumen de hoy')),
+                const TituloSeccion('Resumen de hoy'),
                 const SizedBox(height: 7),
                 _Resumen(resumen: resumen),
               ],
@@ -401,7 +397,7 @@ class _BannerPuesto extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: tr('Espacio para la futura foto del puesto'),
+      label: 'Espacio para la futura foto del puesto',
       child: Container(
         constraints: const BoxConstraints(minHeight: 114),
         padding: const EdgeInsets.all(12),
@@ -424,7 +420,7 @@ class _ImagenPendiente extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ColoredBox(
+    return const ColoredBox(
       color: Color(0xFFDCE8EF),
       child: Center(
         child: Column(
@@ -437,7 +433,7 @@ class _ImagenPendiente extends StatelessWidget {
             ),
             SizedBox(height: 4),
             Text(
-              tr('Espacio para la foto de tu puesto'),
+              'Espacio para la foto de tu puesto',
               style: TextStyle(
                 color: AppColors.textoSecundario,
                 fontWeight: FontWeight.w600,
@@ -510,14 +506,14 @@ class _SinPedidos extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.divisor),
       ),
-      child: Column(
+      child: const Column(
         children: [
           ExcludeSemantics(
             child: Icon(Icons.inbox_outlined, size: 48, color: AppColors.azul),
           ),
           SizedBox(height: 12),
           Text(
-            tr('Todavía no hay pedidos'),
+            'Todavía no hay pedidos',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 20,
@@ -527,9 +523,8 @@ class _SinPedidos extends StatelessWidget {
           ),
           SizedBox(height: 8),
           Text(
-            tr(
-              'Aquí aparecerán los pedidos de tus clientes. Mientras tanto, puedes revisar tus productos en Mi catálogo.',
-            ),
+            'Aquí aparecerán los pedidos de tus clientes. '
+            'Mientras tanto, puedes revisar tus productos en Mi catálogo.',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 16, color: AppColors.textoSecundario),
           ),
@@ -549,11 +544,8 @@ class _TarjetaPedido extends StatelessWidget {
     final nuevo = pedido.estado == 'pendiente';
     return Semantics(
       button: true,
-      label: tr('Pedido de {0}, {1} productos, {2}', [
-        pedido.cliente,
-        pedido.productos,
-        _estadoLegible(pedido.estado),
-      ]),
+      label:
+          'Pedido de ${pedido.cliente}, ${pedido.productos} productos, ${_estadoLegible(pedido.estado)}',
       child: Material(
         color: AppColors.blanco,
         shape: RoundedRectangleBorder(
@@ -572,7 +564,7 @@ class _TarjetaPedido extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        tr('Pedido de {0}', [pedido.cliente]),
+                        'Pedido de ${pedido.cliente}',
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
@@ -586,7 +578,7 @@ class _TarjetaPedido extends StatelessWidget {
                   ],
                 ),
                 Text(
-                  '${pedido.productos} ${pedido.productos == 1 ? tr('producto') : tr('productos')} · ${_detalleTiempo(pedido)}',
+                  '${pedido.productos} ${pedido.productos == 1 ? 'producto' : 'productos'} · ${_detalleTiempo(pedido)}',
                   style: const TextStyle(color: AppColors.textoSecundario),
                 ),
                 const SizedBox(height: 9),
@@ -597,7 +589,7 @@ class _TarjetaPedido extends StatelessWidget {
                   children: [
                     _EtiquetaEstado(estado: pedido.estado),
                     Text(
-                      nuevo ? tr('Revisar pedido') : tr('Continuar'),
+                      nuevo ? 'Revisar pedido' : 'Continuar',
                       style: const TextStyle(
                         color: AppColors.azul,
                         fontWeight: FontWeight.w800,
@@ -617,7 +609,7 @@ class _TarjetaPedido extends StatelessWidget {
     if (pedido.responderAntes != null && pedido.estado == 'pendiente') {
       final hora = TimeOfDay.fromDateTime(pedido.responderAntes!.toLocal());
       final minutos = hora.minute.toString().padLeft(2, '0');
-      return tr('Responder antes de {0}:{1}', [hora.hour, minutos]);
+      return 'Responder antes de ${hora.hour}:$minutos';
     }
     return _estadoLegible(pedido.estado);
   }
@@ -672,14 +664,11 @@ class _Resumen extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: _Importe(etiqueta: tr('Ventas'), centavos: resumen.ventas),
+            child: _Importe(etiqueta: 'Ventas', centavos: resumen.ventas),
           ),
           const SizedBox(height: 46, child: VerticalDivider()),
           Expanded(
-            child: _Importe(
-              etiqueta: tr('Comisión'),
-              centavos: resumen.comision,
-            ),
+            child: _Importe(etiqueta: 'Comisión', centavos: resumen.comision),
           ),
           const SizedBox(height: 46, child: VerticalDivider()),
           Expanded(
@@ -688,7 +677,7 @@ class _Resumen extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 5),
                 child: _Importe(
-                  etiqueta: tr('Recibes'),
+                  etiqueta: 'Recibes',
                   centavos: resumen.recibes,
                   destacado: true,
                 ),
@@ -727,7 +716,7 @@ class _Importe extends StatelessWidget {
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(
-              tr('S/ {0}', [(centavos / 100).toStringAsFixed(2)]),
+              'S/ ${(centavos / 100).toStringAsFixed(2)}',
               style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w800,
@@ -795,18 +784,18 @@ class _PasoVacio extends StatelessWidget {
 String _estadoLegible(String estado) {
   switch (estado) {
     case 'pendiente':
-      return tr('Nuevo');
+      return 'Nuevo';
     case 'aceptado':
-      return tr('Aceptado');
+      return 'Aceptado';
     case 'pesando':
-      return tr('Pesando');
+      return 'Pesando';
     case 'pesado':
-      return tr('Pesado');
+      return 'Pesado';
     case 'en_preparacion':
-      return tr('Empaquetando');
+      return 'Empaquetando';
     case 'listo':
-      return tr('Listo');
+      return 'Listo';
     default:
-      return tr('En proceso');
+      return 'En proceso';
   }
 }

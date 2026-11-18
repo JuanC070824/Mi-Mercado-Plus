@@ -511,9 +511,8 @@ class CatalogoRepositoryMock implements CatalogoRepository {
           return _normalizar(p.nombre).contains(q) ||
               _normalizar(p.casero).contains(q);
         }).toList()..sort((a, b) {
-          if (a.abierto != b.abierto) {
+          if (a.abierto != b.abierto)
             return a.abierto ? -1 : 1; // abiertos primero
-          }
           return _porCalificacion(a, b);
         });
     return lista;

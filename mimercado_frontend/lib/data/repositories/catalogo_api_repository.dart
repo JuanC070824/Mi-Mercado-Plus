@@ -5,25 +5,10 @@ import 'dart:math';
 import 'package:http/http.dart' as http;
 
 import '../../core/config/api_config.dart';
-import '../../core/state/sesion_state.dart';
 import '../models/mercado.dart';
 import '../models/producto.dart';
 import '../models/puesto.dart';
 import 'catalogo_repository.dart';
-
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
-/// Un producto que el cliente pide seguido ("Lo que siempre pides").
-class ProductoFrecuente {
-  const ProductoFrecuente({
-    required this.producto,
-    required this.puesto,
-    required this.veces,
-  });
-  final Producto producto;
-  final Puesto puesto;
-  final int veces;
-}
 
 class CatalogoApiRepository implements CatalogoRepository {
   CatalogoApiRepository({http.Client? client, String? baseUrl})
@@ -40,18 +25,18 @@ class CatalogoApiRepository implements CatalogoRepository {
           .get(ApiConfig.uri(ruta, baseUrlOverride: _baseUrl))
           .timeout(const Duration(seconds: 15));
       if (response.statusCode != 200) {
-        throw CatalogoException(tr('No pudimos cargar el catálogo.'));
+        throw const CatalogoException('No pudimos cargar el catálogo.');
       }
       return jsonDecode(response.body);
     } on CatalogoException {
       rethrow;
     } on TimeoutException {
-      throw CatalogoException(
-        tr('La carga tardó demasiado. Inténtalo nuevamente.'),
+      throw const CatalogoException(
+        'La carga tardó demasiado. Inténtalo nuevamente.',
       );
     } catch (_) {
-      throw CatalogoException(
-        tr('No pudimos conectarnos para cargar el catálogo.'),
+      throw const CatalogoException(
+        'No pudimos conectarnos para cargar el catálogo.',
       );
     }
   }
@@ -63,7 +48,7 @@ class CatalogoApiRepository implements CatalogoRepository {
   }) async {
     final decoded = await _get('/api/mercados/');
     if (decoded is! List) {
-      throw CatalogoException(tr('Lista de mercados inválida.'));
+      throw const CatalogoException('Lista de mercados inválida.');
     }
     final resultado = <MercadoCercano>[];
     for (final value in decoded) {
@@ -95,81 +80,9 @@ class CatalogoApiRepository implements CatalogoRepository {
 
   @override
   Future<List<Puesto>> masQueridos({int? mercadoId, int limite = 5}) async {
-    // RF-20: con sesión, primero los caseros donde más compra el cliente.
-    final recomendados = await _recomendados(mercadoId);
-    if (recomendados != null) return recomendados.take(limite).toList();
     final todos = await _puestos(mercadoId: mercadoId);
     todos.sort((a, b) => b.calificacion.compareTo(a.calificacion));
     return todos.take(limite).toList();
-  }
-
-  /// null si no hay sesión de cliente o el servidor no responde: se usa el orden general.
-  Future<List<Puesto>?> _recomendados(int? mercadoId) async {
-    final puestos = (await _recomendaciones(mercadoId))?['puestos'];
-    if (puestos is! List) return null;
-    return [
-      for (final value in puestos)
-        if (value is Map<String, dynamic>) _puesto(value),
-    ];
-  }
-
-  /// RF-20: productos que el cliente más repite, con su puesto para agregarlos.
-  Future<List<ProductoFrecuente>> loQueSiemprePides({int? mercadoId}) async {
-    final productos = (await _recomendaciones(mercadoId))?['productos'];
-    if (productos is! List) return const [];
-    return [
-      for (final value in productos)
-        if (value is Map<String, dynamic> &&
-            value['puesto'] is Map<String, dynamic>)
-          ProductoFrecuente(
-            producto: productoDesdeJson(value),
-            puesto: _puesto(value['puesto'] as Map<String, dynamic>),
-            veces: ((value['veces'] as num?) ?? 0).toInt(),
-          ),
-    ];
-  }
-
-  // El inicio pide caseros y productos casi a la vez: una sola llamada sirve
-  // para ambos durante unos segundos.
-  ({int? mercadoId, String? token, DateTime en, Future<Map?> datos})? _ultima;
-
-  Future<Map?> _recomendaciones(int? mercadoId) {
-    final token = SesionState.token;
-    if (token == null) return Future.value(null);
-    final u = _ultima;
-    if (u != null &&
-        u.mercadoId == mercadoId &&
-        u.token == token &&
-        DateTime.now().difference(u.en) < const Duration(seconds: 5)) {
-      return u.datos;
-    }
-    final datos = _pedirRecomendaciones(mercadoId, token);
-    _ultima = (
-      mercadoId: mercadoId,
-      token: token,
-      en: DateTime.now(),
-      datos: datos,
-    );
-    return datos;
-  }
-
-  Future<Map?> _pedirRecomendaciones(int? mercadoId, String token) async {
-    try {
-      final ruta = mercadoId == null
-          ? '/api/comprador/recomendaciones/'
-          : '/api/comprador/recomendaciones/?mercado_id=$mercadoId';
-      final response = await _client
-          .get(
-            ApiConfig.uri(ruta, baseUrlOverride: _baseUrl),
-            headers: {'Authorization': 'Bearer $token'},
-          )
-          .timeout(const Duration(seconds: 15));
-      if (response.statusCode != 200) return null;
-      final data = jsonDecode(response.body);
-      return data is Map ? data : null;
-    } catch (_) {
-      return null;
-    }
   }
 
   @override
@@ -204,7 +117,7 @@ class CatalogoApiRepository implements CatalogoRepository {
         : '/api/puestos/?mercado_id=$mercadoId';
     final decoded = await _get(ruta);
     if (decoded is! List) {
-      throw CatalogoException(tr('Lista de puestos inválida.'));
+      throw const CatalogoException('Lista de puestos inválida.');
     }
     return [
       for (final value in decoded)
@@ -216,7 +129,7 @@ class CatalogoApiRepository implements CatalogoRepository {
   Future<List<Producto>> productosDePuesto(int puestoId) async {
     final decoded = await _get('/api/productos/?puesto_id=$puestoId');
     if (decoded is! List) {
-      throw CatalogoException(tr('Lista de productos inválida.'));
+      throw const CatalogoException('Lista de productos inválida.');
     }
     return [
       for (final value in decoded)
@@ -225,12 +138,13 @@ class CatalogoApiRepository implements CatalogoRepository {
   }
 
   @override
-  Future<void> actualizarProducto(Producto producto) => throw CatalogoException(
-    tr('Usa el catálogo del vendedor para editar productos.'),
-  );
+  Future<void> actualizarProducto(Producto producto) =>
+      throw const CatalogoException(
+        'Usa el catálogo del vendedor para editar productos.',
+      );
   @override
   Future<Puesto> cambiarAbierto(int puestoId, bool abierto) =>
-      throw CatalogoException(tr('Usa Mi puesto para cambiar su estado.'));
+      throw const CatalogoException('Usa Mi puesto para cambiar su estado.');
 
   static Producto productoDesdeJson(Map<String, dynamic> value) => Producto(
     id: (value['id'] as num).toInt(),
@@ -254,7 +168,7 @@ class CatalogoApiRepository implements CatalogoRepository {
     id: (value['id'] as num).toInt(),
     mercadoId: (value['mercado_id'] as num).toInt(),
     nombre: value['nombre'].toString(),
-    casero: value['casero']?.toString() ?? tr('Casero'),
+    casero: value['casero']?.toString() ?? 'Casero',
     categoria: _categoria(value['categoria']?.toString()),
     calificacion: ((value['calificacion'] as num?) ?? 0).toDouble(),
     resenas: ((value['resenas'] as num?) ?? 0).toInt(),

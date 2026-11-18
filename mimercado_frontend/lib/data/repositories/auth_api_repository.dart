@@ -10,23 +10,6 @@ import '../models/rol.dart';
 import '../models/usuario.dart';
 import 'auth_repository.dart';
 
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
-/// Respuesta de un paso de "recuperar contraseña".
-class ResultadoRecuperacion {
-  const ResultadoRecuperacion.ok(this.mensaje, {this.codigoDemostracion})
-    : exito = true;
-  const ResultadoRecuperacion.error(this.mensaje)
-    : exito = false,
-      codigoDemostracion = null;
-
-  final bool exito;
-  final String mensaje;
-
-  /// Solo en modo demostración: sin SMS, el servidor devuelve el código.
-  final String? codigoDemostracion;
-}
-
 class AuthApiRepository implements AuthRepository {
   AuthApiRepository({http.Client? client, String? baseUrl})
     : _client = client ?? http.Client(),
@@ -86,66 +69,6 @@ class AuthApiRepository implements AuthRepository {
     },
   );
 
-  /// Paso 1 (RF-04): el DNI debe ser del titular de la cuenta.
-  Future<ResultadoRecuperacion> solicitarRecuperacion({
-    required String celular,
-    required String dni,
-  }) => _enviarRecuperacion('/api/auth/recuperar/', {
-    'celular': celular,
-    'dni': dni,
-  });
-
-  /// Paso 2 (RF-04): con el código de 6 números se guarda la nueva contraseña.
-  Future<ResultadoRecuperacion> restablecerPassword({
-    required String celular,
-    required String codigo,
-    required String password,
-  }) => _enviarRecuperacion('/api/auth/restablecer/', {
-    'celular': celular,
-    'codigo': codigo,
-    'password': password,
-  });
-
-  Future<ResultadoRecuperacion> _enviarRecuperacion(
-    String ruta,
-    Map<String, dynamic> body,
-  ) async {
-    try {
-      final response = await _client
-          .post(
-            ApiConfig.uri(ruta, baseUrlOverride: _baseUrl),
-            headers: const {'Content-Type': 'application/json'},
-            body: jsonEncode(body),
-          )
-          .timeout(const Duration(seconds: 15));
-      final decoded = jsonDecode(response.body);
-      final data = decoded is Map<String, dynamic>
-          ? decoded
-          : <String, dynamic>{};
-      if (response.statusCode != 200) {
-        return ResultadoRecuperacion.error(_mensajeError(data));
-      }
-      return ResultadoRecuperacion.ok(
-        data['detail']?.toString() ?? '',
-        codigoDemostracion: data['codigo_demostracion']?.toString(),
-      );
-    } on TimeoutException {
-      return ResultadoRecuperacion.error(
-        tr('El servidor tardó demasiado en responder. Inténtalo nuevamente.'),
-      );
-    } on http.ClientException {
-      return ResultadoRecuperacion.error(
-        tr('No pudimos conectarnos con MiMercado+. Revisa tu conexión.'),
-      );
-    } on FormatException {
-      return ResultadoRecuperacion.error(
-        tr('El servidor devolvió una respuesta que no pudimos leer.'),
-      );
-    } on StateError catch (error) {
-      return ResultadoRecuperacion.error(error.message);
-    }
-  }
-
   @override
   Future<Direccion?> direccionPrincipal(String celular) async {
     final response = await _autenticada('GET', '/api/direcciones/');
@@ -164,7 +87,7 @@ class AuthApiRepository implements AuthRepository {
     if (principal is! Map<String, dynamic>) return null;
     return Direccion(
       id: (principal['id'] as num?)?.toInt(),
-      etiqueta: principal['etiqueta']?.toString() ?? tr('Casa'),
+      etiqueta: principal['etiqueta']?.toString() ?? 'Casa',
       direccion: principal['direccion']?.toString() ?? '',
       referencia: principal['referencia']?.toString(),
       principal: principal['principal'] == true,
@@ -207,22 +130,24 @@ class AuthApiRepository implements AuthRepository {
           },
         );
         if (direccionResponse.statusCode != 201) {
-          return ResultadoAuth.error(
-            tr('Guardamos tu perfil, pero no pudimos guardar la dirección.'),
+          return const ResultadoAuth.error(
+            'Guardamos tu perfil, pero no pudimos guardar la dirección.',
           );
         }
       }
       return ResultadoAuth.ok(_usuarioDesdeJson(data, celular));
     } on TimeoutException {
-      return ResultadoAuth.error(
-        tr('El servidor tardó demasiado en responder.'),
+      return const ResultadoAuth.error(
+        'El servidor tardó demasiado en responder.',
       );
     } on FormatException {
-      return ResultadoAuth.error(tr('El servidor devolvió datos inválidos.'));
+      return const ResultadoAuth.error('El servidor devolvió datos inválidos.');
     } on StateError catch (error) {
       return ResultadoAuth.error(error.message);
     } catch (_) {
-      return ResultadoAuth.error(tr('No pudimos conectarnos con MiMercado+.'));
+      return const ResultadoAuth.error(
+        'No pudimos conectarnos con MiMercado+.',
+      );
     }
   }
 
@@ -267,7 +192,7 @@ class AuthApiRepository implements AuthRepository {
       throw StateError(
         decoded is Map<String, dynamic>
             ? _mensajeError(decoded)
-            : tr('Respuesta inválida.'),
+            : 'Respuesta inválida.',
       );
     }
     return usuario.copyWith(
@@ -352,10 +277,8 @@ class AuthApiRepository implements AuthRepository {
       final token = data['token']?.toString() ?? '';
       final usuarioJson = data['usuario'];
       if (token.isEmpty || usuarioJson is! Map<String, dynamic>) {
-        return ResultadoAuth.error(
-          tr(
-            'El servidor devolvió una respuesta incompleta. Inténtalo nuevamente.',
-          ),
+        return const ResultadoAuth.error(
+          'El servidor devolvió una respuesta incompleta. Inténtalo nuevamente.',
         );
       }
       final usuario = Usuario(
@@ -375,8 +298,8 @@ class AuthApiRepository implements AuthRepository {
         mercadoId: (usuarioJson['mercado_id'] as num?)?.toInt(),
       );
       if (usuario.nombres.isEmpty) {
-        return ResultadoAuth.error(
-          tr('El servidor no devolvió los datos del usuario.'),
+        return const ResultadoAuth.error(
+          'El servidor no devolvió los datos del usuario.',
         );
       }
       SesionState.iniciar(
@@ -385,16 +308,16 @@ class AuthApiRepository implements AuthRepository {
       );
       return ResultadoAuth.ok(usuario);
     } on TimeoutException {
-      return ResultadoAuth.error(
-        tr('El servidor tardó demasiado en responder. Inténtalo nuevamente.'),
+      return const ResultadoAuth.error(
+        'El servidor tardó demasiado en responder. Inténtalo nuevamente.',
       );
     } on http.ClientException {
-      return ResultadoAuth.error(
-        tr('No pudimos conectarnos con MiMercado+. Revisa tu conexión.'),
+      return const ResultadoAuth.error(
+        'No pudimos conectarnos con MiMercado+. Revisa tu conexión.',
       );
     } on FormatException {
-      return ResultadoAuth.error(
-        tr('El servidor devolvió una respuesta que no pudimos leer.'),
+      return const ResultadoAuth.error(
+        'El servidor devolvió una respuesta que no pudimos leer.',
       );
     } on StateError catch (error) {
       return ResultadoAuth.error(error.message);
@@ -408,8 +331,6 @@ class AuthApiRepository implements AuthRepository {
       if (value is List && value.isNotEmpty) return value.first.toString();
       if (value is String && value.isNotEmpty) return value;
     }
-    return tr(
-      'No pudimos completar la operación. Revisa los datos e inténtalo nuevamente.',
-    );
+    return 'No pudimos completar la operación. Revisa los datos e inténtalo nuevamente.';
   }
 }

@@ -1,5 +1,3 @@
-import 'package:mimercado_frontend/core/i18n/idioma.dart';
-
 class Mercado {
   const Mercado({
     required this.id,
@@ -28,7 +26,7 @@ class MercadoCercano {
   String? get distanciaTexto {
     final d = distanciaKm;
     if (d == null) return null;
-    if (d < 1) return tr('a {0} m', [(d * 1000).round()]);
-    return tr('a {0} km', [d.toStringAsFixed(1).replaceAll('.', ',')]);
+    if (d < 1) return 'a ${(d * 1000).round()} m';
+    return 'a ${d.toStringAsFixed(1).replaceAll('.', ',')} km';
   }
 }
