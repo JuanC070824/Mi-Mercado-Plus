@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/app_colors.dart';
 
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
+
 /// Número de la central de ayuda (dato de prueba).
 const numeroSoporte = '01 640 9000';
 
@@ -15,23 +17,24 @@ Future<void> mostrarSoporte(BuildContext context) {
         size: 40,
         color: AppColors.azul,
       ),
-      title: const Text(
-        '¿Necesitas ayuda?',
+      title: Text(
+        tr('¿Necesitas ayuda?'),
         textAlign: TextAlign.center,
         style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
       ),
-      content: const Column(
+      content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            'Llámanos y una persona te atiende. Te ayudamos con tu pedido, '
-            'tu pago o tu cuenta.',
+            tr(
+              'Llámanos y una persona te atiende. Te ayudamos con tu pedido, tu pago o tu cuenta.',
+            ),
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 18, color: AppColors.texto),
           ),
           SizedBox(height: 16),
           Text(
-            'Lunes a sábado, de 6:00 a 20:00',
+            tr('Lunes a sábado, de 6:00 a 20:00'),
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 16, color: AppColors.textoSecundario),
           ),
@@ -56,16 +59,19 @@ Future<void> mostrarSoporte(BuildContext context) {
             backgroundColor: AppColors.azul,
           ),
           icon: const Icon(Icons.call),
-          label: const Text('Llamar a soporte', style: TextStyle(fontSize: 18)),
+          label: Text(tr('Llamar a soporte'), style: TextStyle(fontSize: 18)),
           onPressed: () async {
             // Sin url_launcher todavía: se copia el número para marcarlo.
             await Clipboard.setData(const ClipboardData(text: numeroSoporte));
             if (!ctx.mounted) return;
             Navigator.of(ctx).pop();
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
+              SnackBar(
                 content: Text(
-                  'Copiamos el número $numeroSoporte. Pégalo en tu teléfono para llamar.',
+                  tr(
+                    'Copiamos el número {0}. Pégalo en tu teléfono para llamar.',
+                    [numeroSoporte],
+                  ),
                   style: TextStyle(fontSize: 18),
                 ),
               ),
@@ -75,7 +81,7 @@ Future<void> mostrarSoporte(BuildContext context) {
         TextButton(
           style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
           onPressed: () => Navigator.of(ctx).pop(),
-          child: const Text('Cerrar', style: TextStyle(fontSize: 18)),
+          child: Text(tr('Cerrar'), style: TextStyle(fontSize: 18)),
         ),
       ],
     ),

@@ -7,6 +7,8 @@ import '../../../data/models/repartidor.dart';
 import '../widgets/piezas_repartidor.dart';
 import '../widgets/tarjeta_oferta_repartidor.dart';
 
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
+
 /// Disponibilidad arriba y, debajo, la entrega en curso o las ofertas.
 class RepartidorInicioView extends StatelessWidget {
   const RepartidorInicioView({
@@ -51,7 +53,9 @@ class RepartidorInicioView extends StatelessWidget {
                 icon: const Icon(Icons.delivery_dining_outlined),
                 label: Text(
                   movilidad,
-                  semanticsLabel: 'Movilidad: $movilidad. Cambiar en Perfil',
+                  semanticsLabel: tr('Movilidad: {0}. Cambiar en Perfil', [
+                    movilidad,
+                  ]),
                   style: const TextStyle(fontSize: 17),
                 ),
               ),
@@ -61,7 +65,7 @@ class RepartidorInicioView extends StatelessWidget {
                   children: [
                     Flexible(
                       child: Text(
-                        disponible ? 'Disponible' : 'No disponible',
+                        disponible ? tr('Disponible') : tr('No disponible'),
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
@@ -81,16 +85,16 @@ class RepartidorInicioView extends StatelessWidget {
         if (actual case final p?)
           _EntregaEnCurso(pedido: p, alContinuar: alContinuar, ocupado: ocupado)
         else ...[
-          const TituloRepartidor('Pedidos de tu mercado'),
+          TituloRepartidor(tr('Pedidos de tu mercado')),
           if (ofertas.isEmpty)
             AvisoPantalla(
               icono: Icons.delivery_dining,
               titulo: disponible
-                  ? 'Aún no hay pedidos'
-                  : 'No estás recibiendo pedidos',
+                  ? tr('Aún no hay pedidos')
+                  : tr('No estás recibiendo pedidos'),
               texto: disponible
-                  ? 'Te avisaremos cuando llegue uno.'
-                  : 'Activa «Disponible» para recibirlos.',
+                  ? tr('Te avisaremos cuando llegue uno.')
+                  : tr('Activa «Disponible» para recibirlos.'),
             ),
           for (final p in ofertas)
             TarjetaOfertaRepartidor(
@@ -128,15 +132,18 @@ class _EntregaEnCurso extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const TituloRepartidor('Entrega en curso'),
+            TituloRepartidor(tr('Entrega en curso')),
             Text(
               pedido.clienteNombre,
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
             ),
             Text(
               pedido.estado == EstadoPedido.enCamino
-                  ? 'En camino a ${pedido.direccion}'
-                  : 'Recogidos $recogidos de ${partes.length} puestos',
+                  ? tr('En camino a {0}', [pedido.direccion])
+                  : tr('Recogidos {0} de {1} puestos', [
+                      recogidos,
+                      partes.length,
+                    ]),
               style: const TextStyle(
                 fontSize: 17,
                 color: AppColors.textoSecundario,
@@ -144,7 +151,7 @@ class _EntregaEnCurso extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             AccionRepartidor(
-              'Continuar mi entrega',
+              tr('Continuar mi entrega'),
               alContinuar,
               ocupado: ocupado,
             ),

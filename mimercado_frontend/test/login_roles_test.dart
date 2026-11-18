@@ -71,4 +71,23 @@ void main() {
     expect(find.textContaining('registrado como Cliente'), findsOneWidget);
     expect(find.text('Perfil: Comerciante'), findsOneWidget);
   });
+
+  testWidgets(
+    'el administrador entra por su propio enlace y no ve "Crear mi cuenta"',
+    (tester) async {
+      await tester.pumpWidget(app());
+      appRouter.go('/');
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Administrador'),
+        findsNothing,
+      ); // no es un perfil público
+      await tester.ensureVisible(find.text('Soy administrador del mercado'));
+      await tester.tap(find.text('Soy administrador del mercado'));
+      await tester.pumpAndSettle();
+      expect(find.text('Ingresar'), findsOneWidget); // pantalla de login
+      expect(find.text('Soy administrador del mercado'), findsNothing);
+      expect(find.text('Crear mi cuenta'), findsNothing);
+    },
+  );
 }

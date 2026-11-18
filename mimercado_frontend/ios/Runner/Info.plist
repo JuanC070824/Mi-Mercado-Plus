@@ -4,6 +4,10 @@
 <dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Usamos tu ubicación para llenar tu dirección de entrega.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Usamos el micrófono para que busques a tu casero hablando.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Convertimos lo que dices en texto para buscar a tu casero.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
