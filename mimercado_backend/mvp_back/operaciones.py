@@ -183,7 +183,8 @@ def pedidos_operacion_payload(pedidos, comprador=False, quotes=None, entregas=No
             'ganancia_repartidor_centavos':cents(quote.ganancia_repartidor) if quote else 0,
             'pago_aprobado':pago is not None and pago.estado=='aprobado',
             'pago_pendiente':pago is not None and pago.estado=='procesando',
-            'pago_simulado':pago is not None and (pago.proveedor_transaccion_id or '').startswith('mock_'),
+            'pago_simulado':pago is not None and (pago.proveedor_transaccion_id or '').startswith(('mock_', 'mp_test_')),
+            'pago_proveedor':'mercadopago_prueba' if pago and (pago.proveedor_transaccion_id or '').startswith('mp_test_') else None,
             'entrega_estado':entrega.estado if entrega else None,
             'repartidor':None})
         if entrega:
@@ -291,6 +292,14 @@ def completar(user,pedido_id,codigo,efectivo_confirmado):
         Pago.objects.get_or_create(pedido_id=pedido.pk,estado='aprobado',defaults={
             'cotizacion_id':quote.pk,'metodo':'efectivo','canal':'contra_entrega','monto':total,
             'idempotencia':f'efectivo_entrega_{entrega.pk}','confirmado_en':timezone.now()})
+    if pedido.metodo_pago=='plin':
+        if not efectivo_confirmado:
+            raise ValidationError('Confirma que recibiste el pago por Plin antes de completar la entrega.')
+        Pago.objects.get_or_create(pedido_id=pedido.pk,estado='aprobado',defaults={
+            'cotizacion_id':quote.pk,'metodo':'plin','canal':'transferencia','monto':total,
+            'idempotencia':f'plin_entrega_{entrega.pk}',
+            'proveedor_transaccion_id':f'manual_plin_{entrega.pk}',
+            'confirmado_en':timezone.now()})
     entrega.codigo_validado_en=timezone.now();entrega.entregada_en=timezone.now();entrega.estado='entregada'
     entrega.save(update_fields=['codigo_validado_en','entregada_en','estado'])
     pedido.estado='entregado';pedido.save(update_fields=['estado'])

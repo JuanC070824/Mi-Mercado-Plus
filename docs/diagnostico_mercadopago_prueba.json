@@ -1,0 +1,67 @@
+{
+  "verificado_utc": "2026-11-17T07:29:49.242414+00:00",
+  "entorno": "prueba",
+  "pedido_interno": 4,
+  "orden": {
+    "http": 200,
+    "request_id": "2fed5bd1-8a22-4438-93bb-5b7914fe90b9",
+    "id": "ORDTST01M7M5AADCAMBBMTN3D5WBXT9V",
+    "status": "created",
+    "status_detail": null,
+    "type": "online",
+    "processing_mode": "manual",
+    "country_code": "PER",
+    "currency": "PEN",
+    "total_amount": "7.00",
+    "created_date": "2026-11-17T07:07:37.786Z",
+    "last_updated_date": "2026-11-17T07:07:37.786Z",
+    "transactions_presente": false
+  },
+  "problemas_observados": [
+    "checkout_url: rechazo por correo corporativo tras ingresar tarjeta, cuotas y email; reproducido por usuario con tres correos personales e incógnito",
+    "sandbox_init_point de preferencia generada: pantalla Oh, no, algo anduvo mal tras continuar"
+  ],
+  "cuenta": {
+    "http": 200,
+    "request_id": "7754fc37-3c6f-4c3b-a479-c27b3bcaa989",
+    "pais": "MPE",
+    "cuenta_de_prueba": true,
+    "user_id_coincide": true
+  },
+  "preferencia": {
+    "http": 200,
+    "request_id": "27d5bc63-b322-4c1e-b778-a50d8c311fb6",
+    "id": "3853174322-8f2578df-19bf-44dc-8d57-b9de4ca5b8a3",
+    "site_id": "MPE",
+    "collector_coincide": true,
+    "payer_email_precargado": false
+  },
+  "pagos": {
+    "http": 200,
+    "request_id": "58a044b2-c230-45e5-b0ff-50b7d2439637",
+    "total": 0
+  },
+  "checkout_observado_en_devtools": {
+    "metodo": "PUT",
+    "ruta": "/checkout/v1/payment/api/flow/1075bf31-2aa0-4feb-aca6-56d6e6298874",
+    "http": 200,
+    "request_id": "abc609be-645c-4ace-8404-b65f9105c937",
+    "fecha_respuesta_utc": "2026-11-17T07:31:53Z",
+    "paso_previo": "review",
+    "accion": "pay",
+    "dominio_email_en_payload": "gmail.com",
+    "respuesta_ui_id": "congrats_recover_group",
+    "mensaje": "No puedes pagar con un e-mail corporativo de Mercado Libre. Usa otro.",
+    "errores_tecnicos_en_respuesta_ui": {},
+    "nota": "Se leyó la respuesta y el payload visibles en DevTools. No se guardaron correos completos, tokens de tarjeta, cookies ni credenciales."
+  },
+  "resolucion": {
+    "usuario_confirmo_pago_con_correo_de_cuenta_compradora_de_prueba": true,
+    "order_status": "processed",
+    "order_status_detail": "accredited",
+    "importe_acreditado": "7.00",
+    "integracion_activa": "Orders API",
+    "pago_interno_registrado": true,
+    "pedido_4_visible_para_repartidor": true
+  }
+}

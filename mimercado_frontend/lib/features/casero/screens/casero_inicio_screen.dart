@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../core/state/preferencias_vendedor_state.dart';
 import 'package:go_router/go_router.dart';
@@ -34,6 +35,8 @@ class _CaseroInicioScreenState extends State<CaseroInicioScreen> {
   late final VendedorInicioApiRepository _repository;
   late final PedidosVendedorApiRepository _pedidosRepository;
   final Set<int> _pedidosAvisados = {};
+  Timer? _refresco;
+  bool _leyendo = false;
   bool _alertaAbierta = false;
   VendedorInicio? _inicio;
   bool _cargando = true;
@@ -47,6 +50,11 @@ class _CaseroInicioScreenState extends State<CaseroInicioScreen> {
     _pedidosRepository =
         widget.pedidosRepository ?? PedidosVendedorApiRepository.instancia;
     PuestoVendedorApiRepository.cambios.addListener(_cargar);
+    _refresco = Timer.periodic(const Duration(seconds: 15), (_) {
+      if (_inicioVisible && !_leyendo && !_alertaAbierta && !_cambiandoEstado) {
+        _cargar(silencioso: true);
+      }
+    });
     if (widget.usuario.puestoId == null) {
       _inicio = const VendedorInicio.sinPuesto();
       _cargando = false;
@@ -57,13 +65,16 @@ class _CaseroInicioScreenState extends State<CaseroInicioScreen> {
 
   @override
   void dispose() {
+    _refresco?.cancel();
     PuestoVendedorApiRepository.cambios.removeListener(_cargar);
     super.dispose();
   }
 
-  Future<void> _cargar() async {
+  Future<void> _cargar({bool silencioso = false}) async {
+    if (_leyendo) return;
+    _leyendo = true;
     setState(() {
-      _cargando = true;
+      if (!silencioso) _cargando = true;
       _error = null;
     });
     try {
@@ -86,15 +97,18 @@ class _CaseroInicioScreenState extends State<CaseroInicioScreen> {
     } on VendedorInicioException catch (error) {
       if (!mounted) return;
       setState(() {
-        _error = error.mensaje;
+        if (!silencioso) _error = error.mensaje;
         _cargando = false;
       });
     } on FormatException {
       if (!mounted) return;
       setState(() {
-        _error = 'No pudimos leer la información de tu puesto.';
+        if (!silencioso)
+          _error = 'No pudimos leer la información de tu puesto.';
         _cargando = false;
       });
+    } finally {
+      _leyendo = false;
     }
   }
 
@@ -382,6 +396,40 @@ class _CaseroInicioScreenState extends State<CaseroInicioScreen> {
                 const TituloSeccion('Resumen de hoy'),
                 const SizedBox(height: 7),
                 _Resumen(resumen: resumen),
+                const SizedBox(height: 12),
+                TarjetaApp(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Text(
+                        'Ventas acumuladas',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      Text(
+                        'S/ ${(resumen.acumulado / 100).toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.azul,
+                        ),
+                      ),
+                      const Text(
+                        'Importe neto de ventas pagadas y recogidas por el repartidor.',
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Pagado, pendiente de recoger: S/ ${(resumen.pendienteEntregar / 100).toStringAsFixed(2)}',
+                      ),
+                      const Text(
+                        'Registro interno; no representa un depósito bancario.',
+                        style: TextStyle(color: AppColors.textoSecundario),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
@@ -581,6 +629,16 @@ class _TarjetaPedido extends StatelessWidget {
                   '${pedido.productos} ${pedido.productos == 1 ? 'producto' : 'productos'} · ${_detalleTiempo(pedido)}',
                   style: const TextStyle(color: AppColors.textoSecundario),
                 ),
+                if (pedido.pagoConfirmado) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Pago confirmado · ${pedido.pagoMetodo ?? 'Cliente'}',
+                    style: const TextStyle(
+                      color: AppColors.exitoTexto,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 9),
                 Wrap(
                   alignment: WrapAlignment.spaceBetween,

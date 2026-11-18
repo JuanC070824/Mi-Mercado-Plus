@@ -392,6 +392,7 @@ class _RepartidorOperacionesScreenState
     }
     return RepartidorRutaView(
       pedido: actual,
+      datos: _repo.datosDe(actual.id),
       ocupado: _ocupado,
       alRecoger: (pp) => _confirmarRecojo(actual, pp),
       alAvisar: () => _hacer(

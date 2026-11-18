@@ -1,3 +1,4 @@
+import '../../../core/widgets/aviso_pago_pedido.dart';
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/componentes_app.dart';
@@ -9,12 +10,14 @@ class RepartidorRutaView extends StatelessWidget {
   const RepartidorRutaView({
     super.key,
     required this.pedido,
+    this.datos = const {},
     required this.ocupado,
     required this.alRecoger,
     required this.alAvisar,
     required this.alSalir,
   });
   final Pedido pedido;
+  final Map<String, dynamic> datos;
   final bool ocupado;
   final ValueChanged<PedidoPuesto> alRecoger;
   final VoidCallback alAvisar;
@@ -42,6 +45,10 @@ class RepartidorRutaView extends StatelessWidget {
             fontSize: 17,
             color: AppColors.textoSecundario,
           ),
+        ),
+        AvisoPagoPedido(
+          datos: datos,
+          ganancia: (datos['ganancia_repartidor_centavos'] as num?)?.toInt(),
         ),
         TituloRepartidor('Recogidos $recogidos de ${partes.length} puestos'),
         LinearProgressIndicator(

@@ -1,3 +1,4 @@
+import '../../../core/widgets/aviso_pago_pedido.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -214,6 +215,7 @@ class _CaseroPedidoScreenState extends State<CaseroPedidoScreen>
           style: TextStyle(fontSize: 16),
         ),
         const SizedBox(height: 12),
+        AvisoPagoPedido(datos: _repo.datosDe(p.id)),
         _cliente(p, parte),
         const SizedBox(height: 16),
         ..._segunEstado(p, parte),
