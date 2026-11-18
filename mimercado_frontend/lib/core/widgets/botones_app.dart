@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
+
 // Este es el botón azul y el botón con borde
 class BotonPrincipal extends StatelessWidget {
   const BotonPrincipal({
@@ -29,13 +31,13 @@ class BotonPrincipal extends StatelessWidget {
           shape: const StadiumBorder(),
         ),
         child: cargando
-            ? const SizedBox(
+            ? SizedBox(
                 width: 26,
                 height: 26,
                 child: CircularProgressIndicator(
                   strokeWidth: 3,
                   color: AppColors.blanco,
-                  semanticsLabel: 'Cargando',
+                  semanticsLabel: tr('Cargando'),
                 ),
               )
             : Text(

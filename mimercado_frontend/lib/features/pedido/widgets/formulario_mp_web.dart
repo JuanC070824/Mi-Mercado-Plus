@@ -4,6 +4,8 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:web/web.dart' as web;
 
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
+
 class FormularioMp extends StatelessWidget {
   const FormularioMp({
     super.key,
@@ -17,7 +19,7 @@ class FormularioMp extends StatelessWidget {
   @override
   Widget build(BuildContext context) => FilledButton.icon(
     icon: const Icon(Icons.credit_card),
-    label: const Text('Completar pago aquí'),
+    label: Text(tr('Completar pago aquí')),
     style: FilledButton.styleFrom(
       minimumSize: const Size(48, 56),
       textStyle: const TextStyle(fontSize: 19),
@@ -28,9 +30,9 @@ class FormularioMp extends StatelessWidget {
       builder: (dialogContext) => Dialog.fullscreen(
         child: Scaffold(
           appBar: AppBar(
-            title: const Text('Paga tu pedido'),
+            title: Text(tr('Paga tu pedido')),
             leading: IconButton(
-              tooltip: 'Volver al pedido',
+              tooltip: tr('Volver al pedido'),
               icon: const Icon(Icons.close),
               onPressed: () => Navigator.of(dialogContext).pop(),
             ),
@@ -42,7 +44,9 @@ class FormularioMp extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
                   child: Text(
-                    'Total: S/ ${monto.toStringAsFixed(2)} · Pago de prueba',
+                    tr('Total: S/ {0} · Pago de prueba', [
+                      monto.toStringAsFixed(2),
+                    ]),
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
@@ -159,7 +163,7 @@ class _FormularioMpFrameState extends State<_FormularioMpFrame> {
     onElementCreated: (element) {
       final frame = element as web.HTMLIFrameElement;
       _frame = frame;
-      frame.title = 'Formulario seguro de Mercado Pago';
+      frame.title = tr('Formulario seguro de Mercado Pago');
       frame.style.border = '0';
       frame.style.width = '100%';
       frame.style.height = '100%';

@@ -11,6 +11,8 @@ import '../../../core/widgets/mensaje_error.dart';
 import '../../../data/models/rol.dart';
 import '../../../data/repositories/auth_repository.dart';
 
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
+
 //PANTALLA DE LOGIN (la usan los 3 perfiles: cliente, casero y repartidor)
 
 class ClienteLoginScreen extends StatefulWidget {
@@ -71,8 +73,9 @@ class _ClienteLoginScreenState extends State<ClienteLoginScreen> {
     if ((widget.rol == Rol.repartidor || widget.rol == Rol.administrador) &&
         !ApiConfig.configurada) {
       setState(
-        () => _error =
-            'No está configurada la conexión al servicio de repartidores. Solicita al responsable iniciar la versión conectada al servidor.',
+        () => _error = tr(
+          'No está configurada la conexión al servicio de repartidores. Solicita al responsable iniciar la versión conectada al servidor.',
+        ),
       );
       return;
     }
@@ -101,7 +104,7 @@ class _ClienteLoginScreenState extends State<ClienteLoginScreen> {
     return Scaffold(
       body: Column(
         children: [
-          const EncabezadoAzul(titulo: 'Iniciar sesión'),
+          EncabezadoAzul(titulo: tr('Iniciar sesión')),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
@@ -117,8 +120,8 @@ class _ClienteLoginScreenState extends State<ClienteLoginScreen> {
                           _InsigniaPerfil(rol: widget.rol),
                           const SizedBox(height: 20),
                           CampoTextoApp(
-                            etiqueta: 'Celular',
-                            hint: '9 dígitos',
+                            etiqueta: tr('Celular'),
+                            hint: tr('9 dígitos'),
                             prefijo: '+51 ',
                             controller: _celular,
                             teclado: TextInputType.phone,
@@ -133,7 +136,7 @@ class _ClienteLoginScreenState extends State<ClienteLoginScreen> {
                           ),
                           const SizedBox(height: 12),
                           CampoTextoApp(
-                            etiqueta: 'Contraseña',
+                            etiqueta: tr('Contraseña'),
                             controller: _password,
                             esPassword: true,
                             icono: Icons.lock_outline,
@@ -142,7 +145,7 @@ class _ClienteLoginScreenState extends State<ClienteLoginScreen> {
                             onSubmitted: (_) => _ingresar(),
                             validator: (v) => Validadores.requerido(
                               v,
-                              campo: 'La contraseña',
+                              campo: tr('La contraseña'),
                             ),
                           ),
                           Align(
@@ -150,8 +153,8 @@ class _ClienteLoginScreenState extends State<ClienteLoginScreen> {
                             child: TextButton(
                               onPressed: () =>
                                   context.push('/recuperar', extra: widget.rol),
-                              child: const Text(
-                                '¿Olvidaste tu contraseña?',
+                              child: Text(
+                                tr('¿Olvidaste tu contraseña?'),
                                 style: TextStyle(
                                   fontSize: 16,
                                   color: AppColors.azul,
@@ -165,19 +168,17 @@ class _ClienteLoginScreenState extends State<ClienteLoginScreen> {
                             const SizedBox(height: 16),
                           ],
                           BotonPrincipal(
-                            texto: 'Ingresar',
+                            texto: tr('Ingresar'),
                             cargando: _cargando,
                             onPressed: _ingresar,
                           ),
                           if (ClienteLoginScreen.registroPorRol[widget.rol]
                               case final registro?) ...[
                             const SizedBox(height: 24),
-                            const _SeparadorTexto(
-                              '¿Primera vez en MiMercado+?',
-                            ),
+                            _SeparadorTexto(tr('¿Primera vez en MiMercado+?')),
                             const SizedBox(height: 16),
                             BotonSecundario(
-                              texto: 'Crear mi cuenta',
+                              texto: tr('Crear mi cuenta'),
                               onPressed: () => context.push(registro),
                             ),
                           ],
@@ -188,8 +189,9 @@ class _ClienteLoginScreenState extends State<ClienteLoginScreen> {
                               minimumSize: const Size(48, 48),
                             ),
                             child: Text(
-                              '¿No eres ${widget.rol.etiqueta.toLowerCase()}? '
-                              'Cambiar de perfil',
+                              tr('¿No eres {0}? Cambiar de perfil', [
+                                widget.rol.etiqueta.toLowerCase(),
+                              ]),
                               textAlign: TextAlign.center,
                               style: const TextStyle(
                                 fontSize: 16,
@@ -242,7 +244,7 @@ class _InsigniaPerfil extends StatelessWidget {
             const SizedBox(width: 8),
             Flexible(
               child: Text(
-                'Perfil: ${rol.etiqueta}',
+                tr('Perfil: {0}', [rol.etiqueta]),
                 style: const TextStyle(
                   color: AppColors.azul,
                   fontSize: 16,

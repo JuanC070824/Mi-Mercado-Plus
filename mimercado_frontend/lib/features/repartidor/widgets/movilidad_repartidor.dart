@@ -5,6 +5,8 @@ import '../../../data/repositories/pedido_repository.dart';
 import '../../../data/repositories/pedidos_api_repository.dart';
 import 'mercado_repartidor.dart';
 
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
+
 /// Una movilidad activa por turno; se puede cambiar al terminar el reparto.
 class MovilidadRepartidor extends StatefulWidget {
   const MovilidadRepartidor({super.key, this.repository});
@@ -64,7 +66,7 @@ class _MovilidadRepartidorState extends State<MovilidadRepartidor> {
   Future<void> _guardar() async {
     if (_guardando) return;
     if (_movilidad == Movilidad.otro && _descripcion.text.trim().isEmpty) {
-      setState(() => _error = 'Describe la movilidad que utilizarás.');
+      setState(() => _error = tr('Describe la movilidad que utilizarás.'));
       return;
     }
     setState(() {
@@ -78,7 +80,7 @@ class _MovilidadRepartidorState extends State<MovilidadRepartidor> {
         _descripcion.text.trim(),
       );
       await _cargar();
-      if (mounted) avisar(context, 'Tu movilidad quedó guardada.');
+      if (mounted) avisar(context, tr('Tu movilidad quedó guardada.'));
     } on PedidoException catch (e) {
       if (mounted) setState(() => _error = e.mensaje);
     } finally {
@@ -96,35 +98,32 @@ class _MovilidadRepartidorState extends State<MovilidadRepartidor> {
         children: [
           Semantics(
             header: true,
-            child: const Text(
-              'Mi mercado y movilidad',
+            child: Text(
+              tr('Mi mercado y movilidad'),
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
             ),
           ),
           if (_cargando)
-            const LinearProgressIndicator(
-              semanticsLabel: 'Cargando tu movilidad',
-            )
+            LinearProgressIndicator(semanticsLabel: tr('Cargando tu movilidad'))
           else if (_datos != null) ...[
             const SizedBox(height: 12),
             MercadoRepartidor(datos: _datos!),
             const SizedBox(height: 16),
           ],
           if (!_cargando && _datos?['autorizado'] == true) ...[
-            const Text(
-              'Puedes usar diferentes movilidades. Elige una para tu próximo reparto.',
+            Text(
+              tr(
+                'Puedes usar diferentes movilidades. Elige una para tu próximo reparto.',
+              ),
               style: TextStyle(fontSize: 18),
             ),
             if (activa)
-              const Text(
-                'Termina tu entrega para cambiar de movilidad.',
+              Text(
+                tr('Termina tu entrega para cambiar de movilidad.'),
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
               ),
             const SizedBox(height: 16),
-            const Text(
-              'Movilidad para repartir',
-              style: TextStyle(fontSize: 18),
-            ),
+            Text(tr('Movilidad para repartir'), style: TextStyle(fontSize: 18)),
             DropdownButtonFormField<Movilidad>(
               key: ValueKey(_datos!['movilidad']),
               initialValue: _movilidad,
@@ -156,10 +155,7 @@ class _MovilidadRepartidorState extends State<MovilidadRepartidor> {
                 _movilidad == Movilidad.mototaxi ||
                 _movilidad == Movilidad.otro) ...[
               const SizedBox(height: 12),
-              const Text(
-                'Placa, si corresponde',
-                style: TextStyle(fontSize: 18),
-              ),
+              Text(tr('Placa, si corresponde'), style: TextStyle(fontSize: 18)),
               TextField(
                 controller: _placa,
                 enabled: editable,
@@ -169,10 +165,7 @@ class _MovilidadRepartidorState extends State<MovilidadRepartidor> {
               ),
             ],
             if (_movilidad == Movilidad.otro) ...[
-              const Text(
-                'Describe tu movilidad',
-                style: TextStyle(fontSize: 18),
-              ),
+              Text(tr('Describe tu movilidad'), style: TextStyle(fontSize: 18)),
               TextField(
                 controller: _descripcion,
                 enabled: editable,
@@ -190,7 +183,7 @@ class _MovilidadRepartidorState extends State<MovilidadRepartidor> {
               ),
               onPressed: editable ? _guardar : null,
               child: Text(
-                _guardando ? 'Guardando…' : 'Guardar movilidad',
+                _guardando ? tr('Guardando…') : tr('Guardar movilidad'),
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 20),
               ),
@@ -204,7 +197,7 @@ class _MovilidadRepartidorState extends State<MovilidadRepartidor> {
           if (!_cargando && _datos == null)
             TextButton(
               onPressed: _cargar,
-              child: const Text('Reintentar', style: TextStyle(fontSize: 18)),
+              child: Text(tr('Reintentar'), style: TextStyle(fontSize: 18)),
             ),
         ],
       ),

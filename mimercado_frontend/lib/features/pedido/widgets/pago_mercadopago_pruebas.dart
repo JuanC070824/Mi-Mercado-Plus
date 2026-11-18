@@ -11,6 +11,8 @@ import '../../../data/models/pedido.dart';
 import '../../../data/repositories/mercadopago_api_repository.dart';
 import '../../../data/repositories/pedido_repository.dart';
 
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
+
 class PagoMercadoPagoPruebas extends StatefulWidget {
   const PagoMercadoPagoPruebas({
     super.key,
@@ -108,8 +110,9 @@ class _PagoMercadoPagoPruebasState extends State<PagoMercadoPagoPruebas>
     } catch (_) {
       if (mounted) {
         setState(
-          () =>
-              _error = 'No pudimos completar la consulta. Inténtalo de nuevo.',
+          () => _error = tr(
+            'No pudimos completar la consulta. Inténtalo de nuevo.',
+          ),
         );
       }
     } finally {
@@ -175,8 +178,10 @@ class _PagoMercadoPagoPruebasState extends State<PagoMercadoPagoPruebas>
                 webOnlyWindowName: '_blank',
               ));
       if (!abierto) {
-        throw const PedidoException(
-          'El navegador no pudo abrir el checkout. Copia el enlace y ábrelo en una ventana de incógnito.',
+        throw PedidoException(
+          tr(
+            'El navegador no pudo abrir el checkout. Copia el enlace y ábrelo en una ventana de incógnito.',
+          ),
         );
       }
     });
@@ -184,25 +189,38 @@ class _PagoMercadoPagoPruebasState extends State<PagoMercadoPagoPruebas>
 
   String get _mensaje {
     if (_aprobado && _estado?['pago_interno_aprobado'] == true) {
-      return 'Pago confirmado. Continuamos con la preparación y el reparto de tu pedido.';
+      return tr(
+        'Pago confirmado. Continuamos con la preparación y el reparto de tu pedido.',
+      );
     }
     if (_aprobado) {
-      return 'Pago aprobado en Mercado Pago. Consulta de nuevo para completar su registro interno; no vuelvas a pagar.';
+      return tr(
+        'Pago aprobado en Mercado Pago. Consulta de nuevo para completar su registro interno; no vuelvas a pagar.',
+      );
     }
     return switch (_estado?['estado']) {
-      'created' =>
+      'created' => tr(
         'El importe final está listo. Completa el pago para continuar con el reparto.',
-      'processing' || 'action_required' =>
+      ),
+      'processing' || 'action_required' => tr(
         'El pago requiere confirmación o una acción en Mercado Pago. Consulta su estado antes de volver a intentarlo.',
-      'failed' => 'El pago fue rechazado. Revisa el resultado en Mercado Pago.',
-      'canceled' || 'expired' =>
+      ),
+      'failed' => tr(
+        'El pago fue rechazado. Revisa el resultado en Mercado Pago.',
+      ),
+      'canceled' || 'expired' => tr(
         'El pago se canceló o venció. Revisa el resultado en Mercado Pago.',
-      'refunded' || 'charged_back' =>
+      ),
+      'refunded' || 'charged_back' => tr(
         'El pago tiene una devolución o contracargo y no se considera aprobado.',
-      'processed' =>
+      ),
+      'processed' => tr(
         'El importe todavía no está completamente acreditado. Revisa el resultado en Mercado Pago.',
-      'sin_iniciar' => 'Completa el pago del precio final para continuar.',
-      _ => 'Consulta el estado para comprobar el resultado en Mercado Pago.',
+      ),
+      'sin_iniciar' => tr('Completa el pago del precio final para continuar.'),
+      _ => tr(
+        'Consulta el estado para comprobar el resultado en Mercado Pago.',
+      ),
     };
   }
 
@@ -224,26 +242,28 @@ class _PagoMercadoPagoPruebasState extends State<PagoMercadoPagoPruebas>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
-            'Paga con Mercado Pago',
+          Text(
+            tr('Paga con Mercado Pago'),
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
           ),
           Text(
             soles(widget.pedido.cotizacion?.totalCliente ?? 0),
             style: const TextStyle(fontSize: 27, fontWeight: FontWeight.w800),
           ),
-          const Text(
-            'Demostración académica · sin dinero real',
+          Text(
+            tr('Demostración académica · sin dinero real'),
             style: TextStyle(fontSize: 17),
           ),
           const SizedBox(height: 12),
           if (_ocupado)
-            const LinearProgressIndicator(
-              semanticsLabel: 'Consultando Mercado Pago',
+            LinearProgressIndicator(
+              semanticsLabel: tr('Consultando Mercado Pago'),
             ),
           if (_config != null && !_listo)
-            const Text(
-              'El pago en línea no está disponible en este momento. Inténtalo de nuevo.',
+            Text(
+              tr(
+                'El pago en línea no está disponible en este momento. Inténtalo de nuevo.',
+              ),
               style: TextStyle(fontSize: 17),
             ),
           if (_estado != null)
@@ -260,8 +280,10 @@ class _PagoMercadoPagoPruebasState extends State<PagoMercadoPagoPruebas>
                   : (_checkout == null ? _preparar : _abrir),
               child: Text(
                 _checkout == null
-                    ? 'Continuar al pago'
-                    : 'Pagar ${soles(widget.pedido.cotizacion?.totalCliente ?? 0)}',
+                    ? tr('Continuar al pago')
+                    : tr('Pagar {0}', [
+                        soles(widget.pedido.cotizacion?.totalCliente ?? 0),
+                      ]),
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 20),
               ),
@@ -276,15 +298,15 @@ class _PagoMercadoPagoPruebasState extends State<PagoMercadoPagoPruebas>
                         ClipboardData(text: _checkout.toString()),
                       );
                       if (context.mounted) {
-                        avisar(context, 'Enlace de pago copiado.');
+                        avisar(context, tr('Enlace de pago copiado.'));
                       }
                     },
-              child: const Text('Copiar enlace de pago'),
+              child: Text(tr('Copiar enlace de pago')),
             ),
           if (_listo)
             TextButton(
               onPressed: _ocupado ? null : _consultar,
-              child: const Text('Ya pagué, verificar'),
+              child: Text(tr('Ya pagué, verificar')),
             ),
           if (_error != null)
             Semantics(
@@ -297,7 +319,7 @@ class _PagoMercadoPagoPruebasState extends State<PagoMercadoPagoPruebas>
           if (_config == null || !_listo)
             TextButton(
               onPressed: _ocupado ? null : _cargar,
-              child: const Text('Reintentar'),
+              child: Text(tr('Reintentar')),
             ),
         ],
       ),

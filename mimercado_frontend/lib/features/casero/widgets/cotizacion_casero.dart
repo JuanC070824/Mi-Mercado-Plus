@@ -6,6 +6,8 @@ import '../../../data/models/pedido.dart';
 import '../../../data/models/cotizacion.dart';
 import 'resumen_precio_casero.dart';
 
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
+
 String cantidadExactaCasero(double valor, String simbolo) =>
     '${valor.toStringAsFixed(3).replaceFirst(RegExp(r'\.?0+$'), '')} $simbolo';
 
@@ -25,8 +27,8 @@ class CotizacionCasero extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-              'Productos y precios finales',
+            Text(
+              tr('Productos y precios finales'),
               style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800),
             ),
             for (final d in cotizacion.detalles)
@@ -39,7 +41,7 @@ class CotizacionCasero extends StatelessWidget {
               ),
             if (cotizacion.nota?.trim().isNotEmpty ?? false)
               Text(
-                'Nota: ${cotizacion.nota}',
+                tr('Nota: {0}', [cotizacion.nota]),
                 style: const TextStyle(fontSize: 18),
               ),
           ],
@@ -66,19 +68,19 @@ class SeguimientoPuestoCasero extends StatelessWidget {
       EstadoPedidoPuesto.recogido => 4,
       _ => 0,
     };
-    const pasos = [
-      'Pedido aceptado',
-      'Precio enviado',
-      'Preparando la bolsa',
-      'Listo para recojo',
-      'Bolsa entregada al repartidor',
+    final pasos = [
+      tr('Pedido aceptado'),
+      tr('Precio enviado'),
+      tr('Preparando la bolsa'),
+      tr('Listo para recojo'),
+      tr('Bolsa entregada al repartidor'),
     ];
     return TarjetaApp(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
-            'Estado de tu parte',
+          Text(
+            tr('Estado de tu parte'),
             style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800),
           ),
           for (var i = 0; i < pasos.length; i++)

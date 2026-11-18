@@ -6,6 +6,8 @@ import '../../../core/widgets/componentes_app.dart';
 import '../../../data/models/cotizacion.dart';
 import '../../../data/models/pedido.dart';
 
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
+
 /// Resumen de la parte que corresponde al vendedor, sin sumar otros puestos.
 class TarjetaPedidoCasero extends StatelessWidget {
   const TarjetaPedidoCasero({
@@ -52,7 +54,7 @@ class TarjetaPedidoCasero extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  'Ver pedido',
+                  tr('Ver pedido'),
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
@@ -77,7 +79,7 @@ class TarjetaPedidoCasero extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            '$cantidad ${cantidad == 1 ? 'producto' : 'productos'} · '
+            '$cantidad ${cantidad == 1 ? tr('producto') : tr('productos')} · '
             '${fechaCorta(pedido.creadoEn.toLocal())}',
             style: const TextStyle(
               fontSize: 16,
@@ -86,7 +88,7 @@ class TarjetaPedidoCasero extends StatelessWidget {
           ),
           if ((parte.listaMandado ?? '').trim().isNotEmpty) ...[
             const SizedBox(height: 6),
-            const Text('Con lista de mandado', style: TextStyle(fontSize: 16)),
+            Text(tr('Con lista de mandado'), style: TextStyle(fontSize: 16)),
           ],
           const SizedBox(height: 12),
           Wrap(
@@ -96,8 +98,8 @@ class TarjetaPedidoCasero extends StatelessWidget {
             children: [
               Text(
                 precioFinal
-                    ? 'Precio final de tu puesto'
-                    : 'Estimado de tu puesto',
+                    ? tr('Precio final de tu puesto')
+                    : tr('Estimado de tu puesto'),
                 style: const TextStyle(
                   fontSize: 16,
                   color: AppColors.textoSecundario,

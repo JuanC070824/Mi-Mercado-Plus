@@ -10,6 +10,8 @@ import '../models/direccion.dart';
 import '../models/pedido.dart';
 import 'pedido_repository.dart';
 
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
+
 class PedidoClienteApiRepository {
   PedidoClienteApiRepository({http.Client? client, String? baseUrl})
     : _client = client ?? http.Client(),
@@ -26,12 +28,12 @@ class PedidoClienteApiRepository {
     required String celular,
   }) async {
     if (direccion.id == null) {
-      throw const PedidoException(
-        'Guarda una dirección de entrega antes de pedir.',
+      throw PedidoException(
+        tr('Guarda una dirección de entrega antes de pedir.'),
       );
     }
     final token = SesionState.token;
-    if (token == null) throw const PedidoException('Tu sesión venció.');
+    if (token == null) throw PedidoException(tr('Tu sesión venció.'));
     try {
       final res = await _client
           .post(
@@ -47,8 +49,10 @@ class PedidoClienteApiRepository {
           )
           .timeout(const Duration(seconds: 20));
       if (res.statusCode >= 500) {
-        throw const PedidoException(
-          'El servidor no pudo crear el pedido. Tu canasta se conserva. Inténtalo nuevamente.',
+        throw PedidoException(
+          tr(
+            'El servidor no pudo crear el pedido. Tu canasta se conserva. Inténtalo nuevamente.',
+          ),
         );
       }
       final decoded = jsonDecode(res.body);
@@ -57,7 +61,7 @@ class PedidoClienteApiRepository {
           : <String, dynamic>{};
       if (res.statusCode != 201) {
         throw PedidoException(
-          data['detail']?.toString() ?? 'No pudimos enviar el pedido.',
+          data['detail']?.toString() ?? tr('No pudimos enviar el pedido.'),
         );
       }
       final id = (data['id'] as num).toInt();
@@ -81,15 +85,15 @@ class PedidoClienteApiRepository {
     } on PedidoException {
       rethrow;
     } on TimeoutException {
-      throw const PedidoException(
-        'El servidor tardó demasiado en crear el pedido.',
+      throw PedidoException(
+        tr('El servidor tardó demasiado en crear el pedido.'),
       );
     } on FormatException {
-      throw const PedidoException(
-        'El servidor devolvió una respuesta inválida al crear el pedido.',
+      throw PedidoException(
+        tr('El servidor devolvió una respuesta inválida al crear el pedido.'),
       );
     } catch (_) {
-      throw const PedidoException('No pudimos conectarnos con MiMercado+.');
+      throw PedidoException(tr('No pudimos conectarnos con MiMercado+.'));
     }
   }
 }

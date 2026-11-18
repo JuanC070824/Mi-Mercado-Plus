@@ -6,6 +6,8 @@ import '../../../data/models/repartidor.dart';
 import '../../../data/models/usuario.dart';
 import '../../../data/repositories/administracion_api_repository.dart';
 
+import 'package:mimercado_frontend/core/i18n/idioma.dart';
+
 /// Administrador del mercado (RF-05, RF-18): solicitudes de repartidores y mercados.
 class AdminScreen extends StatelessWidget {
   const AdminScreen({
@@ -26,7 +28,7 @@ class AdminScreen extends StatelessWidget {
       child: Scaffold(
         body: Column(
           children: [
-            const EncabezadoAzul(titulo: 'Administración', mostrarAtras: false),
+            EncabezadoAzul(titulo: tr('Administración'), mostrarAtras: false),
             Material(
               color: AppColors.blanco,
               child: Column(
@@ -37,7 +39,7 @@ class AdminScreen extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            'Hola, ${usuario.nombres.split(' ').first}',
+                            tr('Hola, {0}', [usuario.nombres.split(' ').first]),
                             style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w700,
@@ -50,22 +52,22 @@ class AdminScreen extends StatelessWidget {
                           ),
                           onPressed: alCerrarSesion,
                           icon: const Icon(Icons.logout),
-                          label: const Text(
-                            'Cerrar sesión',
+                          label: Text(
+                            tr('Cerrar sesión'),
                             style: TextStyle(fontSize: 16),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const TabBar(
+                  TabBar(
                     labelStyle: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
                     ),
                     tabs: [
-                      Tab(text: 'Repartidores'),
-                      Tab(text: 'Mercados'),
+                      Tab(text: tr('Repartidores')),
+                      Tab(text: tr('Mercados')),
                     ],
                   ),
                 ],
@@ -131,10 +133,10 @@ abstract class _ListaState<W extends StatefulWidget, T> extends State<W> {
     if (error != null && datos == null) {
       return AvisoPantalla(
         icono: Icons.wifi_off,
-        titulo: 'No pudimos cargar',
+        titulo: tr('No pudimos cargar'),
         texto: error,
         esError: true,
-        textoBoton: 'Reintentar',
+        textoBoton: tr('Reintentar'),
         alTocar: cargar,
       );
     }
@@ -166,12 +168,12 @@ class _RepartidoresState
   Widget build(BuildContext context) => lista(
     (datos) => datos.isEmpty
         ? [
-            const AvisoPantalla(
+            AvisoPantalla(
               icono: Icons.delivery_dining,
-              titulo: 'No hay solicitudes',
-              texto:
-                  'Cuando un repartidor pida trabajar en un mercado, '
-                  'aparecerá aquí.',
+              titulo: tr('No hay solicitudes'),
+              texto: tr(
+                'Cuando un repartidor pida trabajar en un mercado, aparecerá aquí.',
+              ),
             ),
           ]
         : [for (final s in datos) _tarjeta(s)],
@@ -210,13 +212,13 @@ class _RepartidoresState
                   ),
                   const SizedBox(height: 8),
                   s.autorizado
-                      ? const EtiquetaEstado(
-                          texto: 'Autorizado',
+                      ? EtiquetaEstado(
+                          texto: tr('Autorizado'),
                           icono: Icons.verified_outlined,
                           tipo: TipoEstado.exito,
                         )
-                      : const EtiquetaEstado(
-                          texto: 'Pendiente de autorizar',
+                      : EtiquetaEstado(
+                          texto: tr('Pendiente de autorizar'),
                           icono: Icons.schedule,
                           tipo: TipoEstado.aviso,
                         ),
@@ -234,15 +236,16 @@ class _RepartidoresState
                     ? null
                     : () => hacer(
                         () => widget.repo.autorizar(s.id, autorizar: true),
-                        '${s.nombre} ya puede recibir pedidos.',
+                        tr('{0} ya puede recibir pedidos.', [s.nombre]),
                       ),
                 icon: const Icon(Icons.check),
-                label: const Text('Autorizar', style: TextStyle(fontSize: 18)),
+                label: Text(tr('Autorizar'), style: TextStyle(fontSize: 18)),
               )
             else if (s.entregaEnCurso)
-              const Text(
-                'Tiene una entrega en curso: podrás quitarle la autorización '
-                'cuando termine.',
+              Text(
+                tr(
+                  'Tiene una entrega en curso: podrás quitarle la autorización cuando termine.',
+                ),
                 style: TextStyle(
                   fontSize: 16,
                   color: AppColors.textoSecundario,
@@ -258,11 +261,11 @@ class _RepartidoresState
                     ? null
                     : () => hacer(
                         () => widget.repo.autorizar(s.id, autorizar: false),
-                        '${s.nombre} ya no recibe pedidos.',
+                        tr('{0} ya no recibe pedidos.', [s.nombre]),
                       ),
                 icon: const Icon(Icons.block),
-                label: const Text(
-                  'Quitar autorización',
+                label: Text(
+                  tr('Quitar autorización'),
                   style: TextStyle(fontSize: 17),
                 ),
               ),
@@ -295,7 +298,7 @@ class _MercadosState extends _ListaState<_Mercados, MercadoAdmin> {
         ),
         onPressed: ocupado ? null : () => _formulario(),
         icon: const Icon(Icons.add),
-        label: const Text('Nuevo mercado', style: TextStyle(fontSize: 18)),
+        label: Text(tr('Nuevo mercado'), style: TextStyle(fontSize: 18)),
       ),
     ),
     (datos) => [for (final m in datos) _tarjeta(m)],
@@ -319,7 +322,7 @@ class _MercadosState extends _ListaState<_Mercados, MercadoAdmin> {
             ),
           ),
           Text(
-            '${m.puestos} ${m.puestos == 1 ? 'puesto' : 'puestos'}',
+            '${m.puestos} ${m.puestos == 1 ? tr('puesto') : tr('puestos')}',
             style: const TextStyle(fontSize: 16),
           ),
           Material(
@@ -334,11 +337,15 @@ class _MercadosState extends _ListaState<_Mercados, MercadoAdmin> {
                         'estado': v ? 'activo' : 'suspendido',
                       }),
                       v
-                          ? '${m.nombre} vuelve a aparecer para los clientes.'
-                          : '${m.nombre} ya no aparece para los clientes.',
+                          ? tr('{0} vuelve a aparecer para los clientes.', [
+                              m.nombre,
+                            ])
+                          : tr('{0} ya no aparece para los clientes.', [
+                              m.nombre,
+                            ]),
                     ),
               title: Text(
-                m.activo ? 'Activo' : 'Suspendido',
+                m.activo ? tr('Activo') : tr('Suspendido'),
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
@@ -352,7 +359,7 @@ class _MercadosState extends _ListaState<_Mercados, MercadoAdmin> {
               style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
               onPressed: ocupado ? null : () => _formulario(m),
               icon: const Icon(Icons.edit_outlined),
-              label: const Text('Editar datos', style: TextStyle(fontSize: 16)),
+              label: Text(tr('Editar datos'), style: TextStyle(fontSize: 16)),
             ),
           ),
         ],
@@ -366,11 +373,11 @@ class _MercadosState extends _ListaState<_Mercados, MercadoAdmin> {
     final distrito = TextEditingController(text: m?.distrito);
     final clave = GlobalKey<FormState>();
     String? requerido(String? v) =>
-        (v ?? '').trim().length < 3 ? 'Escribe al menos 3 letras' : null;
+        (v ?? '').trim().length < 3 ? tr('Escribe al menos 3 letras') : null;
     final guardar = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(m == null ? 'Nuevo mercado' : 'Editar mercado'),
+        title: Text(m == null ? tr('Nuevo mercado') : tr('Editar mercado')),
         content: Form(
           key: clave,
           child: SingleChildScrollView(
@@ -379,18 +386,18 @@ class _MercadosState extends _ListaState<_Mercados, MercadoAdmin> {
               children: [
                 TextFormField(
                   controller: nombre,
-                  decoration: const InputDecoration(labelText: 'Nombre'),
+                  decoration: InputDecoration(labelText: tr('Nombre')),
                   validator: requerido,
                 ),
                 TextFormField(
                   controller: direccion,
-                  decoration: const InputDecoration(labelText: 'Dirección'),
+                  decoration: InputDecoration(labelText: tr('Dirección')),
                   validator: requerido,
                 ),
                 TextFormField(
                   controller: distrito,
-                  decoration: const InputDecoration(
-                    labelText: 'Distrito (opcional)',
+                  decoration: InputDecoration(
+                    labelText: tr('Distrito (opcional)'),
                   ),
                 ),
               ],
@@ -400,13 +407,13 @@ class _MercadosState extends _ListaState<_Mercados, MercadoAdmin> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancelar'),
+            child: Text(tr('Cancelar')),
           ),
           FilledButton(
             onPressed: () {
               if (clave.currentState!.validate()) Navigator.of(ctx).pop(true);
             },
-            child: const Text('Guardar'),
+            child: Text(tr('Guardar')),
           ),
         ],
       ),
@@ -429,7 +436,7 @@ class _MercadosState extends _ListaState<_Mercados, MercadoAdmin> {
               'direccion': datos.$2,
               'distrito': datos.$3,
             }),
-      m == null ? 'Mercado creado.' : 'Datos guardados.',
+      m == null ? tr('Mercado creado.') : tr('Datos guardados.'),
     );
   }
 }
