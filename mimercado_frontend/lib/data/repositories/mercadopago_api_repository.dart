@@ -22,8 +22,33 @@ class MercadoPagoApiRepository {
     return data;
   }
 
-  Future<Map<String, dynamic>> configuracion() =>
-      _solicitar('GET', '/api/pagos/mercadopago/configuracion/');
+  // La configuración del servidor casi no cambia: se recuerda unos minutos y
+  // abrir el pago ya no espera esa consulta cada vez.
+  static Map<String, dynamic>? _configGuardada;
+  static DateTime? _configEn;
+  static const _vigenciaConfig = Duration(minutes: 5);
+
+  Future<Map<String, dynamic>> configuracion() async {
+    // Solo con el transporte de la app: un transporte propio (pruebas) no comparte caché.
+    final compartido = identical(_transporte, PedidosApiRepository.instancia);
+    final guardada = _configGuardada;
+    final en = _configEn;
+    if (compartido &&
+        guardada != null &&
+        en != null &&
+        DateTime.now().difference(en) < _vigenciaConfig) {
+      return guardada;
+    }
+    final config = await _solicitar(
+      'GET',
+      '/api/pagos/mercadopago/configuracion/',
+    );
+    if (compartido) {
+      _configGuardada = config;
+      _configEn = DateTime.now();
+    }
+    return config;
+  }
 
   Future<Map<String, dynamic>> crearCheckout(int pedidoId) => _solicitar(
     'POST',

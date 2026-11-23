@@ -54,7 +54,9 @@ class _PagoMpIntegradoState extends State<PagoMpIntegrado> {
   void initState() {
     super.initState();
     _cargar();
-    _timer = Timer.periodic(const Duration(seconds: 15), (_) {
+    // Con un pago en curso se consulta cada 5 s: la aprobación aparece casi al
+    // instante en vez de esperar hasta 15 s.
+    _timer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (mounted &&
           _pendiente &&
           !_enviando &&

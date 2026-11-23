@@ -1,4 +1,5 @@
 from collections import defaultdict
+from decimal import Decimal
 from django.contrib.auth.hashers import make_password, check_password
 from django.db import transaction, IntegrityError
 from django.db.models import Q, Avg, Count, Sum, Max, prefetch_related_objects
@@ -553,13 +554,17 @@ def pedidos_payload(pedidos, quotes=None, partes_por_pedido=None):
             cotizacion_id__in=[q.pk for q in quotes.values()]).select_related('pedido_puesto').order_by('id'):
         grupos_por_quote[grupo.cotizacion_id].append(grupo)
     detalles_por_grupo=defaultdict(list)
+    subtotales=defaultdict(Decimal)
     for d in CotizacionDetalle.objects.filter(
             cotizacion_puesto_id__in=[g.pk for v in grupos_por_quote.values() for g in v]).order_by('id'):
         detalles_por_grupo[d.cotizacion_puesto_id].append({
             'pedido_detalle_id':d.pedido_detalle_id,'nombre_final':d.nombre_final,
             'cantidad_real':str(d.cantidad_real),'precio_unitario_centavos':cents(d.precio_unitario),
         })
-    confirmados=pagos_confirmados(ids)
+        subtotales[d.cotizacion_puesto_id]+=d.subtotal
+    # Los pagos se validan con lo ya leído: sin volver a pedir cotizaciones.
+    confirmados=pagos_confirmados(ids,cargado={'pedidos':pedidos,'quotes':quotes,
+        'grupos':[g for v in grupos_por_quote.values() for g in v],'subtotales':subtotales})
     historial_por_pedido=defaultdict(list)
     for h in HistorialEstado.objects.filter(pedido_id__in=ids).order_by('creado_en','id'):
         historial_por_pedido[h.pedido_id].append(

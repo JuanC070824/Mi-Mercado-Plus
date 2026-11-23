@@ -1,4 +1,5 @@
 from unittest.mock import patch
+from django.core.cache import cache
 from django.test import TestCase, SimpleTestCase, override_settings
 from . import mercadopago_pruebas as mp
 from . import tests as fixtures
@@ -40,6 +41,15 @@ class PagoIntegradoTests(TestCase):
         api.side_effect = responder
 
     @patch.object(mp, 'solicitud')
+    def test_respuesta_no_definitiva_se_vuelve_a_consultar(self, api):
+        datos = self.datos()
+        self.proveedor(api, status='action_required')
+        r = self.enviar(datos)
+        self.assertEqual(r.status_code, 200, r.data)
+        self.assertEqual([c.args[0] for c in api.call_args_list], ['POST', 'GET'])
+        self.assertFalse(r.data['pago_interno_aprobado'])
+
+    @patch.object(mp, 'solicitud')
     def test_pago_tokenizado_valida_total_y_registra_una_sola_vez(self, api):
         datos = self.datos()
         self.proveedor(api)
@@ -51,7 +61,8 @@ class PagoIntegradoTests(TestCase):
         self.assertEqual(enviado['total_amount'], '24.00')
         self.assertEqual(enviado['transactions']['payments'][0]['amount'], '24.00')
         self.assertEqual(enviado['processing_mode'], 'automatic')
-        self.assertEqual([c.args[0] for c in api.call_args_list], ['POST', 'GET'])
+        # La respuesta automática ya es definitiva: no hace falta otra consulta.
+        self.assertEqual([c.args[0] for c in api.call_args_list], ['POST'])
         self.assertNotIn(datos['token'], str(Pago.objects.values().first()))
         self.assertNotIn(datos['email'], str(Pago.objects.values().first()))
         api.reset_mock()
@@ -171,6 +182,10 @@ class PagoIntegradoTests(TestCase):
 
 @override_settings(**CONFIG)
 class CuentaPruebaTests(SimpleTestCase):
+    def setUp(self):
+        cache.clear()
+        self.addCleanup(cache.clear)
+
     @patch('mvp_back.mercadopago_integrado.requests.get')
     def test_exige_cuenta_de_prueba_peruana_y_id_esperado(self, get):
         from .mercadopago_integrado import comprobar_cuenta_prueba
@@ -179,6 +194,25 @@ class CuentaPruebaTests(SimpleTestCase):
         get.return_value.json.return_value = valido
         comprobar_cuenta_prueba()
         for invalido in [{**valido, 'tags': []}, {**valido, 'site_id': 'MLA'}, {**valido, 'id': 'otro'}]:
+            cache.clear()
             get.return_value.json.return_value = invalido
             with self.assertRaises(mp.ServicioNoDisponible):
                 comprobar_cuenta_prueba()
+
+    @patch('mvp_back.mercadopago_integrado.requests.get')
+    def test_recuerda_solo_una_cuenta_valida(self, get):
+        from .mercadopago_integrado import comprobar_cuenta_prueba
+        get.return_value.status_code = 200
+        get.return_value.json.return_value = {'id': 'otro', 'site_id': 'MPE', 'tags': ['test_user']}
+        for _ in range(2):
+            with self.assertRaises(mp.ServicioNoDisponible):
+                comprobar_cuenta_prueba()
+        self.assertEqual(get.call_count, 2)  # un fallo no se recuerda
+        get.reset_mock()
+        get.return_value.json.return_value = {'id': '12345', 'site_id': 'MPE', 'tags': ['test_user']}
+        comprobar_cuenta_prueba()
+        comprobar_cuenta_prueba()
+        self.assertEqual(get.call_count, 1)  # la segunda vez no sale a la red
+        with override_settings(MERCADOPAGO_TEST_ACCESS_TOKEN='TEST-otro-token'):
+            comprobar_cuenta_prueba()
+        self.assertEqual(get.call_count, 2)  # otro token se vuelve a verificar
