@@ -852,7 +852,9 @@ class VolverAPedirView(APIView):
 class AceptarCotizacionView(APIView):
     def post(self,request,order_id,quote_id):
         quote=accept_quote(request.user,order_id,quote_id)
-        return Response({'id':quote.pk,'estado':quote.estado,'total_centavos':cents(quote_total(quote))})
+        total=getattr(quote,'total_calculado',None)
+        if total is None: total=quote_total(quote)
+        return Response({'id':quote.pk,'estado':quote.estado,'total_centavos':cents(total)})
 
 class PagoView(APIView):
     throttle_classes=[ScopedRateThrottle]

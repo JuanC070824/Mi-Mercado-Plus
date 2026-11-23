@@ -2,7 +2,6 @@ from collections import defaultdict
 from decimal import Decimal
 from uuid import uuid4
 from django.db import transaction
-from django.db.models import Sum
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError, PermissionDenied, NotFound
 from .models import (Usuario, UsuarioRol, Producto, UnidadMedida, Carrito, CarritoPuesto,
@@ -24,6 +23,22 @@ def lock_user(user):
     return current
 
 
+UNIDADES_CACHE = 'unidades_permite_fraccion'
+
+
+def permite_fraccion(codigo):
+    """Las unidades de medida casi no cambian: se leen una vez cada 5 minutos
+    en lugar de consultar la tabla por cada producto agregado o pedido."""
+    from django.core.cache import cache
+    unidades = cache.get(UNIDADES_CACHE)
+    if unidades is None or codigo not in unidades:
+        unidades = dict(UnidadMedida.objects.values_list('codigo','permite_fraccion'))
+        cache.set(UNIDADES_CACHE, unidades, 300)
+    if codigo not in unidades:
+        raise UnidadMedida.DoesNotExist(codigo)
+    return unidades[codigo]
+
+
 def product_check(product, quantity):
     if (not product.activo or not product.disponible or
             product.puesto.estado != 'activo' or not product.puesto.abierto or
@@ -31,8 +46,7 @@ def product_check(product, quantity):
         raise ValidationError('El producto o su puesto no está disponible.')
     if not product.unidad_codigo:
         raise ValidationError('El producto no tiene unidad.')
-    unit = UnidadMedida.objects.get(pk=product.unidad_codigo)
-    if not unit.permite_fraccion and quantity != quantity.to_integral_value():
+    if not permite_fraccion(product.unidad_codigo) and quantity != quantity.to_integral_value():
         raise ValidationError('La unidad del producto no admite fracciones.')
     if product.stock is not None and quantity > product.stock:
         raise ValidationError('Stock insuficiente.')
@@ -191,19 +205,28 @@ def checkout(user, address_id, method):
 
 
 def quote_total(quote):
-    groups = CotizacionPuesto.objects.filter(cotizacion_id=quote.pk)
+    """Valida que la cotización cubra todos los puestos e ítems y devuelve el total.
+
+    Usa cuatro consultas fijas; antes eran dos por cada puesto del pedido.
+    """
+    groups = dict(CotizacionPuesto.objects.filter(cotizacion_id=quote.pk).values_list('id','pedido_puesto_id'))
     expected = set(PedidoPuesto.objects.filter(pedido_id=quote.pedido_id).exclude(
         estado__in=['rechazado','cancelado']).values_list('id',flat=True))
-    actual = set(groups.values_list('pedido_puesto_id',flat=True))
-    if not expected or expected != actual:
+    if not expected or expected != set(groups.values()):
         raise ValidationError('La cotización no contiene todos los puestos activos.')
-    for group in groups:
-        expected_lines = set(PedidoDetalle.objects.filter(pedido_puesto_id=group.pedido_puesto_id).exclude(
-            disponibilidad='sin_stock').values_list('id',flat=True))
-        actual_lines = set(CotizacionDetalle.objects.filter(cotizacion_puesto_id=group.pk).values_list('pedido_detalle_id',flat=True))
-        if not expected_lines or expected_lines != actual_lines:
+    expected_lines = defaultdict(set)
+    for line, part in PedidoDetalle.objects.filter(pedido_puesto_id__in=groups.values()).exclude(
+            disponibilidad='sin_stock').values_list('id','pedido_puesto_id'):
+        expected_lines[part].add(line)
+    actual_lines = defaultdict(set)
+    products = Decimal(0)
+    for group, line, subtotal in CotizacionDetalle.objects.filter(
+            cotizacion_puesto_id__in=groups).values_list('cotizacion_puesto_id','pedido_detalle_id','subtotal'):
+        actual_lines[group].add(line)
+        products += subtotal
+    for group, part in groups.items():
+        if not expected_lines[part] or expected_lines[part] != actual_lines[group]:
             raise ValidationError('La cotización tiene ítems incompletos.')
-    products = CotizacionDetalle.objects.filter(cotizacion_puesto__cotizacion_id=quote.pk).aggregate(total=Sum('subtotal'))['total']
     return soles(products + quote.costo_envio)
 
 
@@ -223,8 +246,10 @@ def accept_quote(user, order_id, quote_id):
         raise ValidationError('Solo se acepta una cotización enviada.')
     if Cotizacion.objects.filter(pedido_id=order.pk,estado='aceptada').exists():
         raise ValidationError('El pedido ya tiene una cotización aceptada.')
-    if quote_total(quote) <= 0:
+    total = quote_total(quote)
+    if total <= 0:
         raise ValidationError('La cotización debe tener un monto positivo.')
+    quote.total_calculado = total  # la vista lo devuelve sin recalcularlo
     quote.estado = 'aceptada'
     quote.aceptado_en = timezone.now()
     quote.save(update_fields=['estado','aceptado_en'])
