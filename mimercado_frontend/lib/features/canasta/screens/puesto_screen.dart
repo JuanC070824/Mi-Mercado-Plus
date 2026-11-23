@@ -52,8 +52,11 @@ class _PuestoScreenState extends State<PuestoScreen> {
       _error = null;
     });
     try {
-      final puesto = await _catalogo.puesto(widget.puestoId);
-      final productos = await _catalogo.productosDePuesto(widget.puestoId);
+      // Puesto y productos a la vez: una sola espera en lugar de dos seguidas.
+      final (puesto, productos) = await (
+        _catalogo.puesto(widget.puestoId),
+        _catalogo.productosDePuesto(widget.puestoId),
+      ).wait;
       if (!mounted) return;
       setState(() {
         _puesto = puesto;

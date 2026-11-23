@@ -190,8 +190,18 @@ class CatalogoApiRepository implements CatalogoRepository {
         .toList();
   }
 
+  // Puestos recién listados en el inicio: al entrar a uno no hace falta volver
+  // a descargar todos los puestos de todos los mercados.
+  final Map<int, ({Puesto puesto, DateTime en})> _puestosVistos = {};
+  static const _vigenciaPuesto = Duration(seconds: 30);
+
   @override
   Future<Puesto?> puesto(int id) async {
+    final visto = _puestosVistos[id];
+    if (visto != null &&
+        DateTime.now().difference(visto.en) < _vigenciaPuesto) {
+      return visto.puesto;
+    }
     for (final p in await _puestos()) {
       if (p.id == id) return p;
     }
@@ -206,10 +216,15 @@ class CatalogoApiRepository implements CatalogoRepository {
     if (decoded is! List) {
       throw CatalogoException(tr('Lista de puestos inválida.'));
     }
-    return [
+    final lista = [
       for (final value in decoded)
         if (value is Map<String, dynamic>) _puesto(value),
     ];
+    final ahora = DateTime.now();
+    for (final p in lista) {
+      _puestosVistos[p.id] = (puesto: p, en: ahora);
+    }
+    return lista;
   }
 
   @override
