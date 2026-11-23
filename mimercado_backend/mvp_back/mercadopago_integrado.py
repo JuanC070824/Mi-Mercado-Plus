@@ -3,6 +3,7 @@ import hashlib
 from uuid import NAMESPACE_URL, uuid5
 import requests
 from django.conf import settings
+from django.core.cache import cache
 from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
@@ -11,8 +12,22 @@ from . import mercadopago_pruebas as mp
 from .models import Pedido, Cotizacion, Pago
 
 
+# La cuenta vendedora no cambia entre pagos: verificarla una vez cada pocas
+# horas ahorra un viaje a Mercado Pago (unos 0,5 s) en cada cobro.
+CUENTA_VERIFICADA_SEGUNDOS = 6 * 60 * 60
+
+
+def _clave_cuenta():
+    origen = f'{settings.MERCADOPAGO_TEST_ACCESS_TOKEN}:{settings.MERCADOPAGO_TEST_USER_ID}'
+    return 'mp_cuenta_prueba_ok:' + hashlib.sha256(origen.encode()).hexdigest()
+
+
 def comprobar_cuenta_prueba():
     """Bloquear credenciales reales antes de enviar un token para cobrar."""
+    # Solo se recuerda un resultado válido; si se cambia el token o el id, la
+    # clave cambia y se vuelve a verificar con Mercado Pago.
+    if cache.get(_clave_cuenta()):
+        return
     try:
         response = requests.get('https://api.mercadopago.com/users/me',
             headers={'Authorization': f'Bearer {settings.MERCADOPAGO_TEST_ACCESS_TOKEN}'},
@@ -25,6 +40,7 @@ def comprobar_cuenta_prueba():
     if (not isinstance(cuenta, dict) or str(cuenta.get('id')) != settings.MERCADOPAGO_TEST_USER_ID
             or cuenta.get('site_id') != 'MPE' or 'test_user' not in (cuenta.get('tags') or [])):
         raise mp.ServicioNoDisponible('La cuenta debe ser la vendedora de prueba de Perú; se bloquearon cobros reales.')
+    cache.set(_clave_cuenta(), True, CUENTA_VERIFICADA_SEGUNDOS)
 
 
 class PagoIntegradoSerializer(serializers.Serializer):
@@ -110,8 +126,17 @@ def pagar(usuario, datos):
     # resultado sin reutilizar el token ni crear una segunda transacción.
     Pago.objects.filter(pedido_id=pedido.pk, idempotencia=reference).update(
         proveedor_transaccion_id=mp.PREFIJO_PAGO + data['id'])
-    actual = mp.solicitud('GET', order_id=data['id'])
+    # En modo automático la respuesta de creación ya trae el resultado. Solo se
+    # vuelve a consultar si aún no es definitivo o le falta el importe pagado.
+    actual = data if respuesta_definitiva(data) else mp.solicitud('GET', order_id=data['id'])
     return mp.registrar_order(usuario, pedido.pk, actual)
+
+
+def respuesta_definitiva(data):
+    if data.get('status') == 'failed':
+        return True
+    return (data.get('status') == 'processed' and bool(data.get('status_detail'))
+            and data.get('total_paid_amount') is not None)
 
 
 def cancelar_intento(usuario, pedido_id):

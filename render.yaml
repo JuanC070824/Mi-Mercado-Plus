@@ -17,7 +17,9 @@ services:
       paths:
         - mimercado_backend/**
     buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
-    startCommand: gunicorn config.wsgi:application --workers 2 --timeout 60
+    # Hilos: mientras un pago espera a Mercado Pago, las demás pantallas
+    # siguen respondiendo (antes un cobro lento bloqueaba un worker entero).
+    startCommand: gunicorn config.wsgi:application --workers 2 --threads 4 --timeout 60
     healthCheckPath: /api/mercados/
     envVars:
       - key: PYTHON_VERSION

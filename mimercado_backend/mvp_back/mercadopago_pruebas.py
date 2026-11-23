@@ -24,6 +24,9 @@ API_URL = 'https://api.mercadopago.com/v1/orders'
 TEST_ID = re.compile(r'^ORDTST[A-Z0-9]{10,80}$')
 AVISO = 'Mercado Pago de prueba: la aprobación verificada registra el pago y permite continuar el reparto. No uses dinero real.'
 PREFIJO_PAGO = 'mp_test_'
+# Conexión reutilizable con Mercado Pago: evita repetir el saludo TLS en cada
+# llamada (pagar, consultar y confirmar suelen ir seguidas).
+_SESION = requests.Session()
 
 
 class ServicioNoDisponible(APIException):
@@ -69,7 +72,7 @@ def solicitud(metodo, *, order_id=None, body=None, params=None, clave=None, acci
     if clave:
         headers['X-Idempotency-Key'] = clave
     try:
-        response = requests.request(
+        response = _SESION.request(
             metodo, API_URL + (f'/{order_id}' if order_id else '') + (f'/{accion}' if accion else ''),
             headers=headers, json=body, params=params, timeout=(3, 10), allow_redirects=False)
         if response.status_code not in (200, 201):
