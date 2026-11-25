@@ -126,14 +126,15 @@ def _ultimo_por_pedido(queryset):
     for fila in queryset: filas.setdefault(fila.pedido_id,fila)
     return filas
 
-def pedidos_sin_calificar(pedido_ids, entregas=None, partes=None):
+def pedidos_sin_calificar(pedido_ids, entregas=None, partes=None, entregados=False):
     """Ids de pedidos entregados a los que les falta reseñar algún puesto o al repartidor.
 
     `entregas` ({pedido_id: entrega vigente}) y `partes` ({pedido_id: ids de sus
     puestos activos}) evitan repetir consultas que el llamador ya hizo.
     """
     from .models import ResenaPuesto, ResenaRepartidor
-    ids=list(pedido_ids) if entregas is not None else list(
+    # `entregados=True`: el llamador ya filtró por estado entregado.
+    ids=list(pedido_ids) if entregas is not None or entregados else list(
         Pedido.objects.filter(pk__in=pedido_ids,estado='entregado').values_list('id',flat=True))
     if not ids: return set()
     if partes is not None:
@@ -218,10 +219,12 @@ def aceptar_reparto(user,pedido_id):
         repartidor_mercado_id=rm.pk,estado='en_recojo',aceptada_en=timezone.now())
     entrega.codigo_entrega_hash=make_password(codigo_entrega(entrega))
     entrega.save(update_fields=['codigo_entrega_hash'])
-    for index,parte in enumerate(PedidoPuesto.objects.filter(pedido_id=pedido.pk).exclude(
-            estado__in=['rechazado','cancelado']).order_by('id'),1):
-        EntregaParada.objects.create(entrega_id=entrega.pk,pedido_id=pedido.pk,pedido_puesto_id=parte.pk,
-                                    orden=index,recogido_en=timezone.now() if parte.estado=='recogido' else None)
+    # Todas las paradas en un solo INSERT (antes, uno por puesto).
+    EntregaParada.objects.bulk_create([
+        EntregaParada(entrega_id=entrega.pk,pedido_id=pedido.pk,pedido_puesto_id=parte.pk,
+                      orden=index,recogido_en=timezone.now() if parte.estado=='recogido' else None)
+        for index,parte in enumerate(PedidoPuesto.objects.filter(pedido_id=pedido.pk).exclude(
+            estado__in=['rechazado','cancelado']).order_by('id'),1)])
     pedido.estado='en_recojo';pedido.save(update_fields=['estado'])
     HistorialEstado.objects.create(pedido_id=pedido.pk,estado='en_recojo',actor_id=user.pk,
         observacion='Un repartidor del mercado está recogiendo tu pedido.')

@@ -65,7 +65,8 @@ class _PagoMercadoPagoPruebasState extends State<PagoMercadoPagoPruebas>
     super.initState();
     if (kIsWeb && widget.abrirCheckout == null) return;
     WidgetsBinding.instance.addObserver(this);
-    _refresco = Timer.periodic(const Duration(seconds: 15), (_) {
+    // Solo consulta con un checkout abierto y sin resultado final.
+    _refresco = Timer.periodic(const Duration(seconds: 5), (_) {
       if (mounted &&
           _checkout != null &&
           !_terminal &&

@@ -155,9 +155,10 @@ class CompradorPedidosView(APIView):
                      default=Value(2),output_field=IntegerField()),
                 '-creado_en','-id').first()
             if activo is None:
-                recientes=list(pedidos.filter(estado='entregado').values_list('id',flat=True)[:100])
-                pendientes=op.pedidos_sin_calificar(recientes)
-                activo=next((pedidos.get(pk=pid) for pid in recientes if pid in pendientes),None)
+                # Los entregados ya vienen completos: no hace falta volver a pedir el elegido.
+                recientes=list(pedidos.filter(estado='entregado')[:100])
+                pendientes=op.pedidos_sin_calificar([p.pk for p in recientes],entregados=True)
+                activo=next((p for p in recientes if p.pk in pendientes),None)
             return Response(op.pedidos_operacion_payload([activo] if activo else [],comprador=True))
         return Response(op.pedidos_operacion_payload(pedidos[:100],comprador=True))
 

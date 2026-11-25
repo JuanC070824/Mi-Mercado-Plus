@@ -384,7 +384,7 @@ class MercadoPagoApiTests(TestCase):
 
 @override_settings(**CONFIG)
 class MercadoPagoContractTests(SimpleTestCase):
-    @patch.object(mp.requests, 'request')
+    @patch.object(mp._SESION, 'request')
     def test_http_idempotencia_y_errores_sin_filtrar_secretos(self, request):
         request.return_value = Mock(status_code=201, json=Mock(return_value={'id': ORDER_ID}))
         self.assertEqual(mp.solicitud('POST', body={'type': 'online'}, clave='clave-estable'), {'id': ORDER_ID})
