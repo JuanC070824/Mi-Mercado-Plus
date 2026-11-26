@@ -36,6 +36,72 @@ class _CanastaScreenState extends State<CanastaScreen> {
     if (mounted) setState(() => _ocupado = false);
   }
 
+  /// Quita el producto y ofrece «Deshacer» unos segundos: el botón es grande
+  /// y puede tocarse sin querer.
+  Future<void> _quitar(GrupoPuesto g, ItemCanasta it) async {
+    if (_ocupado) return;
+    setState(() => _ocupado = true);
+    final ok = await cambiarCanasta(
+      context,
+      g.puesto,
+      () => _repo.quitar(it.producto.id),
+    );
+    if (mounted) setState(() => _ocupado = false);
+    if (!ok || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          duration: const Duration(seconds: 6),
+          // Botón propio: el de SnackBarAction es pequeño para adultos mayores.
+          content: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  tr('Quitaste {0}.', [it.producto.nombre]),
+                  style: const TextStyle(fontSize: 18),
+                ),
+              ),
+              TextButton(
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.azulClaro,
+                  minimumSize: const Size(96, 48),
+                ),
+                onPressed: () async {
+                  messenger.hideCurrentSnackBar();
+                  try {
+                    await _repo.cambiarCantidad(
+                      g.puesto,
+                      it.producto,
+                      it.cantidad,
+                    );
+                  } on CanastaException catch (e) {
+                    messenger.showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          e.mensaje,
+                          style: const TextStyle(fontSize: 18),
+                        ),
+                      ),
+                    );
+                  }
+                },
+                child: Text(
+                  tr('Deshacer'),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+  }
+
   Future<void> _vaciar() async {
     final ok = await confirmar(
       context,
@@ -116,7 +182,7 @@ class _CanastaScreenState extends State<CanastaScreen> {
             onSumar: (it) =>
                 _cambiar(g, () => _repo.agregar(g.puesto, it.producto)),
             onRestar: (it) => _cambiar(g, () => _repo.restar(it.producto)),
-            onQuitar: (it) => _cambiar(g, () => _repo.quitar(it.producto.id)),
+            onQuitar: (it) => _quitar(g, it),
             onLista: () => _editarLista(g),
             onAgregarMas: () => context.go('/inicio/puesto/${g.puesto.id}'),
           ),
@@ -334,10 +400,7 @@ class _GrupoPuesto extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  lista ??
-                      tr(
-                        '¿Algo que no está en la lista? Pídeselo al casero aquí.',
-                      ),
+                  lista ?? tr('¿Falta algo? Escríbele al casero.'),
                   style: TextStyle(
                     fontSize: 17,
                     color: lista == null
@@ -362,13 +425,24 @@ class _GrupoPuesto extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          TextButton.icon(
-            onPressed: onAgregarMas,
-            style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
-            icon: const Icon(Icons.add),
-            label: Text(
-              tr('Agregar más productos'),
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: onAgregarMas,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.azul,
+                side: const BorderSide(color: AppColors.azul, width: 2),
+                minimumSize: const Size(48, 52),
+                shape: const StadiumBorder(),
+              ),
+              icon: const Icon(Icons.add, size: 26),
+              label: Text(
+                tr('Agregar más productos'),
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ),
         ],

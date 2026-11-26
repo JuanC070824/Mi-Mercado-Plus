@@ -6,6 +6,7 @@ import '../../../data/repositories/mercadopago_api_repository.dart';
 import '../widgets/pago_yape_simulado.dart';
 import '../widgets/pago_mercadopago_pruebas.dart';
 import '../widgets/detalle_pedido_pago.dart';
+import '../widgets/etapas_pedido.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/formato.dart';
@@ -188,6 +189,8 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
               style: TextStyle(fontSize: 18),
             ),
             const SizedBox(height: 16),
+            EtapasPedido(pedido: p, pagoEnLinea: online, pagado: pagado),
+            const SizedBox(height: 16),
             // Antes de pagar: a quién le compra, qué compra y cuánto paga.
             DetallePedidoPago(pedido: p),
             const SizedBox(height: 16),
@@ -195,7 +198,7 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
               key: ValueKey('mercadopago_${p.id}'),
               pedido: p,
               repository: widget.pagosRepository,
-              alConfirmarPago: _cargar,
+              alConfirmarPago: () => _pagoRecibido(p),
             ),
           ],
         ),
@@ -216,6 +219,9 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
             const SizedBox(height: 16),
           ], // C7b
           ..._ahora(p),
+          const SizedBox(height: 16),
+          // Dónde va el pedido: lo hecho, lo de ahora y lo que falta.
+          EtapasPedido(pedido: p, pagoEnLinea: online, pagado: pagado),
           if (ApiConfig.configurada &&
               aceptado &&
               p.metodoPago == MetodoPago.yape) ...[
@@ -259,6 +265,55 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
             ),
           ),
           _enlaceHistorial(),
+        ],
+      ),
+    );
+  }
+
+  /// Confirmación clara después de pagar: cuánto pagó y qué pasa ahora.
+  Future<void> _pagoRecibido(Pedido p) async {
+    final total = p.cotizacion?.totalCliente;
+    await _cargar();
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.check_circle, color: AppColors.exito, size: 72),
+        title: Text(
+          tr('¡Pago recibido!'),
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (total != null)
+              Text(
+                tr('Pagaste {0}', [soles(total)]),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            const SizedBox(height: 12),
+            Text(
+              tr(
+                'Ahora un repartidor de tu mercado recoge tus bolsas y las lleva a tu casa. Aquí verás cada paso.',
+              ),
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 18),
+            ),
+          ],
+        ),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: BotonPrincipal(
+              texto: tr('Entendido'),
+              onPressed: () => Navigator.of(ctx).pop(),
+            ),
+          ),
         ],
       ),
     );

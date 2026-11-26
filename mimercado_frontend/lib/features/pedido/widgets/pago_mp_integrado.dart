@@ -225,13 +225,10 @@ class _PagoMpIntegradoState extends State<PagoMpIntegrado> {
         if (!_cargando && !_configurado) ...[
           Text(
             tr(
-              'Falta configurar la Public Key y las credenciales de prueba en el servidor.',
+              'El pago en línea no está disponible por ahora. Inténtalo más tarde.',
             ),
           ),
-          TextButton(
-            onPressed: _cargar,
-            child: Text(tr('Reintentar configuración')),
-          ),
+          TextButton(onPressed: _cargar, child: Text(tr('Volver a intentar'))),
         ],
         if (_configurado && !_cargando) ...[
           Semantics(

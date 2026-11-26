@@ -1204,22 +1204,42 @@ const traduccionesQu = <String, String>{
   'El cliente paga con Plin al recibir. Confirma el cobro en la entrega.':
       'Rantiqqa chaskispa Plinwan pagan. Chayachispa cobrasqaykita chiqaqchay.',
   // Correcciones de usabilidad (canasta y detalle antes de pagar).
-  'Quitar':
-      'Hurquy',
-  'Quitar {0} de la canasta':
-      '{0}ta canastamanta hurquy',
-  'Agregar más productos':
-      'Astawan rantinakunata yapay',
-  'Revisa tu pedido':
-      'Mañakuyniykita qhaway',
-  'Total a pagar: {0}':
-      'Llapan paganaykipaq: {0}',
-  'Total a pagar':
-      'Llapan paganaykipaq',
-  'Llega a: {0}':
-      'Chayan: {0}',
-  'Lista de mandado: {0}':
-      'Mañakuy lista: {0}',
-  'Subtotal':
-      'Huch’uy llapan',
+  'Quitar': 'Hurquy',
+  'Quitar {0} de la canasta': '{0}ta canastamanta hurquy',
+  'Agregar más productos': 'Astawan rantinakunata yapay',
+  'Revisa tu pedido': 'Mañakuyniykita qhaway',
+  'Total a pagar: {0}': 'Llapan paganaykipaq: {0}',
+  'Total a pagar': 'Llapan paganaykipaq',
+  'Llega a: {0}': 'Chayan: {0}',
+  'Lista de mandado: {0}': 'Mañakuy lista: {0}',
+  'Subtotal': 'Huch’uy llapan',
+  'Quitaste {0}.': '{0}ta hurqurqanki.',
+  'Deshacer': 'Kutichiy',
+  '¿Falta algo? Escríbele al casero.': '¿Imapas pisichu? Qhatuqman qillqay.',
+  'El servidor está tardando en encender. Espera un momento y vuelve a intentar.':
+      'Servidorqa unaymi rawrachkan. Huk ratita suyay, yapamanta ruway.',
+  'Conectando con el servidor… La primera vez del día puede tardar hasta un minuto.':
+      'Servidorwan tinkuchkan… P’unchaypa ñawpaq kutinpiqa huk minutokama unanmanmi.',
+  'Pedido enviado': 'Mañakuy kachasqa',
+  'Caseros pesan y dan el precio': 'Qhatuqkuna pesanku, chanintataq qunku',
+  'Pagas tu pedido': 'Mañakuyniykita paganki',
+  'Recojo y camino a tu casa': 'Huqariy, wasiykiman puriy',
+  'listo': 'listo',
+  'ahora': 'kunan',
+  'falta': 'pisin',
+  'Paso {0} de {1}: {2}, {3}': '{1}manta {0} ñiqi: {2}, {3}',
+  '¡Pago recibido!': '¡Pagay chaskisqa!',
+  'Pagaste {0}': '{0} pagarqanki',
+  'Ahora un repartidor de tu mercado recoge tus bolsas y las lleva a tu casa. Aquí verás cada paso.':
+      'Kunanqa qhatuykimanta apaqmi wayaykikunata huqarispa wasiykiman apanqa. Kaypin sapanka ñiqita rikunki.',
+  'Algo salió mal al leer los datos. Inténtalo de nuevo.':
+      'Willakuykunata ñawinchaspa imapas mana allinchu karqan. Yapamanta ruway.',
+  'No pudimos abrir la página de pago. Inténtalo de nuevo.':
+      'Manan pagay p’anqata kichayta atirqanchikchu. Yapamanta ruway.',
+  'No pudimos abrir la página de pago. Copia el enlace y pégalo en tu navegador.':
+      'Manan pagay p’anqata kichayta atirqanchikchu. Enlaceta copiay, navegadorniykipi churay.',
+  'El pago en línea no está disponible por ahora. Inténtalo más tarde.':
+      'Internetpi pagayqa kunanqa manan kanchu. Qhipaman ruway.',
+  'Volver a intentar': 'Yapamanta ruway',
+  'ESTÁS AQUÍ': 'KAYPIN KASHANKI',
 };

@@ -52,7 +52,8 @@ class _CaseroInicioScreenState extends State<CaseroInicioScreen> {
     _pedidosRepository =
         widget.pedidosRepository ?? PedidosVendedorApiRepository.instancia;
     PuestoVendedorApiRepository.cambios.addListener(_cargar);
-    _refresco = Timer.periodic(const Duration(seconds: 15), (_) {
+    // Cada 10 s: el casero ve un pedido nuevo casi al momento (antes, 15 s).
+    _refresco = Timer.periodic(const Duration(seconds: 10), (_) {
       if (_inicioVisible && !_leyendo && !_alertaAbierta && !_cambiandoEstado) {
         _cargar(silencioso: true);
       }

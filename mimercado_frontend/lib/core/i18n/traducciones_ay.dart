@@ -1184,22 +1184,42 @@ const traduccionesAy = <String, String>{
   'El cliente paga con Plin al recibir. Confirma el cobro en la entrega.':
       'Alasirix katuqasaw Plin tuqi pagani. Puriyasax cobrat chiqancham.',
   // Correcciones de usabilidad (canasta y detalle antes de pagar).
-  'Quitar':
-      'Apsuña',
-  'Quitar {0} de la canasta':
-      '{0} canastat apsuña',
-  'Agregar más productos':
-      'Juk’amp aljañanak yapxataña',
-  'Revisa tu pedido':
-      'Mayiwim uñakipam',
-  'Total a pagar: {0}':
-      'Taqpach pagañataki: {0}',
-  'Total a pagar':
-      'Taqpach pagañataki',
-  'Llega a: {0}':
-      'Purini: {0}',
-  'Lista de mandado: {0}':
-      'Mayiw lista: {0}',
-  'Subtotal':
-      'Jisk’a taqpacha',
+  'Quitar': 'Apsuña',
+  'Quitar {0} de la canasta': '{0} canastat apsuña',
+  'Agregar más productos': 'Juk’amp aljañanak yapxataña',
+  'Revisa tu pedido': 'Mayiwim uñakipam',
+  'Total a pagar: {0}': 'Taqpach pagañataki: {0}',
+  'Total a pagar': 'Taqpach pagañataki',
+  'Llega a: {0}': 'Purini: {0}',
+  'Lista de mandado: {0}': 'Mayiw lista: {0}',
+  'Subtotal': 'Jisk’a taqpacha',
+  'Quitaste {0}.': '{0} apsuta.',
+  'Deshacer': 'Kutt’ayaña',
+  '¿Falta algo? Escríbele al casero.': '¿Kunas pist’i? Aljirir qillqam.',
+  'El servidor está tardando en encender. Espera un momento y vuelve a intentar.':
+      'Servidorax jaya pachaw naktaski. Mä juk’a suyt’am, wasitat yant’am.',
+  'Conectando con el servidor… La primera vez del día puede tardar hasta un minuto.':
+      'Servidormpi chikt’asiski… Urun nayrïr kutix mä minutokamaw jayt’aspa.',
+  'Pedido enviado': 'Mayiw apayata',
+  'Caseros pesan y dan el precio': 'Aljirinakax pesapxi, chanip churapxi',
+  'Pagas tu pedido': 'Mayiwim pagta',
+  'Recojo y camino a tu casa': 'Apthapiña, utamar saraña',
+  'listo': 'wakiyata',
+  'ahora': 'jichha',
+  'falta': 'pist’iwa',
+  'Paso {0} de {1}: {2}, {3}': '{1} taypit {0} thakhi: {2}, {3}',
+  '¡Pago recibido!': '¡Pago katuqata!',
+  'Pagaste {0}': '{0} pagtawa',
+  'Ahora un repartidor de tu mercado recoge tus bolsas y las lleva a tu casa. Aquí verás cada paso.':
+      'Jichhax qhatumat apaniriw bolsanakam apthapisin utamar apani. Akanw sapa thakhi uñjäta.',
+  'Algo salió mal al leer los datos. Inténtalo de nuevo.':
+      'Yatiyawinak liyiñanx kunas jan walïkänwa. Wasitat yant’am.',
+  'No pudimos abrir la página de pago. Inténtalo de nuevo.':
+      'Janiw pago laphi jist’arañjamäkiti. Wasitat yant’am.',
+  'No pudimos abrir la página de pago. Copia el enlace y pégalo en tu navegador.':
+      'Janiw pago laphi jist’arañjamäkiti. Enlace copiam, navegadoramar uchant’am.',
+  'El pago en línea no está disponible por ahora. Inténtalo más tarde.':
+      'Internet tuqi pagox jichhax janiw utjkiti. Qhipatxa yant’am.',
+  'Volver a intentar': 'Wasitat yant’aña',
+  'ESTÁS AQUÍ': 'AKANKTAWA',
 };

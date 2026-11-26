@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../../core/config/api_config.dart';
+import '../../core/config/servidor.dart';
 import '../../core/state/sesion_state.dart';
 import '../models/direccion.dart';
 import '../models/rol.dart';
@@ -139,7 +140,7 @@ class AuthApiRepository implements AuthRepository {
       );
     } on FormatException {
       return ResultadoRecuperacion.error(
-        tr('El servidor devolvió una respuesta que no pudimos leer.'),
+        tr('Algo salió mal al leer los datos. Inténtalo de nuevo.'),
       );
     } on StateError catch (error) {
       return ResultadoRecuperacion.error(error.message);
@@ -218,7 +219,9 @@ class AuthApiRepository implements AuthRepository {
         tr('El servidor tardó demasiado en responder.'),
       );
     } on FormatException {
-      return ResultadoAuth.error(tr('El servidor devolvió datos inválidos.'));
+      return ResultadoAuth.error(
+        tr('Algo salió mal al leer los datos. Inténtalo de nuevo.'),
+      );
     } on StateError catch (error) {
       return ResultadoAuth.error(error.message);
     } catch (_) {
@@ -334,6 +337,14 @@ class AuthApiRepository implements AuthRepository {
     required Map<String, dynamic> body,
   }) async {
     try {
+      // Si el servidor estaba dormido, primero se espera a que arranque.
+      if (_baseUrl == null && !await Servidor.despertar()) {
+        return ResultadoAuth.error(
+          tr(
+            'El servidor está tardando en encender. Espera un momento y vuelve a intentar.',
+          ),
+        );
+      }
       final response = await _client
           .post(
             ApiConfig.uri(ruta, baseUrlOverride: _baseUrl),
@@ -353,9 +364,7 @@ class AuthApiRepository implements AuthRepository {
       final usuarioJson = data['usuario'];
       if (token.isEmpty || usuarioJson is! Map<String, dynamic>) {
         return ResultadoAuth.error(
-          tr(
-            'El servidor devolvió una respuesta incompleta. Inténtalo nuevamente.',
-          ),
+          tr('Algo salió mal al leer los datos. Inténtalo de nuevo.'),
         );
       }
       final usuario = Usuario(
@@ -376,7 +385,7 @@ class AuthApiRepository implements AuthRepository {
       );
       if (usuario.nombres.isEmpty) {
         return ResultadoAuth.error(
-          tr('El servidor no devolvió los datos del usuario.'),
+          tr('Algo salió mal al leer los datos. Inténtalo de nuevo.'),
         );
       }
       SesionState.iniciar(
@@ -394,7 +403,7 @@ class AuthApiRepository implements AuthRepository {
       );
     } on FormatException {
       return ResultadoAuth.error(
-        tr('El servidor devolvió una respuesta que no pudimos leer.'),
+        tr('Algo salió mal al leer los datos. Inténtalo de nuevo.'),
       );
     } on StateError catch (error) {
       return ResultadoAuth.error(error.message);

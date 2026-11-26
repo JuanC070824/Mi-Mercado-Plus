@@ -53,11 +53,11 @@ void main() {
     await _abrirMiPedido(tester);
     expect(find.text('Mi pedido'), findsWidgets);
     expect(find.text('AHORA'), findsOneWidget);
-    expect(find.text('Precio enviado'), findsWidgets); // Carnicería (simulada)
-    expect(
-      find.text('Nuevo pedido'),
-      findsOneWidget,
-    ); // Doña Rosa aún no acepta
+    // La línea de etapas va antes de la lista de puestos: hay que bajar.
+    await verEnLista(tester, find.text('Nuevo pedido')); // Doña Rosa aún no
+    expect(find.text('Nuevo pedido'), findsOneWidget);
+    await verEnLista(tester, find.text('Precio enviado')); // Carnicería
+    expect(find.text('Precio enviado'), findsWidgets);
   });
 
   testWidgets('C5b: llega el precio final (S/ 48.00) y María lo acepta', (

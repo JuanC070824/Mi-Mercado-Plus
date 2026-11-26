@@ -109,7 +109,7 @@ void main() {
     await abrir(tester, repo);
     expect(find.byType(FormularioMp), findsNothing);
     expect(
-      find.textContaining('Falta configurar la Public Key'),
+      find.textContaining('El pago en línea no está disponible'),
       findsOneWidget,
     );
     expect(repo.pagos, 0);
