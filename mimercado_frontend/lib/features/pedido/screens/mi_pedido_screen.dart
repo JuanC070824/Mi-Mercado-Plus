@@ -5,6 +5,7 @@ import '../../../data/repositories/pedidos_api_repository.dart';
 import '../../../data/repositories/mercadopago_api_repository.dart';
 import '../widgets/pago_yape_simulado.dart';
 import '../widgets/pago_mercadopago_pruebas.dart';
+import '../widgets/detalle_pedido_pago.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/formato.dart';
@@ -186,6 +187,9 @@ class _MiPedidoScreenState extends State<MiPedidoScreen> {
               ),
               style: TextStyle(fontSize: 18),
             ),
+            const SizedBox(height: 16),
+            // Antes de pagar: a quién le compra, qué compra y cuánto paga.
+            DetallePedidoPago(pedido: p),
             const SizedBox(height: 16),
             PagoMercadoPagoPruebas(
               key: ValueKey('mercadopago_${p.id}'),

@@ -1203,4 +1203,23 @@ const traduccionesQu = <String, String>{
   'Pago confirmado con Mercado Pago.': 'Mercado Pagowan pagay chiqaqchasqa.',
   'El cliente paga con Plin al recibir. Confirma el cobro en la entrega.':
       'Rantiqqa chaskispa Plinwan pagan. Chayachispa cobrasqaykita chiqaqchay.',
+  // Correcciones de usabilidad (canasta y detalle antes de pagar).
+  'Quitar':
+      'Hurquy',
+  'Quitar {0} de la canasta':
+      '{0}ta canastamanta hurquy',
+  'Agregar más productos':
+      'Astawan rantinakunata yapay',
+  'Revisa tu pedido':
+      'Mañakuyniykita qhaway',
+  'Total a pagar: {0}':
+      'Llapan paganaykipaq: {0}',
+  'Total a pagar':
+      'Llapan paganaykipaq',
+  'Llega a: {0}':
+      'Chayan: {0}',
+  'Lista de mandado: {0}':
+      'Mañakuy lista: {0}',
+  'Subtotal':
+      'Huch’uy llapan',
 };
