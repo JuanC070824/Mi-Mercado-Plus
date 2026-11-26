@@ -69,7 +69,10 @@ void main() {
         isA<PedidoException>().having(
           (e) => e.mensaje,
           'mensaje',
-          contains('respuesta inválida'),
+          allOf(
+            contains('Algo salió mal al leer los datos'),
+            isNot(contains('conectarnos')),
+          ),
         ),
       ),
     );

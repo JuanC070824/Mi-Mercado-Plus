@@ -90,7 +90,7 @@ class PedidoClienteApiRepository {
       );
     } on FormatException {
       throw PedidoException(
-        tr('El servidor devolvió una respuesta inválida al crear el pedido.'),
+        tr('Algo salió mal al leer los datos. Inténtalo de nuevo.'),
       );
     } catch (_) {
       throw PedidoException(tr('No pudimos conectarnos con MiMercado+.'));

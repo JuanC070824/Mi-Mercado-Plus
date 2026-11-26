@@ -181,7 +181,7 @@ class _PagoMercadoPagoPruebasState extends State<PagoMercadoPagoPruebas>
       if (!abierto) {
         throw PedidoException(
           tr(
-            'El navegador no pudo abrir el checkout. Copia el enlace y ábrelo en una ventana de incógnito.',
+            'No pudimos abrir la página de pago. Copia el enlace y pégalo en tu navegador.',
           ),
         );
       }

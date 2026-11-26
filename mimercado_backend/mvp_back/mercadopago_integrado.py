@@ -33,13 +33,13 @@ def comprobar_cuenta_prueba():
             headers={'Authorization': f'Bearer {settings.MERCADOPAGO_TEST_ACCESS_TOKEN}'},
             timeout=(3, 5), allow_redirects=False)
         if response.status_code != 200:
-            raise mp.ServicioNoDisponible('No pudimos validar la cuenta vendedora de prueba.')
+            raise mp.ServicioNoDisponible('El pago en línea no está disponible por ahora. Inténtalo más tarde.')
         cuenta = response.json()
     except (requests.RequestException, ValueError) as exc:
-        raise mp.ServicioNoDisponible('No pudimos validar la cuenta vendedora de prueba.') from exc
+        raise mp.ServicioNoDisponible('El pago en línea no está disponible por ahora. Inténtalo más tarde.') from exc
     if (not isinstance(cuenta, dict) or str(cuenta.get('id')) != settings.MERCADOPAGO_TEST_USER_ID
             or cuenta.get('site_id') != 'MPE' or 'test_user' not in (cuenta.get('tags') or [])):
-        raise mp.ServicioNoDisponible('La cuenta debe ser la vendedora de prueba de Perú; se bloquearon cobros reales.')
+        raise mp.ServicioNoDisponible('El pago en línea no está disponible por ahora. Inténtalo más tarde.')
     cache.set(_clave_cuenta(), True, CUENTA_VERIFICADA_SEGUNDOS)
 
 
@@ -70,7 +70,7 @@ class PagoIntegradoSerializer(serializers.Serializer):
 def pagar(usuario, datos):
     mp.exigir_configuracion()
     if not mp.configuracion()['integrado_configurado']:
-        raise mp.ServicioNoDisponible('Configura MERCADOPAGO_TEST_PUBLIC_KEY en el servidor.')
+        raise mp.ServicioNoDisponible('El pago en línea no está disponible por ahora. Inténtalo más tarde.')
     # Verificar pertenencia antes de cualquier llamada externa.
     mp.contexto(usuario, datos['pedido_id'])
     comprobar_cuenta_prueba()
@@ -86,7 +86,7 @@ def pagar(usuario, datos):
         if pedido.estado not in ('en_preparacion', 'listo_para_recojo'):
             raise ValidationError('El pedido ya no admite un nuevo pago.')
         if quote.aceptado_en is None or timezone.now() - quote.aceptado_en > timezone.timedelta(hours=24):
-            raise ValidationError('La cotización supera las 24 horas permitidas.')
+            raise ValidationError('El precio final venció (24 horas). Pide a tus caseros que lo confirmen de nuevo.')
         previo = Pago.objects.filter(pedido_id=pedido.pk).order_by('-id').first()
         if previo and previo.estado not in ('rechazado', 'anulado'):
             raise ValidationError('Ya existe un intento de pago. Verifica su estado antes de volver a pagar.')
@@ -99,7 +99,7 @@ def pagar(usuario, datos):
                    'confirmado_en': None}
         if previo:
             if previo.idempotencia == reference:
-                raise ValidationError('Este token ya fue utilizado. Completa nuevamente el formulario.')
+                raise ValidationError('Estos datos de pago ya se usaron. Vuelve a llenar el formulario.')
             for campo, valor in reserva.items():
                 setattr(previo, campo, valor)
             previo.save(update_fields=list(reserva))
@@ -145,11 +145,11 @@ def cancelar_intento(usuario, pedido_id):
     pedido, total, reference = mp.contexto(usuario, pedido_id)
     data = mp.buscar_order(reference, total)
     if not data:
-        raise ValidationError('No hay una operación recuperada que se pueda cancelar. Verifica su estado.')
+        raise ValidationError('No hay un pago pendiente para cancelar. Revisa el estado.')
     if data['status'] in ('canceled', 'expired'):
         return mp.registrar_order(usuario, pedido.pk, data)
     if data['status'] not in ('created', 'action_required'):
-        raise ValidationError('Esta operación no permite cancelación. Verifica el resultado del pago.')
+        raise ValidationError('Este pago ya no se puede cancelar. Revisa el resultado.')
     mp.solicitud('POST', order_id=data['id'], accion='cancel',
                  clave=str(uuid5(NAMESPACE_URL, reference + ':cancel')))
     actual = mp.solicitud('GET', order_id=data['id'])

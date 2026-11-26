@@ -36,11 +36,11 @@ class ServicioNoDisponible(APIException):
 
 class ErrorProveedor(APIException):
     status_code = 502
-    default_detail = 'No pudimos verificar la operación con Mercado Pago. Consulta su estado antes de reintentar.'
+    default_detail = 'No pudimos confirmar el pago. Verifica el estado antes de volver a pagar.'
 
 
 class SolicitudRechazada(ErrorProveedor):
-    default_detail = 'Mercado Pago no aceptó los datos del formulario. Revisa las credenciales de Checkout API y los datos de prueba.'
+    default_detail = 'Mercado Pago no aceptó los datos. Revisa la tarjeta o el celular e inténtalo de nuevo.'
 
 
 def configuracion():
@@ -64,7 +64,7 @@ def exigir_configuracion():
 def solicitud(metodo, *, order_id=None, body=None, params=None, clave=None, accion=None):
     exigir_configuracion()
     if order_id is not None and not TEST_ID.fullmatch(str(order_id)):
-        raise ErrorProveedor('La integración solo admite orders de prueba ORDTST.')
+        raise ErrorProveedor('No pudimos confirmar el pago. Verifica el estado antes de volver a pagar.')
     if accion is not None and (accion != 'cancel' or not order_id or metodo != 'POST'):
         raise ErrorProveedor('Operación no admitida.')
     headers = {'Authorization': f'Bearer {settings.MERCADOPAGO_TEST_ACCESS_TOKEN}',
@@ -78,7 +78,7 @@ def solicitud(metodo, *, order_id=None, body=None, params=None, clave=None, acci
         if response.status_code not in (200, 201):
             # No devolver cuerpos del proveedor: pueden contener datos privados.
             if response.status_code in (401, 403):
-                raise ServicioNoDisponible('Revisa las credenciales y permisos de Mercado Pago de prueba en el servidor.')
+                raise ServicioNoDisponible('El pago en línea no está disponible por ahora. Inténtalo más tarde.')
             if metodo == 'POST' and response.status_code in (400, 422):
                 raise SolicitudRechazada()
             raise ErrorProveedor()
@@ -99,14 +99,14 @@ def contexto(usuario, pedido_id, *, iniciar=False):
     if quote is None:
         raise ValidationError('Primero acepta el precio final de todos los puestos.')
     if pedido.metodo_pago != 'yape':
-        raise ValidationError('Este piloto se abre desde los pedidos con pago Yape.')
+        raise ValidationError('Este pedido no se paga en línea.')
     if iniciar:
         if pedido.estado not in ('en_preparacion', 'listo_para_recojo'):
-            raise ValidationError('El pedido ya no admite un checkout de prueba.')
+            raise ValidationError('Este pedido ya no se puede pagar en línea.')
         if Pago.objects.filter(pedido_id=pedido.pk, estado__in=['aprobado', 'procesando']).exists():
             raise ValidationError('El pedido ya tiene un pago interno aprobado o en proceso.')
         if quote.aceptado_en is None or timezone.now() - quote.aceptado_en > timezone.timedelta(hours=24):
-            raise ValidationError('La cotización supera las 24 horas permitidas para iniciar esta prueba.')
+            raise ValidationError('El precio final venció (24 horas). Pide a tus caseros que lo confirmen de nuevo.')
     total = quote_total(quote)
     if total <= 0:
         raise ValidationError('El precio final debe ser positivo.')
@@ -134,10 +134,10 @@ def validar_order(data, reference, total):
             or str(data.get('user_id')) != settings.MERCADOPAGO_TEST_USER_ID
             or data.get('external_reference') != reference
             or not amount.is_finite() or amount != total):
-        raise ErrorProveedor('La order no coincide con el pedido, la cuenta peruana o el entorno de prueba.')
+        raise ErrorProveedor('No pudimos confirmar el pago. Verifica el estado antes de volver a pagar.')
     # Algunas respuestas incluyen estas señales; cualquier contradicción bloquea.
     if data.get('live_mode') is True or data.get('country_code', 'PER') != 'PER':
-        raise ErrorProveedor('Se bloqueó una respuesta ajena al entorno de prueba de Perú.')
+        raise ErrorProveedor('No pudimos confirmar el pago. Verifica el estado antes de volver a pagar.')
 
 
 def buscar_order(reference, total):
@@ -161,13 +161,13 @@ def buscar_order(reference, total):
     if not orders:
         return None
     if len(orders) != 1:
-        raise ErrorProveedor('Hay varias orders para la misma prueba. Revisa el panel de Mercado Pago.')
+        raise ErrorProveedor('Hay más de un intento de pago. Pide ayuda en Soporte antes de volver a pagar.')
     row = orders[0]
     if not isinstance(row, dict):
         raise ErrorProveedor()
     if (not TEST_ID.fullmatch(str(row.get('id', '')))
             or row.get('external_reference') != reference):
-        raise ErrorProveedor('La búsqueda devolvió una order ajena a esta prueba.')
+        raise ErrorProveedor('No pudimos confirmar el pago. Verifica el estado antes de volver a pagar.')
     # El resultado de búsqueda puede omitir checkout_url y otros detalles.
     actual = solicitud('GET', order_id=row['id'])
     validar_order(actual, reference, total)
@@ -245,7 +245,7 @@ def registrar_order(usuario, pedido_id, data):
             if pago:
                 otros = otros.exclude(pk=pago.pk)
             if otros.exists():
-                raise ValidationError('Existe otro pago aprobado o en proceso. Revisa la conciliación antes de continuar.')
+                raise ValidationError('Ya hay otro pago aprobado o en proceso. Revisa el estado antes de continuar.')
             estado = 'pendiente'
             if verificado['aprobado_en_proveedor']:
                 estado = 'aprobado'
@@ -268,7 +268,7 @@ def registrar_order(usuario, pedido_id, data):
                 pago.save(update_fields=['estado', 'confirmado_en'])
             return respuesta_pedido(data, total, pedido)
     except IntegrityError as exc:
-        raise ValidationError('La operación ya tiene un registro de pago. Actualiza para comprobar su estado.') from exc
+        raise ValidationError('Este pago ya está registrado. Actualiza para ver su estado.') from exc
 
 
 def confirmar_pago(usuario, pedido_id):
@@ -295,7 +295,7 @@ def validar_url_checkout(url, order_id):
     except (ValueError, TypeError):
         valido = False
     if not valido:
-        raise ErrorProveedor('La dirección del checkout de prueba no es válida.')
+        raise ErrorProveedor('No pudimos abrir la página de pago. Inténtalo de nuevo.')
     return url
 
 
@@ -313,7 +313,7 @@ def crear_checkout(usuario, pedido_id):
         if retorno:
             parsed = urlsplit(retorno)
             if parsed.scheme != 'https' or not parsed.netloc or parsed.username or parsed.password:
-                raise ServicioNoDisponible('La URL de retorno debe ser una dirección HTTPS válida.')
+                raise ServicioNoDisponible('El pago en línea no está disponible por ahora. Inténtalo más tarde.')
             body['config'] = {'online': {'success_url': retorno, 'failure_url': retorno, 'pending_url': retorno}}
         data = solicitud('POST', body=body, clave=str(uuid5(NAMESPACE_URL, reference)))
         validar_order(data, reference, total)

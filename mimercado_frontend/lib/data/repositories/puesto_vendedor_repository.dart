@@ -117,7 +117,7 @@ class PuestoVendedorApiRepository {
       );
     } on FormatException {
       throw PuestoVendedorException(
-        tr('El servidor devolvió datos inválidos.'),
+        tr('Algo salió mal al leer los datos. Inténtalo de nuevo.'),
       );
     } catch (_) {
       throw PuestoVendedorException(
@@ -154,7 +154,7 @@ class PuestoVendedorApiRepository {
       return puesto;
     } on FormatException {
       throw PuestoVendedorException(
-        tr('El servidor devolvió datos inválidos.'),
+        tr('Algo salió mal al leer los datos. Inténtalo de nuevo.'),
       );
     }
   }

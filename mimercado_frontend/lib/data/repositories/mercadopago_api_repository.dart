@@ -96,7 +96,7 @@ class MercadoPagoApiRepository {
         orderId.length != 1 ||
         !RegExp(r'^ORDTST[A-Z0-9]{10,80}$').hasMatch(orderId.single)) {
       throw PedidoException(
-        tr('No recibimos un enlace válido de Mercado Pago de prueba.'),
+        tr('No pudimos abrir la página de pago. Inténtalo de nuevo.'),
       );
     }
     return uri;

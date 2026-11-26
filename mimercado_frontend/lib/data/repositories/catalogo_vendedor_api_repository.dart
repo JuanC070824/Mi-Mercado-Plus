@@ -23,7 +23,9 @@ class CatalogoVendedorApiRepository {
     final data = await _enviar('GET', '/api/vendedor/productos/');
     final lista = data['productos'];
     if (lista is! List) {
-      throw CatalogoException(tr('El servidor devolvió un catálogo inválido.'));
+      throw CatalogoException(
+        tr('Algo salió mal al leer los datos. Inténtalo de nuevo.'),
+      );
     }
     return [
       for (final item in lista)

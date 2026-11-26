@@ -29,7 +29,9 @@ class PedidosVendedorApiRepository {
   Future<List<Pedido>> pedidosDePuesto(int puestoId) async {
     final data = await _enviar('GET', '/api/vendedor/pedidos/');
     if (data is! List) {
-      throw PedidoException(tr('El servidor devolvió pedidos inválidos.'));
+      throw PedidoException(
+        tr('Algo salió mal al leer los datos. Inténtalo de nuevo.'),
+      );
     }
     return [
       for (final raw in data)

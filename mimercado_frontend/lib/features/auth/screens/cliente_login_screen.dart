@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/config/api_config.dart';
@@ -46,6 +48,7 @@ class _ClienteLoginScreenState extends State<ClienteLoginScreen> {
   late final LoginRepository _repo;
 
   bool _cargando = false;
+  bool _demora = false; // la espera supera unos segundos: el servidor despierta
   String? _error;
 
   @override
@@ -81,13 +84,20 @@ class _ClienteLoginScreenState extends State<ClienteLoginScreen> {
     }
 
     setState(() => _cargando = true);
+    final aviso = Timer(const Duration(seconds: 4), () {
+      if (mounted && _cargando) setState(() => _demora = true);
+    });
     final r = await _repo.iniciarSesion(
       celular: _celular.text.trim(),
       password: _password.text,
       rol: widget.rol,
     );
+    aviso.cancel();
     if (!mounted) return;
-    setState(() => _cargando = false);
+    setState(() {
+      _cargando = false;
+      _demora = false;
+    });
 
     if (r.exito) {
       context.go(
@@ -172,6 +182,22 @@ class _ClienteLoginScreenState extends State<ClienteLoginScreen> {
                             cargando: _cargando,
                             onPressed: _ingresar,
                           ),
+                          if (_demora) ...[
+                            const SizedBox(height: 12),
+                            Semantics(
+                              liveRegion: true,
+                              child: Text(
+                                tr(
+                                  'Conectando con el servidor… La primera vez del día puede tardar hasta un minuto.',
+                                ),
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  fontSize: 17,
+                                  color: AppColors.textoSecundario,
+                                ),
+                              ),
+                            ),
+                          ],
                           if (ClienteLoginScreen.registroPorRol[widget.rol]
                               case final registro?) ...[
                             const SizedBox(height: 24),

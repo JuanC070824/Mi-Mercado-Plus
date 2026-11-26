@@ -233,7 +233,7 @@ class VendedorInicioApiRepository {
       return _mapaValor(jsonDecode(response.body));
     } on FormatException {
       throw VendedorInicioException(
-        tr('El servidor devolvió datos inválidos.'),
+        tr('Algo salió mal al leer los datos. Inténtalo de nuevo.'),
       );
     }
   }
