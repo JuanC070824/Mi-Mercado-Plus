@@ -243,56 +243,71 @@ class _GrupoPuesto extends StatelessWidget {
           ),
           const Divider(color: AppColors.divisor, height: 24),
           for (final it in grupo.items) ...[
-            Row(
-              children: [
-                Expanded(
-                  child: MergeSemantics(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          it.producto.nombre,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        Text(
-                          soles(it.subtotal),
-                          style: const TextStyle(
-                            fontSize: 16,
-                            color: AppColors.textoSecundario,
-                          ),
-                        ),
-                      ],
+            MergeSemantics(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      it.producto.nombre,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
-                ),
-                IconButton(
-                  tooltip: tr('Quitar {0}', [it.producto.nombre]),
-                  constraints: const BoxConstraints(
-                    minWidth: 48,
-                    minHeight: 48,
+                  Text(
+                    soles(it.subtotal),
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textoSecundario,
+                    ),
                   ),
-                  onPressed: habilitado ? () => onQuitar(it) : null,
-                  icon: const Icon(
-                    Icons.delete_outline,
-                    color: AppColors.error,
+                ],
+              ),
+            ),
+            const SizedBox(height: 6),
+            // Cantidad y «Quitar» en la misma fila: el botón de borrar queda
+            // grande y junto al producto, no como un ícono en la esquina.
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 12,
+              runSpacing: 8,
+              children: [
+                ControlCantidad(
+                  cantidad: it.cantidad,
+                  unidad: it.producto.unidad,
+                  nombre: it.producto.nombre,
+                  onRestar: habilitado ? () => onRestar(it) : null,
+                  onSumar: habilitado ? () => onSumar(it) : null,
+                ),
+                Semantics(
+                  button: true,
+                  label: tr('Quitar {0} de la canasta', [it.producto.nombre]),
+                  excludeSemantics: true,
+                  child: OutlinedButton.icon(
+                    onPressed: habilitado ? () => onQuitar(it) : null,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.error,
+                      side: const BorderSide(color: AppColors.error, width: 2),
+                      minimumSize: const Size(120, 52),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      shape: const StadiumBorder(),
+                    ),
+                    icon: const Icon(Icons.delete_outline, size: 26),
+                    label: Text(
+                      tr('Quitar'),
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ),
               ],
             ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: ControlCantidad(
-                cantidad: it.cantidad,
-                unidad: it.producto.unidad,
-                nombre: it.producto.nombre,
-                onRestar: habilitado ? () => onRestar(it) : null,
-                onSumar: habilitado ? () => onSumar(it) : null,
-              ),
-            ),
-            const SizedBox(height: 12),
+            const Divider(color: AppColors.divisor, height: 24),
           ],
           // C3b · Lista de mandado
           TarjetaApp(
@@ -352,7 +367,7 @@ class _GrupoPuesto extends StatelessWidget {
             style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
             icon: const Icon(Icons.add),
             label: Text(
-              tr('Agregar o cambiar en este puesto'),
+              tr('Agregar más productos'),
               style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
             ),
           ),

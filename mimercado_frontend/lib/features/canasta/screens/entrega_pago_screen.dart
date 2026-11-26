@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/formato.dart';
 import '../../../core/widgets/botones_app.dart';
 import '../../../core/widgets/componentes_app.dart';
 import '../../../core/widgets/encabezado_simple.dart';
@@ -227,9 +228,30 @@ class _EntregaPagoScreenState extends State<EntregaPagoScreen> {
         const SizedBox(height: 8),
         TarjetaApp(
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              for (final g in c.grupos)
+              // A quién le compras y qué, para revisar antes de confirmar.
+              for (final g in c.grupos) ...[
                 FilaMonto(etiqueta: g.puesto.nombre, monto: g.subtotal),
+                if (g.puesto.casero.trim().isNotEmpty)
+                  Text(
+                    tr('Casero: {0}', [g.puesto.casero]),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: AppColors.textoSecundario,
+                    ),
+                  ),
+                for (final it in g.items)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 12, top: 4),
+                    child: Text(
+                      '• ${it.producto.nombre} · '
+                      '${cantidadConUnidad(it.cantidad, it.producto.unidad)}',
+                      style: const TextStyle(fontSize: 17),
+                    ),
+                  ),
+                const Divider(color: AppColors.divisor, height: 20),
+              ],
               FilaMonto(etiqueta: tr('Envío'), monto: c.envio),
               const Divider(color: AppColors.divisor),
               FilaMonto(

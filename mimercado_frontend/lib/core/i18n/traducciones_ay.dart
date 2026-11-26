@@ -1183,4 +1183,23 @@ const traduccionesAy = <String, String>{
   'Pago confirmado con Mercado Pago.': 'Mercado Pago tuqi pago chiqanchata.',
   'El cliente paga con Plin al recibir. Confirma el cobro en la entrega.':
       'Alasirix katuqasaw Plin tuqi pagani. Puriyasax cobrat chiqancham.',
+  // Correcciones de usabilidad (canasta y detalle antes de pagar).
+  'Quitar':
+      'Apsuña',
+  'Quitar {0} de la canasta':
+      '{0} canastat apsuña',
+  'Agregar más productos':
+      'Juk’amp aljañanak yapxataña',
+  'Revisa tu pedido':
+      'Mayiwim uñakipam',
+  'Total a pagar: {0}':
+      'Taqpach pagañataki: {0}',
+  'Total a pagar':
+      'Taqpach pagañataki',
+  'Llega a: {0}':
+      'Purini: {0}',
+  'Lista de mandado: {0}':
+      'Mayiw lista: {0}',
+  'Subtotal':
+      'Jisk’a taqpacha',
 };
